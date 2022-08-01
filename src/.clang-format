@@ -1,0 +1,7 @@
+BasedOnStyle: Webkit
+Language: Cpp
+Standard: Cpp11
+
+UseTab: Never
+IndentWidth: 4
+PointerAlignment: Left
