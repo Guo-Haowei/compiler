@@ -1,2 +1,2 @@
 #!/bin/bash
-rm *.s *.exe
+rm *.exe
