@@ -4,17 +4,17 @@
 
 #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 
-struct ListNode {
+typedef struct ListNode {
     struct ListNode* prev;
     struct ListNode* next;
     // char[N] to store value
-};
+} ListNode;
 
-struct List {
+typedef struct List {
     struct ListNode* front;
     struct ListNode* back;
     uint32_t len;
-};
+} List;
 
 struct List* list_new();
 void list_delete(struct List* plist);
@@ -38,6 +38,6 @@ void _list_push_back(struct List* list, void* data, size_t size);
 void list_pop_front(struct List* list);
 void list_pop_back(struct List* list);
 
-void list_print(struct List *list, void (*fptr)(void *));
+void list_print(struct List* list, void (*fptr)(void*));
 
 #endif
