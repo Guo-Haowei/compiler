@@ -6,43 +6,61 @@
 #include <stdlib.h>
 #include <string.h>
 
-// @TODO: refactor
-void error_at(const Lexer* lexer, char const* const fmt, ...)
+static void verror_at(char const* file, char const* source, int sourceLen, int line, int col, int span, char const* const fmt, va_list args)
 {
-    const char* file = lexer->file ? lexer->file : "<unknown>";
-    const int line = lexer->line;
-    const int col = lexer->col;
-
-    // printf("line %d, col: %d, offset: %d, char: '%c'\n", line, col, (int)(lexer->p - lexer->source), *lexer->p);
-
     printf("%s:%d:%d: error: ", file, line, col);
-
-    va_list args;
-    va_start(args, fmt);
     vprintf(fmt, args);
-    va_end(args);
     printf("\n");
 
     // print line
-    const char* lineStart = lexer->source;
+    char const* lineStart = source;
     for (int curLine = 1; curLine < line; ++curLine) {
         lineStart = strchr(lineStart, '\n');
         assert(lineStart);
         ++lineStart;
     }
 
-    const char* lineEnd = lineStart;
+    char const* lineEnd = lineStart;
     if ((lineEnd = strchr(lineEnd, '\n')) == nullptr) {
-        lineEnd = lexer->source + lexer->sourceLen;
+        lineEnd = source + sourceLen;
     }
 
-    const int lineLen = lineEnd - lineStart;
+    int const lineLen = lineEnd - lineStart;
     printf("%5d | %.*s\n", line, lineLen, lineStart);
 
     // print underscore
-    printf("      |%*c^\n", col, ' ');
+    printf("      |%*c%*c\n", col, ' ', span, '^');
 
     exit(-1);
+}
+
+void error_at_lexer(Lexer const* lexer, char const* const fmt, ...)
+{
+    char const* file = lexer->sourceInfo->file;
+    char const* source = lexer->sourceInfo->start;
+    int const sourceLen = lexer->sourceInfo->len;
+    int const line = lexer->line;
+    int const col = lexer->col;
+
+    va_list args;
+    va_start(args, fmt);
+    verror_at(file, source, sourceLen, line, col, 1, fmt, args);
+    va_end(args);
+}
+
+void error_at_token(Token const* tok, char const* const fmt, ...)
+{
+    char const* file = tok->sourceInfo->file;
+    char const* source = tok->sourceInfo->start;
+    int const sourceLen = tok->sourceInfo->len;
+    int const line = tok->line;
+    int const col = tok->col;
+    int const span = tok->len;
+
+    va_list args;
+    va_start(args, fmt);
+    verror_at(file, source, sourceLen, line, col, span, fmt, args);
+    va_end(args);
 }
 
 char const* token_kind_to_string(TokenKind eTokenKind)
@@ -106,15 +124,21 @@ static char const* node_kind_to_symbol(NodeKind eNodeKind)
     return "";
 }
 
-void debug_print_token(Token const* token)
+void debug_print_token(Token const* tok)
 {
-    fprintf(stderr, "<%s> '%.*s'(%d:%d)\n", token_kind_to_string(token->eTokenKind), token->len, token->start, token->line, token->col);
+    fprintf(stderr, "%s:%d:%d:[%s] '%.*s'\n",
+        tok->sourceInfo->file,
+        tok->line,
+        tok->col,
+        token_kind_to_string(tok->eTokenKind),
+        tok->len,
+        tok->start);
 }
 
-void debug_print_tokens(List const* tokens)
+void debug_print_tokens(List const* toks)
 {
     fprintf(stderr, "*** tokens ***\n");
-    for (ListNode const* n = tokens->front; n; n = n->next) {
+    for (ListNode const* n = toks->front; n; n = n->next) {
         debug_print_token((Token const*)(n + 1));
     }
 }

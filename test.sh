@@ -1,4 +1,6 @@
 #!/bin/bash
+sh build.sh
+
 assert() {
   expected="$1"
   input="$2"

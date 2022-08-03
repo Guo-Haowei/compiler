@@ -11,9 +11,16 @@ int token_as_int(Token const* token)
     return atoi(token->start);
 }
 
-static Node* make_num(int val)
+static Node* make_node(NodeKind eNodeKind)
 {
     Node* node = calloc(1, sizeof(Node));
+    node->eNodeKind = eNodeKind;
+    return node;
+}
+
+static Node* make_num(int val)
+{
+    Node* node = make_node(ND_NUM);
     node->eNodeKind = ND_NUM;
     node->val = val;
     return node;
@@ -21,8 +28,7 @@ static Node* make_num(int val)
 
 static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
 {
-    Node* node = calloc(1, sizeof(Node));
-    node->eNodeKind = eNodeKind;
+    Node* node = make_node(eNodeKind);
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
@@ -53,14 +59,13 @@ static bool tok_equal_then_consume(ListNode** pTokens, const char* expect)
     return false;
 }
 
-static void tok_expect(ListNode** pTokens, const char* expect)
+static void tok_expect(ListNode** pTokens, char const* expect)
 {
     assert(pTokens && *pTokens);
     Token const* token = (Token const*)(*pTokens + 1);
-    if (strncmp(token->start, expect, token->len) != 0) {
-        // TODO: better error
-        printf("Expect '%s'", expect);
-        exit(1);
+    int const expectLen = strlen(expect);
+    if (expectLen != token->len || (strncmp(token->start, expect, token->len) != 0)) {
+        error_at_token(token, "expected '%s'", expect);
     }
 
     *pTokens = (*pTokens)->next;
@@ -84,9 +89,8 @@ static Node* parse_primary(ListNode** pTokens)
         return node;
     }
 
-    // TODO: better error
-    printf("Expect an expression");
-    exit(1);
+    error_at_token(token, "expected expression");
+    return nullptr;
 }
 
 // mul = primary ("*" primary | "/" primary)*

@@ -5,20 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool is_decimal(char const c)
-{
-    return '0' <= c && c <= '9';
-}
+static bool is_decimal(char const c) { return '0' <= c && c <= '9'; }
 
 static char lexer_peek(Lexer* lexer)
 {
-    assert(lexer->p < (lexer->source + lexer->sourceLen));
+    assert(lexer->p <= lexer->sourceInfo->end);
     return *lexer->p;
 }
 
 static char lexer_read(Lexer* lexer)
 {
-    assert(lexer->p < (lexer->source + lexer->sourceLen));
+    assert(lexer->p <= lexer->sourceInfo->end);
     char c = *lexer->p++;
     if (c == '\n') {
         ++lexer->line;
@@ -29,70 +26,62 @@ static char lexer_read(Lexer* lexer)
     return c;
 }
 
+static void lexer_fill_tok(Lexer const* lexer, Token* tok)
+{
+    tok->line = lexer->line;
+    tok->col = lexer->col;
+    tok->start = lexer->p;
+    tok->sourceInfo = lexer->sourceInfo;
+}
+
 static void add_decimal_number(Lexer* lexer, List* list)
 {
-    Token token;
-    {
-        token.eTokenKind = TK_NUM;
-        token.line = lexer->line;
-        token.col = lexer->col;
-        token.start = lexer->p;
-    }
+    Token tok;
+    tok.eTokenKind = TK_NUM;
+    lexer_fill_tok(lexer, &tok);
 
     while (is_decimal(lexer_peek(lexer))) {
         lexer_read(lexer);
     }
 
-    token.end = lexer->p;
-    token.len = token.end - token.start;
+    tok.end = lexer->p;
+    tok.len = tok.end - tok.start;
 
-    list_push_back(list, token);
+    list_push_back(list, tok);
 }
 
 static void add_one_char_punct(Lexer* lexer, List* list)
 {
-    Token token;
-    {
-        token.eTokenKind = TK_PUNCT;
-        token.line = lexer->line;
-        token.col = lexer->col;
-        token.start = lexer->p;
-    }
+    Token tok;
+    tok.eTokenKind = TK_PUNCT;
+    lexer_fill_tok(lexer, &tok);
 
     lexer_read(lexer);
-    token.end = lexer->p;
-    token.len = 1;
+    tok.end = lexer->p;
+    tok.len = 1;
 
-    list_push_back(list, token);
+    list_push_back(list, tok);
 }
 
 static void add_eof(Lexer* lexer, List* list)
 {
-    Token token;
-    {
-        token.eTokenKind = TK_EOF;
-        token.line = lexer->line;
-        token.col = lexer->col;
-        token.start = lexer->p;
-        token.end = lexer->p;
-        token.len = 0;
-    }
+    Token tok;
+    tok.eTokenKind = TK_EOF;
+    lexer_fill_tok(lexer, &tok);
+    tok.end = lexer->p;
+    tok.len = 0;
 
-    list_push_back(list, token);
+    list_push_back(list, tok);
 }
 
-List* lex(const char* source)
+List* lex(SourceInfo const* sourceInfo)
 {
-    List* tokens = list_new();
+    List* toks = list_new();
     Lexer lexer;
-    {
-        lexer.file = nullptr;
-        lexer.source = source;
-        lexer.sourceLen = strlen(source) + 1;
-        lexer.p = source;
-        lexer.line = 1;
-        lexer.col = 1;
-    }
+    lexer.sourceInfo = sourceInfo;
+    lexer.p = sourceInfo->start;
+    lexer.line = 1;
+    lexer.col = 1;
 
     int c = 0;
     while ((c = lexer_peek(&lexer))) {
@@ -139,7 +128,7 @@ List* lex(const char* source)
 
         // decimal number
         if (is_decimal(c)) {
-            add_decimal_number(&lexer, tokens);
+            add_decimal_number(&lexer, toks);
             continue;
         }
 
@@ -157,15 +146,16 @@ List* lex(const char* source)
         // one char punct
         if (strchr("+-*/%()", c) != nullptr) {
             // if (strchr("#+-*/%><=&|!?~^()[]{},.:;\\", c) != NULL) {
-            add_one_char_punct(&lexer, tokens);
+            add_one_char_punct(&lexer, toks);
             continue;
         }
 
-        error_at(&lexer, "stray '%c' in program", c);
+        error_at_lexer(&lexer, "stray '%c' in program", c);
     }
 
-    add_eof(&lexer, tokens);
-    return tokens;
+    add_eof(&lexer, toks);
+
+    return toks;
 }
 
 #if 0
