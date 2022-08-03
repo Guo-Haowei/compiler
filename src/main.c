@@ -5,21 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static void error(char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
 static int expect_number(ListNode* tokenNode)
 {
     assert(tokenNode);
     const Token* token = (Token*)(tokenNode + 1);
     if (token->eKind != TK_NUM) {
-        error("expect a number");
+        // @TODO:
+        // error("expect a number");
     }
 
     char buffer[256];
@@ -48,7 +40,7 @@ int main(int argc, char** argv)
     printf("main:\n");
 
     ListNode* cursor = tokens->front;
-    printf("  mov $%ld, %%rax\n", expect_number(cursor));
+    printf("  mov $%d, %%rax\n", expect_number(cursor));
     cursor = cursor->next;
 
     for (;; cursor = cursor->next) {
@@ -59,13 +51,13 @@ int main(int argc, char** argv)
 
         if (*token->start == '+') {
             cursor = cursor->next;
-            printf("  add $%ld, %%rax\n", expect_number(cursor));
+            printf("  add $%d, %%rax\n", expect_number(cursor));
             continue;
         }
 
         if (*token->start == '-') {
             cursor = cursor->next;
-            printf("  sub $%ld, %%rax\n", expect_number(cursor));
+            printf("  sub $%d, %%rax\n", expect_number(cursor));
             continue;
         }
 

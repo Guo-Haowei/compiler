@@ -13,7 +13,7 @@ typedef struct ListNode {
 typedef struct List {
     struct ListNode* front;
     struct ListNode* back;
-    uint32_t len;
+    int len;
 } List;
 
 struct List* list_new();

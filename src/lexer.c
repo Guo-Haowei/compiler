@@ -1,17 +1,57 @@
 #include "lexer.h"
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef struct Lexer {
+    const char* file;
     const char* source;
     int sourceLen;
     const char* p;
     int line;
     int col;
 } Lexer;
+
+static void error_at(const Lexer* lexer, char const* const fmt, ...)
+{
+    const char* file = lexer->file ? lexer->file : "<unknown>";
+    const int line = lexer->line;
+    const int col = lexer->col;
+
+    // printf("line %d, col: %d, offset: %d, char: '%c'\n", line, col, (int)(lexer->p - lexer->source), *lexer->p);
+
+    printf("%s:%d:%d: error: ", file, line, col);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    printf("\n");
+
+    // print line
+    const char* lineStart = lexer->source;
+    for (int curLine = 1; curLine < line; ++curLine) {
+        lineStart = strchr(lineStart, '\n');
+        assert(lineStart);
+        ++lineStart;
+    }
+
+    const char* lineEnd = lineStart;
+    if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
+        lineEnd = lexer->source + lexer->sourceLen;
+    }
+
+    const int lineLen = lineEnd - lineStart;
+    printf("%5d | %.*s\n", line, lineLen, lineStart);
+
+    // print underscore
+    printf("      |%*c^\n", col, ' ');
+
+    exit(-1);
+}
 
 static int is_decimal(char const c)
 {
@@ -94,6 +134,7 @@ List* lex(const char* source)
     List* tokens = list_new();
     Lexer lexer;
     {
+        lexer.file = NULL;
         lexer.source = source;
         lexer.sourceLen = strlen(source) + 1;
         lexer.p = source;
@@ -102,7 +143,7 @@ List* lex(const char* source)
     }
 
     int c = 0;
-    while (c = lexer_peek(&lexer)) {
+    while ((c = lexer_peek(&lexer))) {
         // one line comment
         // if (strncmp(loc->p, "//", 2) == 0) {
         //     skipline();
@@ -167,9 +208,7 @@ List* lex(const char* source)
             continue;
         }
 
-        // invalid, can be SHADOWED
-        printf("stray '%c' in program\n", c);
-        exit(-1);
+        error_at(&lexer, "stray '%c' in program", c);
     }
 
     add_eof(&lexer, tokens);
