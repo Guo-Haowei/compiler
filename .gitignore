@@ -7,4 +7,5 @@
 *.out
 *.s
 *.asm
+tmp.*
 dummy.c

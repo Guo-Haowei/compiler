@@ -3,7 +3,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./mini-c "$input" > tmp.s || exit
+  ./minic "$input" > tmp.s || exit
   gcc -static -o tmp tmp.s || exit
   ./tmp
   actual="$?"
@@ -19,6 +19,11 @@ assert() {
 assert 0 0
 assert 42 42
 assert 21 '5+20-4'
-assert 20 '  5 +5    +5+    5'
+assert 41 '12+ 34 - 5'
+assert 47 '5 + 6 * 7'
+assert 77 '(5 + 6) * 7'
+assert 15 '5 * (9 - 6)'
+assert 4 '(3 + 5) / 2'
+assert 11 '(1+2)*3+6/2-1'
 
 echo OK

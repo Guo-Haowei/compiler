@@ -1,22 +1,71 @@
-#include "lexer.h"
+#include "minic.h"
 
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-static int expect_number(ListNode* tokenNode)
+#ifdef _DEBUG
+#undef _DEBUG
+#endif
+
+#ifdef _DEBUG
+#define DEBUG_ONLY(x) x
+#else
+#define DEBUG_ONLY(x) ((void)0)
+#endif
+
+// @TODO: refactor
+//
+// Code generator
+//
+
+static int depth;
+
+static void push(void)
 {
-    assert(tokenNode);
-    const Token* token = (Token*)(tokenNode + 1);
-    if (token->eKind != TK_NUM) {
-        // @TODO:
-        // error("expect a number");
+    printf("  push %%rax\n");
+    depth++;
+}
+
+static void pop(char* arg)
+{
+    printf("  pop %s\n", arg);
+    depth--;
+}
+
+static void gen_expr(Node* node)
+{
+    if (node->eNodeKind == ND_NUM) {
+        printf("  mov $%d, %%rax\n", node->val);
+        return;
     }
 
-    char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%.*s", token->len, token->start);
-    return atoi(buffer);
+    gen_expr(node->rhs);
+    push();
+    gen_expr(node->lhs);
+    pop("%rdi");
+
+    switch (node->eNodeKind) {
+    case ND_ADD:
+        printf("  add %%rdi, %%rax\n");
+        return;
+    case ND_SUB:
+        printf("  sub %%rdi, %%rax\n");
+        return;
+    case ND_MUL:
+        printf("  imul %%rdi, %%rax\n");
+        return;
+    case ND_DIV:
+        printf("  cqo\n");
+        printf("  idiv %%rdi\n");
+        return;
+    default:
+        break;
+    }
+
+    // @TODO: better error
+    assert(0 && "invalid expression");
 }
 
 int main(int argc, char** argv)
@@ -27,42 +76,16 @@ int main(int argc, char** argv)
     }
 
     List* tokens = lex(argv[1]);
+    DEBUG_ONLY(debug_print_tokens(tokens));
 
-#if 0
-    for (ListNode* n = tokens->front; n; n = n->next) {
-        Token* token = (Token*)(n + 1);
-        fprintf(stderr, "<%s> '%.*s'\n", tokenkind_to_string(token->eKind), token->len, token->start);
-    }
-#endif
+    Node* node = parse(tokens);
+    DEBUG_ONLY(debug_print_node(node));
 
     printf("  .text\n");
     printf("  .globl main\n");
     printf("main:\n");
 
-    ListNode* cursor = tokens->front;
-    printf("  mov $%d, %%rax\n", expect_number(cursor));
-    cursor = cursor->next;
-
-    for (;; cursor = cursor->next) {
-        const Token* token = (Token*)(cursor + 1);
-        if (token->eKind == TK_EOF) {
-            break;
-        }
-
-        if (*token->start == '+') {
-            cursor = cursor->next;
-            printf("  add $%d, %%rax\n", expect_number(cursor));
-            continue;
-        }
-
-        if (*token->start == '-') {
-            cursor = cursor->next;
-            printf("  sub $%d, %%rax\n", expect_number(cursor));
-            continue;
-        }
-
-        return 1;
-    }
+    gen_expr(node);
 
     printf("  ret\n");
 

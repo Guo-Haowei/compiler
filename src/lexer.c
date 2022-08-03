@@ -1,59 +1,11 @@
-#include "lexer.h"
+#include "minic.h"
 
 #include <assert.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Lexer {
-    const char* file;
-    const char* source;
-    int sourceLen;
-    const char* p;
-    int line;
-    int col;
-} Lexer;
-
-static void error_at(const Lexer* lexer, char const* const fmt, ...)
-{
-    const char* file = lexer->file ? lexer->file : "<unknown>";
-    const int line = lexer->line;
-    const int col = lexer->col;
-
-    // printf("line %d, col: %d, offset: %d, char: '%c'\n", line, col, (int)(lexer->p - lexer->source), *lexer->p);
-
-    printf("%s:%d:%d: error: ", file, line, col);
-
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    printf("\n");
-
-    // print line
-    const char* lineStart = lexer->source;
-    for (int curLine = 1; curLine < line; ++curLine) {
-        lineStart = strchr(lineStart, '\n');
-        assert(lineStart);
-        ++lineStart;
-    }
-
-    const char* lineEnd = lineStart;
-    if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
-        lineEnd = lexer->source + lexer->sourceLen;
-    }
-
-    const int lineLen = lineEnd - lineStart;
-    printf("%5d | %.*s\n", line, lineLen, lineStart);
-
-    // print underscore
-    printf("      |%*c^\n", col, ' ');
-
-    exit(-1);
-}
-
-static int is_decimal(char const c)
+static bool is_decimal(char const c)
 {
     return '0' <= c && c <= '9';
 }
@@ -81,7 +33,7 @@ static void add_decimal_number(Lexer* lexer, List* list)
 {
     Token token;
     {
-        token.eKind = TK_NUM;
+        token.eTokenKind = TK_NUM;
         token.line = lexer->line;
         token.col = lexer->col;
         token.start = lexer->p;
@@ -101,7 +53,7 @@ static void add_one_char_punct(Lexer* lexer, List* list)
 {
     Token token;
     {
-        token.eKind = TK_PUNCT;
+        token.eTokenKind = TK_PUNCT;
         token.line = lexer->line;
         token.col = lexer->col;
         token.start = lexer->p;
@@ -118,7 +70,7 @@ static void add_eof(Lexer* lexer, List* list)
 {
     Token token;
     {
-        token.eKind = TK_EOF;
+        token.eTokenKind = TK_EOF;
         token.line = lexer->line;
         token.col = lexer->col;
         token.start = lexer->p;
@@ -134,7 +86,7 @@ List* lex(const char* source)
     List* tokens = list_new();
     Lexer lexer;
     {
-        lexer.file = NULL;
+        lexer.file = nullptr;
         lexer.source = source;
         lexer.sourceLen = strlen(source) + 1;
         lexer.p = source;
@@ -162,7 +114,7 @@ List* lex(const char* source)
         // }
 
         // whitespace
-        if (strchr(" \n\t\r", c) != NULL) {
+        if (strchr(" \n\t\r", c) != nullptr) {
             lexer_read(&lexer);
             continue;
         }
@@ -203,7 +155,8 @@ List* lex(const char* source)
         // }
 
         // one char punct
-        if (strchr("#+-*/%><=&|!?~^()[]{},.:;\\", c) != NULL) {
+        if (strchr("+-*/%()", c) != nullptr) {
+            // if (strchr("#+-*/%><=&|!?~^()[]{},.:;\\", c) != NULL) {
             add_one_char_punct(&lexer, tokens);
             continue;
         }
@@ -213,21 +166,6 @@ List* lex(const char* source)
 
     add_eof(&lexer, tokens);
     return tokens;
-}
-
-const char* tokenkind_to_string(TokenKind eKind)
-{
-    switch (eKind) {
-    case TK_PUNCT:
-        return "punct";
-    case TK_NUM:
-        return "number";
-    case TK_EOF:
-        return "eof";
-    default:
-        assert(0 && "not reachable");
-        return "";
-    }
 }
 
 #if 0
