@@ -1,6 +1,5 @@
 #include "minic.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +28,7 @@ static Node* make_num(int val)
 static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
 {
     Node* node = make_node(eNodeKind);
+    node->isBinary = true;
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
@@ -37,21 +37,22 @@ static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
 static Node* make_unary(NodeKind eNodeKind, Node* rhs)
 {
     Node* node = make_node(eNodeKind);
+    node->isUnary = true;
     node->rhs = rhs;
     return node;
 }
 
-static void tok_consume(ListNode** pTokens)
+static void tok_consume(ListNode** pToks)
 {
-    assert(pTokens && *pTokens);
-    *pTokens = (*pTokens)->next;
+    assert(pToks && *pToks);
+    *pToks = (*pToks)->next;
 }
 
-static bool tok_equal_then_consume(ListNode** pTokens, const char* expect)
+static bool tok_equal_then_consume(ListNode** pToks, const char* expect)
 {
-    assert(pTokens && *pTokens);
+    assert(pToks && *pToks);
 
-    Token const* token = (Token const*)(*pTokens + 1);
+    Token const* token = (Token const*)(*pToks + 1);
     int const expectLen = strlen(expect);
     if (expectLen != token->len) {
         return false;
@@ -59,82 +60,85 @@ static bool tok_equal_then_consume(ListNode** pTokens, const char* expect)
 
     bool const isEqual = strncmp(token->start, expect, expectLen) == 0;
     if (isEqual) {
-        *pTokens = (*pTokens)->next;
+        *pToks = (*pToks)->next;
         return true;
     }
 
     return false;
 }
 
-static void tok_expect(ListNode** pTokens, char const* expect)
+static void tok_expect(ListNode** pToks, char const* expect)
 {
-    assert(pTokens && *pTokens);
-    Token const* token = (Token const*)(*pTokens + 1);
+    assert(pToks && *pToks);
+    Token const* token = (Token const*)(*pToks + 1);
     int const expectLen = strlen(expect);
     if (expectLen != token->len || (strncmp(token->start, expect, token->len) != 0)) {
         error_at_token(token, "expected '%s'", expect);
     }
 
-    *pTokens = (*pTokens)->next;
+    *pToks = (*pToks)->next;
 }
 
-static Node* parse_primary(ListNode** pTokens);
-static Node* parse_unary(ListNode** pTokens);
-static Node* parse_add(ListNode** pTokens);
+static Node* parse_expr(ListNode** pToks);
+static Node* parse_equality(ListNode** pToks);
+static Node* parse_relational(ListNode** pToks);
+static Node* parse_add(ListNode** pToks);
+static Node* parse_unary(ListNode** pToks);
+static Node* parse_primary(ListNode** pToks);
 
 // primary = "(" expr ")" | num
-static Node* parse_primary(ListNode** pTokens)
+static Node* parse_primary(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pTokens, "(")) {
-        Node* node = parse_add(pTokens);
-        tok_expect(pTokens, ")"); // consume ')'
+    if (tok_equal_then_consume(pToks, "(")) {
+        Node* node = parse_add(pToks);
+        tok_expect(pToks, ")"); // consume ')'
         return node;
     }
 
-    Token const* token = (Token const*)(*pTokens + 1);
-    if (token->eTokenKind == TK_NUM) {
-        Node* node = make_num(token_as_int(token));
-        tok_consume(pTokens);
+    Token const* tok = (Token const*)(*pToks + 1);
+    if (tok->eTokenKind == TK_NUM) {
+        Node* node = make_num(token_as_int(tok));
+        tok_consume(pToks);
         return node;
     }
 
-    error_at_token(token, "expected expression");
+    error_at_token(tok, "expected expression, got '%.*s'", tok->len, tok->start);
     return nullptr;
 }
 
 // unary = ("+" | "-") unary
 //       | primary
-static Node* parse_unary(ListNode** pTokens)
+static Node* parse_unary(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pTokens, "+")) {
-        return parse_unary(pTokens);
+    if (tok_equal_then_consume(pToks, "+")) {
+        return parse_unary(pToks);
     }
 
-    if (tok_equal_then_consume(pTokens, "-")) {
-        return make_unary(ND_NEG, parse_unary(pTokens));
+    if (tok_equal_then_consume(pToks, "-")) {
+        return make_unary(ND_NEG, parse_unary(pToks));
     }
 
-    return parse_primary(pTokens);
+    return parse_primary(pToks);
 }
 
 // mul = unary ("*" unary | "/" unary)*
-static Node* parse_mul(ListNode** pTokens)
+static Node* parse_mul(ListNode** pToks)
 {
-    Node* node = parse_unary(pTokens);
+    Node* node = parse_unary(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pTokens, "*")) {
-            node = make_binary(ND_MUL, node, parse_unary(pTokens));
+        if (tok_equal_then_consume(pToks, "*")) {
+            node = make_binary(ND_MUL, node, parse_unary(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pTokens, "/")) {
-            node = make_binary(ND_DIV, node, parse_unary(pTokens));
+        if (tok_equal_then_consume(pToks, "/")) {
+            node = make_binary(ND_DIV, node, parse_unary(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pTokens, "%")) {
-            node = make_binary(ND_REM, node, parse_unary(pTokens));
+        if (tok_equal_then_consume(pToks, "%")) {
+            node = make_binary(ND_REM, node, parse_unary(pToks));
             continue;
         }
 
@@ -143,18 +147,18 @@ static Node* parse_mul(ListNode** pTokens)
 }
 
 // expr = mul ("+" mul | "-" mul)*
-static Node* parse_add(ListNode** pTokens)
+static Node* parse_add(ListNode** pToks)
 {
-    Node* node = parse_mul(pTokens);
+    Node* node = parse_mul(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pTokens, "+")) {
-            node = make_binary(ND_ADD, node, parse_mul(pTokens));
+        if (tok_equal_then_consume(pToks, "+")) {
+            node = make_binary(ND_ADD, node, parse_mul(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pTokens, "-")) {
-            node = make_binary(ND_SUB, node, parse_mul(pTokens));
+        if (tok_equal_then_consume(pToks, "-")) {
+            node = make_binary(ND_SUB, node, parse_mul(pToks));
             continue;
         }
 
@@ -162,8 +166,61 @@ static Node* parse_add(ListNode** pTokens)
     }
 }
 
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node *parse_relational(ListNode** pToks) {
+    Node *node = parse_add(pToks);
+
+    for (;;) {
+        if (tok_equal_then_consume(pToks, "<")) {
+            node = make_binary(ND_LT, node, parse_add(pToks));
+            continue;
+        }
+
+        if (tok_equal_then_consume(pToks, "<=")) {
+            node = make_binary(ND_LE, node, parse_add(pToks));
+            continue;
+        }
+
+        if (tok_equal_then_consume(pToks, ">")) {
+            node = make_binary(ND_GT, node, parse_add(pToks));
+            continue;
+        }
+
+        if (tok_equal_then_consume(pToks, ">=")) {
+            node = make_binary(ND_GE, node, parse_add(pToks));
+            continue;
+        }
+
+        return node;
+    }
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+static Node *parse_equality(ListNode** pToks) {
+    Node *node = parse_relational(pToks);
+
+    for (;;) {
+        if (tok_equal_then_consume(pToks, "==")) {
+            node = make_binary(ND_EQ, node, parse_relational(pToks));
+            continue;
+        }
+
+        if (tok_equal_then_consume(pToks, "!=")) {
+            node = make_binary(ND_NE, node, parse_relational(pToks));
+            continue;
+        }
+
+        return node;
+    }
+}
+
+static Node* parse_expr(ListNode** pToks)
+{
+    return parse_equality(pToks);
+}
+
 Node* parse(List* tokens)
 {
     ListNode* cursor = tokens->front;
-    return parse_add(&cursor);
+    return parse_expr(&cursor);
 }

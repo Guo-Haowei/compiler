@@ -1,11 +1,23 @@
 #include "minic.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static bool is_decimal(char const c) { return '0' <= c && c <= '9'; }
+static char const* const s_multi_char_puncts[] = {
+    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
+    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
+};
+
+static bool is_decimal(char const c)
+{
+    return '0' <= c && c <= '9';
+}
+
+static bool begin_with(char const* str, char const* prefix)
+{
+    return strncmp(str, prefix, strlen(prefix)) == 0;
+}
 
 static char lexer_peek(Lexer* lexer)
 {
@@ -24,6 +36,13 @@ static char lexer_read(Lexer* lexer)
         ++lexer->col;
     }
     return c;
+}
+
+static void lexer_shift(Lexer* lexer, int n)
+{
+    while (n-- > 0) {
+        lexer_read(lexer);
+    }
 }
 
 static void lexer_fill_tok(Lexer const* lexer, Token* tok)
@@ -61,6 +80,24 @@ static void add_one_char_punct(Lexer* lexer, List* list)
     tok.len = 1;
 
     list_push_back(list, tok);
+}
+
+static bool try_add_punct(Lexer* lexer, List* list)
+{
+    for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
+        if (begin_with(lexer->p, s_multi_char_puncts[i])) {
+            Token tok;
+            tok.eTokenKind = TK_PUNCT;
+            lexer_fill_tok(lexer, &tok);
+            tok.len = strlen(s_multi_char_puncts[i]);
+            tok.end = tok.start + tok.len;
+            lexer_shift(lexer, tok.len);
+            list_push_back(list, tok);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void add_eof(Lexer* lexer, List* list)
@@ -139,12 +176,12 @@ List* lex(SourceInfo const* sourceInfo)
         // }
 
         // multi-char punct
-        // if (try_add_punct(tokenList)) {
-        //     continue;
-        // }
+        if (try_add_punct(&lexer, toks)) {
+            continue;
+        }
 
         // one char punct
-        if (strchr("+-*/%()", c) != nullptr) {
+        if (strchr("+-*/%()<>", c) != nullptr) {
             // if (strchr("#+-*/%><=&|!?~^()[]{},.:;\\", c) != NULL) {
             add_one_char_punct(&lexer, toks);
             continue;
@@ -230,15 +267,6 @@ static bool is_hex(char const c) {
     return '0' <= c && c <= '9' || 'A' <= c && c <= 'F' || 'a' <= c && c <= 'f';
 }
 
-#define T Token*
-#define T_NAME(x) Token##x
-#define T_FUNC_NAME(x) token_##x
-#include "containers/list_impl.h"
-#undef T
-#undef T_NAME
-#undef T_FUNC_NAME
-
-static IntDict *s_keywords = NULL;
 
 static Token *make_empty_token(eToken kind) {
     Token *t = CALLOC(sizeof(Token));
@@ -323,27 +351,6 @@ static void add_strayed(TokenList *list) {
     memcpy(&token->loc, loc, sizeof(Loc));
     token_list_push_back(list, token);
     read();  // read punct
-}
-
-static char const *s_punctTable[] = {
-    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
-    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."};
-
-static bool try_add_punct(TokenList *list) {
-    Loc *loc = loc_top();
-    for (int i = 0; i < ARRAY_SIZE(s_punctTable); ++i) {
-        int punctLen = (int)strlen(s_punctTable[i]);
-        if (strncmp(loc->p, s_punctTable[i], punctLen) == 0) {
-            Token *token = make_empty_token(TK_PUNCT);
-            token->len = punctLen;
-            memcpy(&token->loc, loc, sizeof(Loc));
-            token_list_push_back(list, token);
-            shift(punctLen);  // read punct
-            return true;
-        }
-    }
-
-    return false;
 }
 
 static TokenList *tokenize_internal(char const *path, TokenList *tokenList) {

@@ -1,5 +1,7 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
+#include <assert.h>
+
 #include "list.h"
 
 typedef int bool;
@@ -16,6 +18,13 @@ typedef int bool;
 #define nullptr ((void*)0)
 #endif
 
+#define unreachable() assert(0)
+
+// utilities
+#define ARRAY_COUNTER(arr) (sizeof(arr) / sizeof(*(arr)))
+#define STATIC_ASSERT(COND) typedef char _static_assertion_[(COND)?1:-1]
+#define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound) )
+
 typedef enum token_kind_t {
     TK_PUNCT,
     TK_NUM,
@@ -23,14 +32,10 @@ typedef enum token_kind_t {
 } TokenKind;
 
 typedef enum node_kind_t {
-    ND_INVALID, // invalid
-    ND_ADD,     // +
-    ND_SUB,     // -
-    ND_MUL,     // *
-    ND_DIV,     // /
-    ND_REM,     // %
-    ND_NEG,     // -
-    ND_NUM,     // Integer
+#define DEFINE_NODE(NAME, DEBUGSTR) NAME,
+#include "node.inl"
+#undef DEFINE_NODE
+    ND_COUNT,
 } NodeKind;
 
 typedef struct source_info_t {
@@ -56,6 +61,10 @@ typedef struct node_t {
     struct node_t* lhs;
     struct node_t* rhs;
     int val;
+
+    // flags
+    int isBinary;
+    int isUnary;
 } Node;
 
 typedef struct lexer_t {
@@ -77,9 +86,13 @@ void error_at_token(Token const* token, char const* const fmt, ...);
 // DEBUG
 char const* token_kind_to_string(TokenKind eTokenKind);
 char const* node_kind_to_string(NodeKind eNodeKind);
+char const* node_kind_to_symbol(NodeKind eNodeKind);
 
 void debug_print_token(Token const* tok);
 void debug_print_tokens(List const* toks);
 void debug_print_node(Node const* node);
+
+// @TODO: implement
+void debug_validate_node(Node const* node);
 
 #endif

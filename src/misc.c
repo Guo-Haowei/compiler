@@ -1,16 +1,27 @@
 #include "minic.h"
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define EMPTYLINE "                                                                                "
+#define UNDERLINE "^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
 static void verror_at(char const* file, char const* source, int sourceLen, int line, int col, int span, char const* const fmt, va_list args)
 {
-    printf("%s:%d:%d: error: ", file, line, col);
-    vprintf(fmt, args);
-    printf("\n");
+    assert(file);
+    assert(source);
+    assert(sourceLen);
+    assert(line);
+    assert(col);
+    assert(span);
+
+    // fprintf(stderr, "debug verror_at(): span: %d\n", span);
+
+    fprintf(stderr, "%s:%d:%d: error: ", file, line, col);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
 
     // print line
     char const* lineStart = source;
@@ -26,10 +37,9 @@ static void verror_at(char const* file, char const* source, int sourceLen, int l
     }
 
     int const lineLen = lineEnd - lineStart;
-    printf("%5d | %.*s\n", line, lineLen, lineStart);
+    fprintf(stderr, "%5d | %.*s\n", line, lineLen, lineStart);
 
-    // print underscore
-    printf("      |%*c%*c\n", col, ' ', span, '^');
+    fprintf(stderr, "      |%.*s%.*s\n", col, EMPTYLINE, span, UNDERLINE);
 
     exit(-1);
 }
@@ -74,57 +84,37 @@ char const* token_kind_to_string(TokenKind eTokenKind)
         return "TK_EOF";
     }
 
-    assert(0 && "not reachable");
+    unreachable();
     return "";
 }
 
 char const* node_kind_to_string(NodeKind eNodeKind)
 {
-    switch (eNodeKind) {
-    case ND_INVALID:
-        return "ND_INVALID";
-    case ND_ADD:
-        return "ND_ADD";
-    case ND_SUB:
-        return "ND_SUB";
-    case ND_MUL:
-        return "ND_MUL";
-    case ND_DIV:
-        return "ND_DIV";
-    case ND_REM:
-        return "ND_REM";
-    case ND_NEG:
-        return "ND_NEG";
-    case ND_NUM:
-        return "ND_NUM";
-    }
+    assertindex(eNodeKind, ND_COUNT);
 
-    assert(0 && "not reachable");
-    return "";
+    static char const* const s_names[] = {
+#define DEFINE_NODE(NAME, DEBUGSTR) #NAME,
+#include "node.inl"
+#undef DEFINE_NODE
+    };
+    STATIC_ASSERT(ARRAY_COUNTER(s_names) == ND_COUNT);
+
+    return s_names[eNodeKind];
 }
 
-static char const* node_kind_to_symbol(NodeKind eNodeKind)
+char const* node_kind_to_symbol(NodeKind eNodeKind)
 {
-    switch (eNodeKind) {
-    case ND_INVALID:
-        return "<error>";
-    case ND_ADD:
-        return "+";
-    case ND_NEG:
-    case ND_SUB:
-        return "-";
-    case ND_MUL:
-        return "*";
-    case ND_DIV:
-        return "/";
-    case ND_REM:
-        return "%";
-    case ND_NUM:
-        return "<number>";
-    }
+    assertindex(eNodeKind, ND_COUNT);
 
-    assert(0 && "not reachable");
-    return "";
+    static char const* const s_symbols[] = {
+#define DEFINE_NODE(NAME, DEBUGSTR) DEBUGSTR,
+#include "node.inl"
+#undef DEFINE_NODE
+    };
+
+    STATIC_ASSERT(ARRAY_COUNTER(s_symbols) == ND_COUNT);
+
+    return s_symbols[eNodeKind];
 }
 
 void debug_print_token(Token const* tok)
@@ -148,36 +138,37 @@ void debug_print_tokens(List const* toks)
 
 static void debug_print_node_internal(Node const* node, int depth)
 {
-    char const* const INDENT = "                                                ";
     assert(node);
 
-    switch (node->eNodeKind) {
-    case ND_NUM:
-        fprintf(stderr, "%*c%d\n", depth * 2, ' ', node->val);
-        break;
-    case ND_NEG:
-        fprintf(stderr, "%*c-\n", depth * 2, ' ');
-        debug_print_node_internal(node->rhs, depth + 1);
-        break;
-    case ND_ADD:
-    case ND_SUB:
-    case ND_MUL:
-    case ND_DIV:
-    case ND_REM:
-        debug_print_node_internal(node->lhs, depth + 1);
-        fprintf(stderr, "%.*s/\n", depth * 2, INDENT);
-        fprintf(stderr, "%.*s%s\n", depth * 2, INDENT, node_kind_to_symbol(node->eNodeKind));
-        fprintf(stderr, "%.*s\\\n", depth * 2, INDENT);
-        debug_print_node_internal(node->rhs, depth + 1);
-        break;
-    case ND_INVALID:
-        assert(0);
-        break;
+    if (node->eNodeKind == ND_NUM) {
+        fprintf(stderr, "%d", node->val);
+        return;
     }
+
+    if (node->isBinary)
+    {
+        fprintf(stderr, "([binary %s] ", node_kind_to_string(node->eNodeKind));
+        debug_print_node_internal(node->lhs, depth);
+        fprintf(stderr, ", ");
+        debug_print_node_internal(node->rhs, depth);
+        fprintf(stderr, " )");
+        return;
+    }
+
+    if (node->isUnary)
+    {
+        fprintf(stderr, "([unary %s] ", node_kind_to_string(node->eNodeKind));
+        debug_print_node_internal(node->rhs, depth);
+        fprintf(stderr, " )");
+        return;
+    }
+
+    unreachable();
 }
 
 void debug_print_node(Node const* node)
 {
     fprintf(stderr, "*** AST ***\n");
     debug_print_node_internal(node, 0);
+    fprintf(stderr, "\n");
 }
