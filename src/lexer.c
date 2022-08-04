@@ -14,6 +14,21 @@ static bool is_decimal(char const c)
     return '0' <= c && c <= '9';
 }
 
+static bool is_lowercase(char const c)
+{
+    return ('a' <= c && c <= 'z');
+}
+
+static bool is_uppercase(char const c)
+{
+    return ('A' <= c && c <= 'Z');
+}
+
+static bool is_letter(char const c)
+{
+    return is_lowercase(c) || is_uppercase(c);
+}
+
 static bool begin_with(char const* str, char const* prefix)
 {
     return strncmp(str, prefix, strlen(prefix)) == 0;
@@ -65,6 +80,20 @@ static void add_decimal_number(Lexer* lexer, List* list)
 
     tok.end = lexer->p;
     tok.len = tok.end - tok.start;
+
+    list_push_back(list, tok);
+}
+
+static void add_identifier(Lexer* lexer, List* list)
+{
+    Token tok;
+    tok.eTokenKind = TK_IDENT;
+    lexer_fill_tok(lexer, &tok);
+
+    lexer_read(lexer);
+    // @TODO: implement
+    tok.end = lexer->p;
+    tok.len = 1;
 
     list_push_back(list, tok);
 }
@@ -169,6 +198,10 @@ List* lex(SourceInfo const* sourceInfo)
             continue;
         }
 
+        if (is_lowercase(c)) {
+            add_identifier(&lexer, toks);
+            continue;
+        }
         // id or keyword
         // if (is_identifier(c)) {
         //     add_id(tokenList); // keyword could be overriden with #define
@@ -181,7 +214,7 @@ List* lex(SourceInfo const* sourceInfo)
         }
 
         // one char punct
-        if (strchr("+-*/%()<>;", c) != nullptr) {
+        if (strchr("=+-*/%()<>;", c) != nullptr) {
             add_one_char_punct(&lexer, toks);
             continue;
         }
@@ -256,10 +289,6 @@ static void skipline() {
             break;
         }
     }
-}
-
-static bool is_identifier(char const c) {
-    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || '_' == c;
 }
 
 static bool is_hex(char const c) {

@@ -31,13 +31,7 @@ int main(int argc, char** argv)
     DEBUG_ONLY(debug_print_node(node));
     DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
-    printf("  .text\n");
-    printf("  .globl main\n");
-    printf("main:\n");
-
     gen(node);
-
-    printf("  ret\n");
 
     list_delete(toks);
     return 0;

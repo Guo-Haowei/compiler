@@ -16,11 +16,28 @@ static void pop(char const* arg)
     depth--;
 }
 
-static void gen_cmp_expr(NodeKind eNodeKind) {
+// Compute the absolute address of a given node.
+// It's an error if a given node does not reside in memory.
+static void gen_addr(Node const* node)
+{
+    if (node->eNodeKind == ND_VAR) {
+        int offset = (node->name - 'a' + 1) * 8;
+        printf("  lea %d(%%rbp), %%rax\n", -offset);
+        return;
+    }
+
+    assert(0 && "not an lvalue");
+}
+
+static void gen_cmp_expr(NodeKind eNodeKind)
+{
     static char const* const s_cmds[] = {
-        "sete", "setne",
-        "setl", "setle",
-        "setg", "setge",
+        "sete",
+        "setne",
+        "setl",
+        "setle",
+        "setg",
+        "setge",
     };
 
     STATIC_ASSERT(ARRAY_COUNTER(s_cmds) == (ND_GE - ND_EQ + 1));
@@ -35,15 +52,27 @@ static void gen_cmp_expr(NodeKind eNodeKind) {
 
 static void gen_expr(Node const* node)
 {
-    if (node->eNodeKind == ND_NUM) {
+    switch (node->eNodeKind) {
+    case ND_NUM:
         printf("  mov $%d, %%rax\n", node->val);
         return;
-    }
-
-    if (node->eNodeKind == ND_NEG) {
+    case ND_NEG:
         gen_expr(node->rhs);
         printf("  neg %%rax\n");
         return;
+    case ND_VAR:
+        gen_addr(node);
+        printf("  mov (%%rax), %%rax\n");
+        return;
+    case ND_ASSIGN:
+        gen_addr(node->lhs);
+        push();
+        gen_expr(node->rhs);
+        pop("%rdi");
+        printf("  mov %%rax, (%%rdi)\n");
+        return;
+    default:
+        break;
     }
 
     if (node->isBinary) {
@@ -94,9 +123,21 @@ static void gen_stmt(Node const* node)
 
 void gen(Node const* node)
 {
+    printf("  .text\n");
+    printf("  .globl main\n");
+    printf("main:\n");
+
+    // Prologue
+    printf("  push %%rbp\n");
+    printf("  mov %%rsp, %%rbp\n");
+    printf("  sub $208, %%rsp\n");
+
     for (Node const* n = node; n; n = n->next) {
         gen_stmt(n);
         assert(depth == 0);
     }
+
+    printf("  mov %%rbp, %%rsp\n");
+    printf("  pop %%rbp\n");
     printf("  ret\n");
 }

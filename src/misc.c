@@ -66,8 +66,7 @@ void error_at_token(Token const* tok, char const* const fmt, ...)
     int const line = tok->line;
     int const col = tok->col;
     int span = tok->len;
-    if (tok->eTokenKind == TK_EOF)
-    {
+    if (tok->eTokenKind == TK_EOF) {
         span = 1;
     }
 
@@ -80,6 +79,8 @@ void error_at_token(Token const* tok, char const* const fmt, ...)
 char const* token_kind_to_string(TokenKind eTokenKind)
 {
     switch (eTokenKind) {
+    case TK_IDENT:
+        return "TK_IDENT";
     case TK_PUNCT:
         return "TK_PUNCT";
     case TK_NUM:
@@ -97,28 +98,13 @@ char const* node_kind_to_string(NodeKind eNodeKind)
     assertindex(eNodeKind, ND_COUNT);
 
     static char const* const s_names[] = {
-#define DEFINE_NODE(NAME, DEBUGSTR) #NAME,
+#define DEFINE_NODE(NAME) #NAME,
 #include "node.inl"
 #undef DEFINE_NODE
     };
     STATIC_ASSERT(ARRAY_COUNTER(s_names) == ND_COUNT);
 
     return s_names[eNodeKind];
-}
-
-char const* node_kind_to_symbol(NodeKind eNodeKind)
-{
-    assertindex(eNodeKind, ND_COUNT);
-
-    static char const* const s_symbols[] = {
-#define DEFINE_NODE(NAME, DEBUGSTR) DEBUGSTR,
-#include "node.inl"
-#undef DEFINE_NODE
-    };
-
-    STATIC_ASSERT(ARRAY_COUNTER(s_symbols) == ND_COUNT);
-
-    return s_symbols[eNodeKind];
 }
 
 void debug_print_token(Token const* tok)
@@ -149,8 +135,12 @@ static void debug_print_node_internal(Node const* node, int depth)
         return;
     }
 
-    if (node->isBinary)
-    {
+    if (node->eNodeKind == ND_VAR) {
+        fprintf(stderr, "%c", node->name);
+        return;
+    }
+
+    if (node->isBinary) {
         fprintf(stderr, "([binary %s] ", node_kind_to_string(node->eNodeKind));
         debug_print_node_internal(node->lhs, depth);
         fprintf(stderr, ", ");
@@ -159,8 +149,7 @@ static void debug_print_node_internal(Node const* node, int depth)
         return;
     }
 
-    if (node->isUnary)
-    {
+    if (node->isUnary) {
         fprintf(stderr, "([unary %s] ", node_kind_to_string(node->eNodeKind));
         debug_print_node_internal(node->rhs, depth);
         fprintf(stderr, " )");
@@ -173,8 +162,7 @@ static void debug_print_node_internal(Node const* node, int depth)
 void debug_print_node(Node const* node)
 {
     fprintf(stderr, "*** AST ***\n");
-    for (Node const* n = node; n; n = n->next)
-    {
+    for (Node const* n = node; n; n = n->next) {
         debug_print_node_internal(n, 0);
     }
     fprintf(stderr, "\n");

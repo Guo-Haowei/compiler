@@ -25,6 +25,13 @@ static Node* make_num(int val)
     return node;
 }
 
+static Node* make_var(char name)
+{
+    Node* node = make_node(ND_VAR);
+    node->name = name;
+    return node;
+}
+
 static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
 {
     Node* node = make_node(eNodeKind);
@@ -79,14 +86,17 @@ static void tok_expect(ListNode** pToks, char const* expect)
     *pToks = (*pToks)->next;
 }
 
-static Node* parse_expr(ListNode** pToks);
-static Node* parse_equality(ListNode** pToks);
-static Node* parse_relational(ListNode** pToks);
-static Node* parse_add(ListNode** pToks);
-static Node* parse_unary(ListNode** pToks);
 static Node* parse_primary(ListNode** pToks);
+static Node* parse_unary(ListNode** pToks);
+static Node* parse_mul(ListNode** pToks);
+static Node* parse_add(ListNode** pToks);
+static Node* parse_relational(ListNode** pToks);
+static Node* parse_equality(ListNode** pToks);
+static Node* parse_assign(ListNode** pToks);
+static Node* parse_expr(ListNode** pToks);
+static Node* parse_expr_stmt(ListNode** pToks);
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | num | ident
 static Node* parse_primary(ListNode** pToks)
 {
     if (tok_equal_then_consume(pToks, "(")) {
@@ -98,6 +108,12 @@ static Node* parse_primary(ListNode** pToks)
     Token const* tok = (Token const*)(*pToks + 1);
     if (tok->eTokenKind == TK_NUM) {
         Node* node = make_num(token_as_int(tok));
+        tok_consume(pToks);
+        return node;
+    }
+
+    if (tok->eTokenKind == TK_IDENT) {
+        Node* node = make_var(*tok->start);
         tok_consume(pToks);
         return node;
     }
@@ -216,10 +232,20 @@ static Node* parse_equality(ListNode** pToks)
     }
 }
 
-// expr = equality
+// assign = equality ("=" assign)?
+static Node* parse_assign(ListNode** pToks)
+{
+    Node* node = parse_equality(pToks);
+    if (tok_equal_then_consume(pToks, "=")) {
+        node = make_binary(ND_ASSIGN, node, parse_assign(pToks));
+    }
+    return node;
+}
+
+// expr = assign
 static Node* parse_expr(ListNode** pToks)
 {
-    return parse_equality(pToks);
+    return parse_assign(pToks);
 }
 
 // expr-stmt = expr ";"
