@@ -29,6 +29,7 @@ typedef enum node_kind_t {
     ND_MUL,     // *
     ND_DIV,     // /
     ND_REM,     // %
+    ND_NEG,     // -
     ND_NUM,     // Integer
 } NodeKind;
 

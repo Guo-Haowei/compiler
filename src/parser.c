@@ -34,6 +34,13 @@ static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
     return node;
 }
 
+static Node* make_unary(NodeKind eNodeKind, Node* rhs)
+{
+    Node* node = make_node(eNodeKind);
+    node->rhs = rhs;
+    return node;
+}
+
 static void tok_consume(ListNode** pTokens)
 {
     assert(pTokens && *pTokens);
@@ -71,6 +78,8 @@ static void tok_expect(ListNode** pTokens, char const* expect)
     *pTokens = (*pTokens)->next;
 }
 
+static Node* parse_primary(ListNode** pTokens);
+static Node* parse_unary(ListNode** pTokens);
 static Node* parse_add(ListNode** pTokens);
 
 // primary = "(" expr ")" | num
@@ -93,24 +102,39 @@ static Node* parse_primary(ListNode** pTokens)
     return nullptr;
 }
 
-// mul = primary ("*" primary | "/" primary)*
+// unary = ("+" | "-") unary
+//       | primary
+static Node* parse_unary(ListNode** pTokens)
+{
+    if (tok_equal_then_consume(pTokens, "+")) {
+        return parse_unary(pTokens);
+    }
+
+    if (tok_equal_then_consume(pTokens, "-")) {
+        return make_unary(ND_NEG, parse_unary(pTokens));
+    }
+
+    return parse_primary(pTokens);
+}
+
+// mul = unary ("*" unary | "/" unary)*
 static Node* parse_mul(ListNode** pTokens)
 {
-    Node* node = parse_primary(pTokens);
+    Node* node = parse_unary(pTokens);
 
     for (;;) {
         if (tok_equal_then_consume(pTokens, "*")) {
-            node = make_binary(ND_MUL, node, parse_primary(pTokens));
+            node = make_binary(ND_MUL, node, parse_unary(pTokens));
             continue;
         }
 
         if (tok_equal_then_consume(pTokens, "/")) {
-            node = make_binary(ND_DIV, node, parse_primary(pTokens));
+            node = make_binary(ND_DIV, node, parse_unary(pTokens));
             continue;
         }
 
         if (tok_equal_then_consume(pTokens, "%")) {
-            node = make_binary(ND_REM, node, parse_primary(pTokens));
+            node = make_binary(ND_REM, node, parse_unary(pTokens));
             continue;
         }
 

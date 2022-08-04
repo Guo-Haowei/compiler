@@ -93,6 +93,8 @@ char const* node_kind_to_string(NodeKind eNodeKind)
         return "ND_DIV";
     case ND_REM:
         return "ND_REM";
+    case ND_NEG:
+        return "ND_NEG";
     case ND_NUM:
         return "ND_NUM";
     }
@@ -108,6 +110,7 @@ static char const* node_kind_to_symbol(NodeKind eNodeKind)
         return "<error>";
     case ND_ADD:
         return "+";
+    case ND_NEG:
     case ND_SUB:
         return "-";
     case ND_MUL:
@@ -151,6 +154,10 @@ static void debug_print_node_internal(Node const* node, int depth)
     switch (node->eNodeKind) {
     case ND_NUM:
         fprintf(stderr, "%*c%d\n", depth * 2, ' ', node->val);
+        break;
+    case ND_NEG:
+        fprintf(stderr, "%*c-\n", depth * 2, ' ');
+        debug_print_node_internal(node->rhs, depth + 1);
         break;
     case ND_ADD:
     case ND_SUB:

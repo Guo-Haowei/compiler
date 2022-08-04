@@ -19,9 +19,16 @@ static void pop(char const* arg)
 
 static void gen_expr(Node const* node)
 {
-    if (node->eNodeKind == ND_NUM) {
+    switch (node->eNodeKind) {
+    case ND_NUM:
         printf("  mov $%d, %%rax\n", node->val);
         return;
+    case ND_NEG:
+        gen_expr(node->rhs);
+        printf("  neg %%rax\n");
+        return;
+    default:
+        break;
     }
 
     gen_expr(node->rhs);
