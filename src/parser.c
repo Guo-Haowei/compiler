@@ -119,6 +119,7 @@ static Node* parse_equality(ListNode** pToks);
 static Node* parse_assign(ListNode** pToks);
 static Node* parse_expr(ListNode** pToks);
 static Node* parse_expr_stmt(ListNode** pToks);
+static Node* parse_compound_stmt(ListNode** pToks);
 
 // primary = "(" expr ")" | num | ident
 static Node* parse_primary(ListNode** pToks)
@@ -287,6 +288,7 @@ static Node* parse_expr_stmt(ListNode** pToks)
 
 // stmt = "return" expr ";"
 //      | expr-stmt
+//      | "{" compound-stmt "}"
 static Node* parse_stmt(ListNode** pToks)
 {
     if (tok_equal_then_consume(pToks, "return")) {
@@ -295,24 +297,34 @@ static Node* parse_stmt(ListNode** pToks)
         return node;
     }
 
+    if (tok_equal_then_consume(pToks, "{")) {
+        return parse_compound_stmt(pToks);
+    }
+
     return parse_expr_stmt(pToks);
+}
+
+// compound-stmt = stmt* "}"
+static Node* parse_compound_stmt(ListNode** pToks)
+{
+    Node head;
+    Node* cur = &head;
+    while (!tok_equal_then_consume(pToks, "}")) {
+        cur = cur->next = parse_stmt(pToks);
+    }
+
+    Node* node = new_node(ND_BLOCK);
+    node->body = head.next;
+    return node;
 }
 
 Function* parse(List* toks)
 {
-    Node head;
-    Node* cur = &head;
     ListNode* iter = toks->front;
-    for (;;) {
-        if (((Token*)(iter + 1))->eTokenKind == TK_EOF) {
-            break;
-        }
-
-        cur = cur->next = parse_stmt(&iter);
-    }
 
     Function* prog = calloc(1, sizeof(Function));
-    prog->body = head.next;
+    tok_expect(&iter, "{");
+    prog->body = parse_compound_stmt(&iter);
     prog->locals = locals;
     return prog;
 }

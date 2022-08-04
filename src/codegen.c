@@ -119,6 +119,11 @@ static void gen_stmt(Node const* node)
         gen_expr(node->lhs);
         printf("  jmp .L.return\n");
         return;
+    case ND_BLOCK:
+        for (Node* n = node->body; n; n = n->next) {
+            gen_stmt(n);
+        }
+        return;
     default:
         break;
     }
@@ -152,10 +157,8 @@ void gen(Function const* prog)
     printf("  mov %%rsp, %%rbp\n");
     printf("  sub $%d, %%rsp\n", prog->stackSize);
 
-    for (Node const* n = prog->body; n; n = n->next) {
-        gen_stmt(n);
-        assert(depth == 0);
-    }
+    gen_stmt(prog->body);
+    assert(depth == 0);
 
     printf(".L.return:\n");
     printf("  mov %%rbp, %%rsp\n");

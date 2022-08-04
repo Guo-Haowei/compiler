@@ -72,10 +72,11 @@ typedef struct node_t {
     struct node_t* next;
     struct node_t* lhs;
     struct node_t* rhs;
-    Obj* var; // Used if kind == ND_VAR
-    int val;  // Used if kind == ND_NUM
+    Obj* var;            // Used if eNodeKind == ND_VAR
+    int val;             // Used if eNodeKind == ND_NUM
+    struct node_t* body; // Used if eNodeKind == ND_BLOCK
 
-    // flags
+    // @TODO: remove flags
     int isBinary;
     int isUnary;
 } Node;

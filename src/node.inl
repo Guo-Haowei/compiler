@@ -17,6 +17,7 @@ DEFINE_NODE(ND_GT)        // >
 DEFINE_NODE(ND_GE)        // >=
 DEFINE_NODE(ND_ASSIGN)    // =
 DEFINE_NODE(ND_RETURN)    // "return"
+DEFINE_NODE(ND_BLOCK)     // { ... }
 DEFINE_NODE(ND_EXPR_STMT) // expression statement
 DEFINE_NODE(ND_VAR)       // variable
 DEFINE_NODE(ND_NUM)       // number literal
