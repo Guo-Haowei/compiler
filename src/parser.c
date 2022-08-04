@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-int token_as_int(Token const* token)
+int token_as_int(Token const* tok)
 {
-    assert(token->eTokenKind == TK_NUM);
-    return atoi(token->start);
+    assert(tok->eTokenKind == TK_NUM);
+    return atoi(tok->start);
 }
 
 static Node* make_node(NodeKind eNodeKind)
@@ -167,8 +167,9 @@ static Node* parse_add(ListNode** pToks)
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-static Node *parse_relational(ListNode** pToks) {
-    Node *node = parse_add(pToks);
+static Node* parse_relational(ListNode** pToks)
+{
+    Node* node = parse_add(pToks);
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "<")) {
@@ -196,8 +197,9 @@ static Node *parse_relational(ListNode** pToks) {
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-static Node *parse_equality(ListNode** pToks) {
-    Node *node = parse_relational(pToks);
+static Node* parse_equality(ListNode** pToks)
+{
+    Node* node = parse_relational(pToks);
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "==")) {
@@ -214,13 +216,40 @@ static Node *parse_equality(ListNode** pToks) {
     }
 }
 
+// expr = equality
 static Node* parse_expr(ListNode** pToks)
 {
     return parse_equality(pToks);
 }
 
-Node* parse(List* tokens)
+// expr-stmt = expr ";"
+static Node* parse_expr_stmt(ListNode** pToks)
 {
-    ListNode* cursor = tokens->front;
-    return parse_expr(&cursor);
+    Node* node = make_unary(ND_EXPR_STMT, parse_expr(pToks));
+    tok_expect(pToks, ";");
+    return node;
+}
+
+// stmt = expr-stmt
+static Node* parse_stmt(ListNode** pToks)
+{
+    Node* ret = parse_expr_stmt(pToks);
+    return ret;
+}
+
+Node* parse(List* toks)
+{
+    Node head;
+    Node* cursor = &head;
+    ListNode* iter = toks->front;
+    for (;;) {
+        if (((Token*)(iter + 1))->eTokenKind == TK_EOF) {
+            break;
+        }
+
+        cursor->next = parse_stmt(&iter);
+        cursor = cursor->next;
+    }
+
+    return head.next;
 }

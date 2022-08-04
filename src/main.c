@@ -29,6 +29,7 @@ int main(int argc, char** argv)
 
     Node* node = parse(toks);
     DEBUG_ONLY(debug_print_node(node));
+    DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
     printf("  .text\n");
     printf("  .globl main\n");

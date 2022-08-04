@@ -65,7 +65,11 @@ void error_at_token(Token const* tok, char const* const fmt, ...)
     int const sourceLen = tok->sourceInfo->len;
     int const line = tok->line;
     int const col = tok->col;
-    int const span = tok->len;
+    int span = tok->len;
+    if (tok->eTokenKind == TK_EOF)
+    {
+        span = 1;
+    }
 
     va_list args;
     va_start(args, fmt);
@@ -169,6 +173,9 @@ static void debug_print_node_internal(Node const* node, int depth)
 void debug_print_node(Node const* node)
 {
     fprintf(stderr, "*** AST ***\n");
-    debug_print_node_internal(node, 0);
+    for (Node const* n = node; n; n = n->next)
+    {
+        debug_print_node_internal(n, 0);
+    }
     fprintf(stderr, "\n");
 }

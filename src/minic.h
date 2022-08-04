@@ -58,6 +58,7 @@ typedef struct token_t {
 
 typedef struct node_t {
     NodeKind eNodeKind;
+    struct node_t* next;
     struct node_t* lhs;
     struct node_t* rhs;
     int val;
@@ -74,10 +75,10 @@ typedef struct lexer_t {
     int col;
 } Lexer;
 
-int token_as_int(Token const* token);
+int token_as_int(Token const* tok);
 
 List* lex(SourceInfo const* sourceInfo);
-Node* parse(List* tokens);
+Node* parse(List* toks);
 void gen(Node const* node);
 
 void error_at_lexer(Lexer const* lexer, char const* const fmt, ...);

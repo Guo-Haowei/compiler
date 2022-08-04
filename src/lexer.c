@@ -181,8 +181,7 @@ List* lex(SourceInfo const* sourceInfo)
         }
 
         // one char punct
-        if (strchr("+-*/%()<>", c) != nullptr) {
-            // if (strchr("#+-*/%><=&|!?~^()[]{},.:;\\", c) != NULL) {
+        if (strchr("+-*/%()<>;", c) != nullptr) {
             add_one_char_punct(&lexer, toks);
             continue;
         }

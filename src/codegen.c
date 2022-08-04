@@ -82,7 +82,21 @@ static void gen_expr(Node const* node)
     unreachable();
 }
 
+static void gen_stmt(Node const* node)
+{
+    if (node->eNodeKind == ND_EXPR_STMT) {
+        gen_expr(node->rhs);
+        return;
+    }
+
+    unreachable();
+}
+
 void gen(Node const* node)
 {
-    gen_expr(node);
+    for (Node const* n = node; n; n = n->next) {
+        gen_stmt(n);
+        assert(depth == 0);
+    }
+    printf("  ret\n");
 }
