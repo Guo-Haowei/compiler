@@ -136,7 +136,7 @@ static void debug_print_node_internal(Node const* node, int depth)
     }
 
     if (node->eNodeKind == ND_VAR) {
-        fprintf(stderr, "%c", node->name);
+        fprintf(stderr, "%s", node->var->name);
         return;
     }
 
@@ -166,4 +166,15 @@ void debug_print_node(Node const* node)
         debug_print_node_internal(n, 0);
     }
     fprintf(stderr, "\n");
+}
+
+char* strnduplicate(char const* const src, int n)
+{
+    assert(src);
+    assert(n);
+    assert((int)strlen(src) >= n);
+
+    char* ret = calloc(1, n + 1);
+    memcpy(ret, src, n);
+    return ret;
 }

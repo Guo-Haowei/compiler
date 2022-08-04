@@ -4,46 +4,70 @@
 #include <stdlib.h>
 #include <string.h>
 
+// All local variable instances created during parsing are
+// accumulated to this list.
+Obj* locals;
+
+// Find a local variable by name.
+static Obj* find_var(Token const* tok)
+{
+    for (Obj* var = locals; var; var = var->next) {
+        if ((int)strlen(var->name) == tok->len && !strncmp(tok->start, var->name, tok->len)) {
+            return var;
+        }
+    }
+    return nullptr;
+}
+
 int token_as_int(Token const* tok)
 {
     assert(tok->eTokenKind == TK_NUM);
     return atoi(tok->start);
 }
 
-static Node* make_node(NodeKind eNodeKind)
+static Node* new_node(NodeKind eNodeKind)
 {
     Node* node = calloc(1, sizeof(Node));
     node->eNodeKind = eNodeKind;
     return node;
 }
 
-static Node* make_num(int val)
+static Node* new_num_node(int val)
 {
-    Node* node = make_node(ND_NUM);
+    Node* node = new_node(ND_NUM);
     node->eNodeKind = ND_NUM;
     node->val = val;
     return node;
 }
 
-static Node* make_var(char name)
+static Node* new_var_node(Obj* var)
 {
-    Node* node = make_node(ND_VAR);
-    node->name = name;
+    Node* node = new_node(ND_VAR);
+    node->var = var;
     return node;
 }
 
-static Node* make_binary(NodeKind eNodeKind, Node* lhs, Node* rhs)
+static Obj* new_lvar(char* name)
 {
-    Node* node = make_node(eNodeKind);
+    Obj* var = calloc(1, sizeof(Obj));
+    var->name = name;
+    var->next = locals;
+    locals = var;
+    return var;
+}
+
+static Node* new_binary_node(NodeKind eNodeKind, Node* lhs, Node* rhs)
+{
+    Node* node = new_node(eNodeKind);
     node->isBinary = true;
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
 }
 
-static Node* make_unary(NodeKind eNodeKind, Node* rhs)
+static Node* new_unary_node(NodeKind eNodeKind, Node* rhs)
 {
-    Node* node = make_node(eNodeKind);
+    Node* node = new_node(eNodeKind);
     node->isUnary = true;
     node->rhs = rhs;
     return node;
@@ -107,15 +131,20 @@ static Node* parse_primary(ListNode** pToks)
 
     Token const* tok = (Token const*)(*pToks + 1);
     if (tok->eTokenKind == TK_NUM) {
-        Node* node = make_num(token_as_int(tok));
+        Node* node = new_num_node(token_as_int(tok));
         tok_consume(pToks);
         return node;
     }
 
     if (tok->eTokenKind == TK_IDENT) {
-        Node* node = make_var(*tok->start);
+        Obj* var = find_var(tok);
+        if (!var) {
+            // if not found, create
+            var = new_lvar(strnduplicate(tok->start, tok->len));
+        }
+
         tok_consume(pToks);
-        return node;
+        return new_var_node(var);
     }
 
     error_at_token(tok, "expected expression, got '%.*s'", tok->len, tok->start);
@@ -131,7 +160,7 @@ static Node* parse_unary(ListNode** pToks)
     }
 
     if (tok_equal_then_consume(pToks, "-")) {
-        return make_unary(ND_NEG, parse_unary(pToks));
+        return new_unary_node(ND_NEG, parse_unary(pToks));
     }
 
     return parse_primary(pToks);
@@ -144,17 +173,17 @@ static Node* parse_mul(ListNode** pToks)
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "*")) {
-            node = make_binary(ND_MUL, node, parse_unary(pToks));
+            node = new_binary_node(ND_MUL, node, parse_unary(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, "/")) {
-            node = make_binary(ND_DIV, node, parse_unary(pToks));
+            node = new_binary_node(ND_DIV, node, parse_unary(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, "%")) {
-            node = make_binary(ND_REM, node, parse_unary(pToks));
+            node = new_binary_node(ND_REM, node, parse_unary(pToks));
             continue;
         }
 
@@ -169,12 +198,12 @@ static Node* parse_add(ListNode** pToks)
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "+")) {
-            node = make_binary(ND_ADD, node, parse_mul(pToks));
+            node = new_binary_node(ND_ADD, node, parse_mul(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, "-")) {
-            node = make_binary(ND_SUB, node, parse_mul(pToks));
+            node = new_binary_node(ND_SUB, node, parse_mul(pToks));
             continue;
         }
 
@@ -189,22 +218,22 @@ static Node* parse_relational(ListNode** pToks)
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "<")) {
-            node = make_binary(ND_LT, node, parse_add(pToks));
+            node = new_binary_node(ND_LT, node, parse_add(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, "<=")) {
-            node = make_binary(ND_LE, node, parse_add(pToks));
+            node = new_binary_node(ND_LE, node, parse_add(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, ">")) {
-            node = make_binary(ND_GT, node, parse_add(pToks));
+            node = new_binary_node(ND_GT, node, parse_add(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, ">=")) {
-            node = make_binary(ND_GE, node, parse_add(pToks));
+            node = new_binary_node(ND_GE, node, parse_add(pToks));
             continue;
         }
 
@@ -219,12 +248,12 @@ static Node* parse_equality(ListNode** pToks)
 
     for (;;) {
         if (tok_equal_then_consume(pToks, "==")) {
-            node = make_binary(ND_EQ, node, parse_relational(pToks));
+            node = new_binary_node(ND_EQ, node, parse_relational(pToks));
             continue;
         }
 
         if (tok_equal_then_consume(pToks, "!=")) {
-            node = make_binary(ND_NE, node, parse_relational(pToks));
+            node = new_binary_node(ND_NE, node, parse_relational(pToks));
             continue;
         }
 
@@ -237,7 +266,7 @@ static Node* parse_assign(ListNode** pToks)
 {
     Node* node = parse_equality(pToks);
     if (tok_equal_then_consume(pToks, "=")) {
-        node = make_binary(ND_ASSIGN, node, parse_assign(pToks));
+        node = new_binary_node(ND_ASSIGN, node, parse_assign(pToks));
     }
     return node;
 }
@@ -251,7 +280,7 @@ static Node* parse_expr(ListNode** pToks)
 // expr-stmt = expr ";"
 static Node* parse_expr_stmt(ListNode** pToks)
 {
-    Node* node = make_unary(ND_EXPR_STMT, parse_expr(pToks));
+    Node* node = new_unary_node(ND_EXPR_STMT, parse_expr(pToks));
     tok_expect(pToks, ";");
     return node;
 }
@@ -263,19 +292,21 @@ static Node* parse_stmt(ListNode** pToks)
     return ret;
 }
 
-Node* parse(List* toks)
+Function* parse(List* toks)
 {
     Node head;
-    Node* cursor = &head;
+    Node* cur = &head;
     ListNode* iter = toks->front;
     for (;;) {
         if (((Token*)(iter + 1))->eTokenKind == TK_EOF) {
             break;
         }
 
-        cursor->next = parse_stmt(&iter);
-        cursor = cursor->next;
+        cur = cur->next = parse_stmt(&iter);
     }
 
-    return head.next;
+    Function* prog = calloc(1, sizeof(Function));
+    prog->body = head.next;
+    prog->locals = locals;
+    return prog;
 }

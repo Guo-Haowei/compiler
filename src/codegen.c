@@ -21,8 +21,7 @@ static void pop(char const* arg)
 static void gen_addr(Node const* node)
 {
     if (node->eNodeKind == ND_VAR) {
-        int offset = (node->name - 'a' + 1) * 8;
-        printf("  lea %d(%%rbp), %%rax\n", -offset);
+        printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
         return;
     }
 
@@ -121,8 +120,23 @@ static void gen_stmt(Node const* node)
     unreachable();
 }
 
-void gen(Node const* node)
+// Assign offsets to local variables.
+static void assign_lvar_offsets(Function const* prog)
 {
+    int offset = 0;
+    for (Obj* var = prog->locals; var; var = var->next) {
+        offset += 8;
+        var->offset = -offset;
+    }
+
+    // HACK: cast away const qualifier
+    ((Function*)prog)->stackSize = align_to(offset, 16);
+}
+
+void gen(Function const* prog)
+{
+    assign_lvar_offsets(prog);
+
     printf("  .text\n");
     printf("  .globl main\n");
     printf("main:\n");
@@ -130,9 +144,9 @@ void gen(Node const* node)
     // Prologue
     printf("  push %%rbp\n");
     printf("  mov %%rsp, %%rbp\n");
-    printf("  sub $208, %%rsp\n");
+    printf("  sub $%d, %%rsp\n", prog->stackSize);
 
-    for (Node const* n = node; n; n = n->next) {
+    for (Node const* n = prog->body; n; n = n->next) {
         gen_stmt(n);
         assert(depth == 0);
     }

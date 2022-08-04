@@ -27,11 +27,11 @@ int main(int argc, char** argv)
     List* toks = lex(&sourceInfo);
     DEBUG_ONLY(debug_print_tokens(toks));
 
-    Node* node = parse(toks);
-    DEBUG_ONLY(debug_print_node(node));
+    Function* prog = parse(toks);
+    DEBUG_ONLY(debug_print_node(prog->body));
     DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
-    gen(node);
+    gen(prog);
 
     list_delete(toks);
     return 0;

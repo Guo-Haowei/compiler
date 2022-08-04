@@ -29,6 +29,16 @@ static bool is_letter(char const c)
     return is_lowercase(c) || is_uppercase(c);
 }
 
+static bool is_ident1(char const c)
+{
+    return is_letter(c) || c == '_';
+}
+
+static bool is_ident2(char const c)
+{
+    return is_ident1(c) || is_decimal(c);
+}
+
 static bool begin_with(char const* str, char const* prefix)
 {
     return strncmp(str, prefix, strlen(prefix)) == 0;
@@ -91,9 +101,11 @@ static void add_identifier(Lexer* lexer, List* list)
     lexer_fill_tok(lexer, &tok);
 
     lexer_read(lexer);
-    // @TODO: implement
+    while (is_ident2(lexer_peek(lexer))) {
+        lexer_read(lexer);
+    }
     tok.end = lexer->p;
-    tok.len = 1;
+    tok.len = tok.end - tok.start;
 
     list_push_back(list, tok);
 }
@@ -198,15 +210,11 @@ List* lex(SourceInfo const* sourceInfo)
             continue;
         }
 
-        if (is_lowercase(c)) {
+        // identifier
+        if (is_ident1(c)) {
             add_identifier(&lexer, toks);
             continue;
         }
-        // id or keyword
-        // if (is_identifier(c)) {
-        //     add_id(tokenList); // keyword could be overriden with #define
-        //     continue;
-        // }
 
         // multi-char punct
         if (try_add_punct(&lexer, toks)) {

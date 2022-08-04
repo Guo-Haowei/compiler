@@ -23,7 +23,9 @@ typedef int bool;
 // utilities
 #define ARRAY_COUNTER(arr) (sizeof(arr) / sizeof(*(arr)))
 #define STATIC_ASSERT(COND) typedef char _static_assertion_[(COND) ? 1 : -1]
+
 #define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
+#define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
 
 typedef enum token_kind_t {
     TK_IDENT, // Identifiers
@@ -57,18 +59,33 @@ typedef struct token_t {
     SourceInfo const* sourceInfo;
 } Token;
 
+// Local variable
+typedef struct obj_t {
+    struct obj_t* next;
+    char const* name; // Variable name
+    int offset;       // Offset from RBP
+} Obj;
+
+// AST node
 typedef struct node_t {
     NodeKind eNodeKind;
     struct node_t* next;
     struct node_t* lhs;
     struct node_t* rhs;
-    char name; // Used if kind == ND_VAR
-    int val;   // Used if kind == ND_NUM
+    Obj* var; // Used if kind == ND_VAR
+    int val;  // Used if kind == ND_NUM
 
     // flags
     int isBinary;
     int isUnary;
 } Node;
+
+// Function
+typedef struct function_t {
+    Node* body;
+    Obj* locals;
+    int stackSize;
+} Function;
 
 typedef struct lexer_t {
     SourceInfo const* sourceInfo;
@@ -80,8 +97,8 @@ typedef struct lexer_t {
 int token_as_int(Token const* tok);
 
 List* lex(SourceInfo const* sourceInfo);
-Node* parse(List* toks);
-void gen(Node const* node);
+Function* parse(List* toks);
+void gen(Function const* prog);
 
 void error_at_lexer(Lexer const* lexer, char const* const fmt, ...);
 void error_at_token(Token const* token, char const* const fmt, ...);
@@ -96,5 +113,8 @@ void debug_print_node(Node const* node);
 
 // @TODO: implement
 void debug_validate_node(Node const* node);
+
+// utils
+char* strnduplicate(char const* const src, int n);
 
 #endif
