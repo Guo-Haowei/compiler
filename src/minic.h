@@ -28,10 +28,10 @@ typedef int bool;
 #define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
 
 typedef enum token_kind_t {
-    TK_IDENT, // Identifiers
-    TK_PUNCT, // Punctuators
-    TK_NUM,   // Numeric literals
-    TK_EOF,   // End-of-file markers
+#define DEFINE_TOKEN(NAME) NAME,
+#include "token.inl"
+#undef DEFINE_TOKEN
+    TK_COUNT,
 } TokenKind;
 
 typedef enum node_kind_t {

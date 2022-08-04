@@ -56,7 +56,7 @@ static void gen_expr(Node const* node)
         printf("  mov $%d, %%rax\n", node->val);
         return;
     case ND_NEG:
-        gen_expr(node->rhs);
+        gen_expr(node->lhs);
         printf("  neg %%rax\n");
         return;
     case ND_VAR:
@@ -74,37 +74,35 @@ static void gen_expr(Node const* node)
         break;
     }
 
-    if (node->isBinary) {
-        gen_expr(node->rhs);
-        push();
-        gen_expr(node->lhs);
-        pop("%rdi");
+    gen_expr(node->rhs);
+    push();
+    gen_expr(node->lhs);
+    pop("%rdi");
 
-        switch (node->eNodeKind) {
-        case ND_ADD:
-            printf("  add %%rdi, %%rax\n");
-            return;
-        case ND_SUB:
-            printf("  sub %%rdi, %%rax\n");
-            return;
-        case ND_MUL:
-            printf("  imul %%rdi, %%rax\n");
-            return;
-        case ND_DIV:
-            printf("  cqo\n");
-            printf("  idiv %%rdi\n");
-            return;
-        case ND_EQ:
-        case ND_NE:
-        case ND_LT:
-        case ND_LE:
-        case ND_GT:
-        case ND_GE:
-            gen_cmp_expr(node->eNodeKind);
-            return;
-        default:
-            break;
-        }
+    switch (node->eNodeKind) {
+    case ND_ADD:
+        printf("  add %%rdi, %%rax\n");
+        return;
+    case ND_SUB:
+        printf("  sub %%rdi, %%rax\n");
+        return;
+    case ND_MUL:
+        printf("  imul %%rdi, %%rax\n");
+        return;
+    case ND_DIV:
+        printf("  cqo\n");
+        printf("  idiv %%rdi\n");
+        return;
+    case ND_EQ:
+    case ND_NE:
+    case ND_LT:
+    case ND_LE:
+    case ND_GT:
+    case ND_GE:
+        gen_cmp_expr(node->eNodeKind);
+        return;
+    default:
+        break;
     }
 
     unreachable();
@@ -112,9 +110,17 @@ static void gen_expr(Node const* node)
 
 static void gen_stmt(Node const* node)
 {
-    if (node->eNodeKind == ND_EXPR_STMT) {
-        gen_expr(node->rhs);
+    switch (node->eNodeKind) {
+    case ND_EXPR_STMT:
+        gen_expr(node->lhs);
         return;
+        break;
+    case ND_RETURN:
+        gen_expr(node->lhs);
+        printf("  jmp .L.return\n");
+        return;
+    default:
+        break;
     }
 
     unreachable();
@@ -151,6 +157,7 @@ void gen(Function const* prog)
         assert(depth == 0);
     }
 
+    printf(".L.return:\n");
     printf("  mov %%rbp, %%rsp\n");
     printf("  pop %%rbp\n");
     printf("  ret\n");

@@ -65,11 +65,11 @@ static Node* new_binary_node(NodeKind eNodeKind, Node* lhs, Node* rhs)
     return node;
 }
 
-static Node* new_unary_node(NodeKind eNodeKind, Node* rhs)
+static Node* new_unary_node(NodeKind eNodeKind, Node* expr)
 {
     Node* node = new_node(eNodeKind);
     node->isUnary = true;
-    node->rhs = rhs;
+    node->lhs = expr;
     return node;
 }
 
@@ -285,11 +285,17 @@ static Node* parse_expr_stmt(ListNode** pToks)
     return node;
 }
 
-// stmt = expr-stmt
+// stmt = "return" expr ";"
+//      | expr-stmt
 static Node* parse_stmt(ListNode** pToks)
 {
-    Node* ret = parse_expr_stmt(pToks);
-    return ret;
+    if (tok_equal_then_consume(pToks, "return")) {
+        Node* node = new_unary_node(ND_RETURN, parse_expr(pToks));
+        tok_expect(pToks, ";");
+        return node;
+    }
+
+    return parse_expr_stmt(pToks);
 }
 
 Function* parse(List* toks)

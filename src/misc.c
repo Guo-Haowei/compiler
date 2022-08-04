@@ -78,19 +78,16 @@ void error_at_token(Token const* tok, char const* const fmt, ...)
 
 char const* token_kind_to_string(TokenKind eTokenKind)
 {
-    switch (eTokenKind) {
-    case TK_IDENT:
-        return "TK_IDENT";
-    case TK_PUNCT:
-        return "TK_PUNCT";
-    case TK_NUM:
-        return "TK_NUM";
-    case TK_EOF:
-        return "TK_EOF";
-    }
+    assertindex(eTokenKind, TK_COUNT);
 
-    unreachable();
-    return "";
+    static char const* const s_names[] = {
+#define DEFINE_TOKEN(NAME) #NAME,
+#include "token.inl"
+#undef DEFINE_TOKEN
+    };
+    STATIC_ASSERT(ARRAY_COUNTER(s_names) == TK_COUNT);
+
+    return s_names[eTokenKind];
 }
 
 char const* node_kind_to_string(NodeKind eNodeKind)
@@ -151,7 +148,7 @@ static void debug_print_node_internal(Node const* node, int depth)
 
     if (node->isUnary) {
         fprintf(stderr, "([unary %s] ", node_kind_to_string(node->eNodeKind));
-        debug_print_node_internal(node->rhs, depth);
+        debug_print_node_internal(node->lhs, depth);
         fprintf(stderr, " )");
         return;
     }
