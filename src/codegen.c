@@ -114,7 +114,6 @@ static void gen_stmt(Node const* node)
     case ND_EXPR_STMT:
         gen_expr(node->lhs);
         return;
-        break;
     case ND_RETURN:
         gen_expr(node->lhs);
         printf("  jmp .L.return\n");

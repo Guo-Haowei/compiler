@@ -278,9 +278,12 @@ static Node* parse_expr(ListNode** pToks)
     return parse_assign(pToks);
 }
 
-// expr-stmt = expr ";"
+// expr-stmt = expr? ";"
 static Node* parse_expr_stmt(ListNode** pToks)
 {
+    if (tok_equal_then_consume(pToks, ";")) {
+        return new_node(ND_BLOCK);
+    }
     Node* node = new_unary_node(ND_EXPR_STMT, parse_expr(pToks));
     tok_expect(pToks, ";");
     return node;
