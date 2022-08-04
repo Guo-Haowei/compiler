@@ -70,4 +70,13 @@ assert 3 '{ 1; 2; return 3; }'
 assert 3 '{ 1; 2; { return 3; 4; 5; } }'
 assert 12 '{ ; abc = 12;; return abc; }'
 
+# if else
+assert 3 '{ if (0) return 2; return 3; }'
+assert 3 '{ if (1-1) return 2; return 3; }'
+assert 2 '{ if (1) return 2; return 3; }'
+assert 2 '{ if (2-1) return 2; return 3; }'
+assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
+assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
+assert 100 '{ a = 10; if (a < 5) { return a; } else { return a = 100; } }'
+
 echo OK

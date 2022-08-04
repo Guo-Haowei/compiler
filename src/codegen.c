@@ -108,9 +108,30 @@ static void gen_expr(Node const* node)
     unreachable();
 }
 
+// TODO: refactor
+static int if_else_counter()
+{
+    static int i = 1;
+    return i++;
+}
+
 static void gen_stmt(Node const* node)
 {
     switch (node->eNodeKind) {
+    case ND_IF: {
+        int const c = if_else_counter();
+        gen_expr(node->cond);
+        printf("  cmp $0, %%rax\n");
+        printf("  je  .L.else.%d\n", c);
+        gen_stmt(node->then);
+        printf("  jmp .L.end.%d\n", c);
+        printf(".L.else.%d:\n", c);
+        if (node->els) {
+            gen_stmt(node->els);
+        }
+        printf(".L.end.%d:\n", c);
+        return;
+    }
     case ND_EXPR_STMT:
         gen_expr(node->lhs);
         return;

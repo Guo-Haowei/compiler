@@ -16,6 +16,7 @@ DEFINE_NODE(ND_LE)        // <=
 DEFINE_NODE(ND_GT)        // >
 DEFINE_NODE(ND_GE)        // >=
 DEFINE_NODE(ND_ASSIGN)    // =
+DEFINE_NODE(ND_IF)        // "if"
 DEFINE_NODE(ND_RETURN)    // "return"
 DEFINE_NODE(ND_BLOCK)     // { ... }
 DEFINE_NODE(ND_EXPR_STMT) // expression statement

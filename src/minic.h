@@ -60,26 +60,35 @@ typedef struct token_t {
 } Token;
 
 // Local variable
-typedef struct obj_t {
-    struct obj_t* next;
+typedef struct obj_t Obj;
+struct obj_t {
+    Obj* next;
     char const* name; // Variable name
     int offset;       // Offset from RBP
-} Obj;
+};
 
 // AST node
-typedef struct node_t {
+typedef struct node_t Node;
+struct node_t {
     NodeKind eNodeKind;
-    struct node_t* next;
-    struct node_t* lhs;
-    struct node_t* rhs;
-    Obj* var;            // Used if eNodeKind == ND_VAR
-    int val;             // Used if eNodeKind == ND_NUM
-    struct node_t* body; // Used if eNodeKind == ND_BLOCK
+    Node* next;
+    Node* lhs;
+    Node* rhs;
+    Obj* var; // Used if eNodeKind == ND_VAR
+    int val;  // Used if eNodeKind == ND_NUM
+
+    // "if" statement
+    Node* cond;
+    Node* then;
+    Node* els;
+
+    // {...} block statement
+    Node* body;
 
     // @TODO: remove flags
     int isBinary;
     int isUnary;
-} Node;
+};
 
 // Function
 typedef struct function_t {

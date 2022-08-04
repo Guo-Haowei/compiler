@@ -290,13 +290,26 @@ static Node* parse_expr_stmt(ListNode** pToks)
 }
 
 // stmt = "return" expr ";"
-//      | expr-stmt
+//      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "{" compound-stmt "}"
+//      | expr-stmt
 static Node* parse_stmt(ListNode** pToks)
 {
     if (tok_equal_then_consume(pToks, "return")) {
         Node* node = new_unary_node(ND_RETURN, parse_expr(pToks));
         tok_expect(pToks, ";");
+        return node;
+    }
+
+    if (tok_equal_then_consume(pToks, "if")) {
+        Node* node = new_node(ND_IF);
+        tok_expect(pToks, "(");
+        node->cond = parse_expr(pToks);
+        tok_expect(pToks, ")");
+        node->then = parse_stmt(pToks);
+        if (tok_equal_then_consume(pToks, "else")) {
+            node->els = parse_stmt(pToks);
+        }
         return node;
     }
 
