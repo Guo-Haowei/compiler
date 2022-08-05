@@ -146,14 +146,20 @@ static void gen_stmt(Node const* node)
         return;
     case ND_FOR: {
         int const c = label_counter();
-        gen_stmt(node->init);
+        if (node->init) {
+            gen_stmt(node->init);
+        }
+
         printf(".L.begin.%d:\n", c);
+
         if (node->cond) {
             gen_expr(node->cond);
             printf("  cmp $0, %%rax\n");
             printf("  je  .L.end.%d\n", c);
         }
+
         gen_stmt(node->then);
+
         if (node->inc)
         {
             gen_expr(node->inc);

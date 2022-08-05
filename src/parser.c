@@ -79,7 +79,8 @@ static void tok_consume(ListNode** pToks)
     *pToks = (*pToks)->next;
 }
 
-static bool tok_equal_then_consume(ListNode** pToks, const char* expect)
+// if equal, consume token
+static bool tok_eq(ListNode** pToks, const char* expect)
 {
     assert(pToks && *pToks);
 
@@ -124,7 +125,7 @@ static Node* parse_compound_stmt(ListNode** pToks);
 // primary = "(" expr ")" | num | ident
 static Node* parse_primary(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pToks, "(")) {
+    if (tok_eq(pToks, "(")) {
         Node* node = parse_add(pToks);
         tok_expect(pToks, ")"); // consume ')'
         return node;
@@ -156,11 +157,11 @@ static Node* parse_primary(ListNode** pToks)
 //       | primary
 static Node* parse_unary(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pToks, "+")) {
+    if (tok_eq(pToks, "+")) {
         return parse_unary(pToks);
     }
 
-    if (tok_equal_then_consume(pToks, "-")) {
+    if (tok_eq(pToks, "-")) {
         return new_unary_node(ND_NEG, parse_unary(pToks));
     }
 
@@ -173,17 +174,17 @@ static Node* parse_mul(ListNode** pToks)
     Node* node = parse_unary(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pToks, "*")) {
+        if (tok_eq(pToks, "*")) {
             node = new_binary_node(ND_MUL, node, parse_unary(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, "/")) {
+        if (tok_eq(pToks, "/")) {
             node = new_binary_node(ND_DIV, node, parse_unary(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, "%")) {
+        if (tok_eq(pToks, "%")) {
             node = new_binary_node(ND_REM, node, parse_unary(pToks));
             continue;
         }
@@ -198,12 +199,12 @@ static Node* parse_add(ListNode** pToks)
     Node* node = parse_mul(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pToks, "+")) {
+        if (tok_eq(pToks, "+")) {
             node = new_binary_node(ND_ADD, node, parse_mul(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, "-")) {
+        if (tok_eq(pToks, "-")) {
             node = new_binary_node(ND_SUB, node, parse_mul(pToks));
             continue;
         }
@@ -218,22 +219,22 @@ static Node* parse_relational(ListNode** pToks)
     Node* node = parse_add(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pToks, "<")) {
+        if (tok_eq(pToks, "<")) {
             node = new_binary_node(ND_LT, node, parse_add(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, "<=")) {
+        if (tok_eq(pToks, "<=")) {
             node = new_binary_node(ND_LE, node, parse_add(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, ">")) {
+        if (tok_eq(pToks, ">")) {
             node = new_binary_node(ND_GT, node, parse_add(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, ">=")) {
+        if (tok_eq(pToks, ">=")) {
             node = new_binary_node(ND_GE, node, parse_add(pToks));
             continue;
         }
@@ -248,12 +249,12 @@ static Node* parse_equality(ListNode** pToks)
     Node* node = parse_relational(pToks);
 
     for (;;) {
-        if (tok_equal_then_consume(pToks, "==")) {
+        if (tok_eq(pToks, "==")) {
             node = new_binary_node(ND_EQ, node, parse_relational(pToks));
             continue;
         }
 
-        if (tok_equal_then_consume(pToks, "!=")) {
+        if (tok_eq(pToks, "!=")) {
             node = new_binary_node(ND_NE, node, parse_relational(pToks));
             continue;
         }
@@ -266,7 +267,7 @@ static Node* parse_equality(ListNode** pToks)
 static Node* parse_assign(ListNode** pToks)
 {
     Node* node = parse_equality(pToks);
-    if (tok_equal_then_consume(pToks, "=")) {
+    if (tok_eq(pToks, "=")) {
         node = new_binary_node(ND_ASSIGN, node, parse_assign(pToks));
     }
     return node;
@@ -281,7 +282,7 @@ static Node* parse_expr(ListNode** pToks)
 // expr-stmt = expr? ";"
 static Node* parse_expr_stmt(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pToks, ";")) {
+    if (tok_eq(pToks, ";")) {
         return new_node(ND_BLOCK);
     }
     Node* node = new_unary_node(ND_EXPR_STMT, parse_expr(pToks));
@@ -292,37 +293,38 @@ static Node* parse_expr_stmt(ListNode** pToks)
 // stmt = "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+//      | "while" "(" expr ")" stmt
 //      | "{" compound-stmt "}"
 //      | expr-stmt
 static Node* parse_stmt(ListNode** pToks)
 {
-    if (tok_equal_then_consume(pToks, "return")) {
+    if (tok_eq(pToks, "return")) {
         Node* node = new_unary_node(ND_RETURN, parse_expr(pToks));
         tok_expect(pToks, ";");
         return node;
     }
 
-    if (tok_equal_then_consume(pToks, "if")) {
+    if (tok_eq(pToks, "if")) {
         Node* node = new_node(ND_IF);
         tok_expect(pToks, "(");
         node->cond = parse_expr(pToks);
         tok_expect(pToks, ")");
         node->then = parse_stmt(pToks);
-        if (tok_equal_then_consume(pToks, "else")) {
+        if (tok_eq(pToks, "else")) {
             node->els = parse_stmt(pToks);
         }
         return node;
     }
 
-    if (tok_equal_then_consume(pToks, "for")) {
+    if (tok_eq(pToks, "for")) {
         tok_expect(pToks, "(");
         Node* node = new_node(ND_FOR);
         node->init = parse_expr_stmt(pToks);
-        if (!tok_equal_then_consume(pToks, ";")) {
+        if (!tok_eq(pToks, ";")) {
             node->cond = parse_expr(pToks);
             tok_expect(pToks, ";");
         }
-        if (!tok_equal_then_consume(pToks, ")")) {
+        if (!tok_eq(pToks, ")")) {
             node->inc = parse_expr(pToks);
             tok_expect(pToks, ")");
         }
@@ -331,7 +333,16 @@ static Node* parse_stmt(ListNode** pToks)
         return node;
     }
 
-    if (tok_equal_then_consume(pToks, "{")) {
+    if (tok_eq(pToks, "while")) {
+        Node* node = new_node(ND_FOR);
+        tok_expect(pToks, "(");
+        node->cond = parse_expr(pToks);
+        tok_expect(pToks, ")");
+        node->then = parse_stmt(pToks);
+        return node;
+    }
+
+    if (tok_eq(pToks, "{")) {
         return parse_compound_stmt(pToks);
     }
 
@@ -343,7 +354,7 @@ static Node* parse_compound_stmt(ListNode** pToks)
 {
     Node head;
     Node* cur = &head;
-    while (!tok_equal_then_consume(pToks, "}")) {
+    while (!tok_eq(pToks, "}")) {
         cur = cur->next = parse_stmt(pToks);
     }
 
