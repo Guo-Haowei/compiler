@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define AS_TOK(LIST_NODE) (Token*)((LIST_NODE) + 1)
+
 // All local variable instances created during parsing are
 // accumulated to this list.
 Obj* locals;
@@ -25,24 +27,25 @@ int token_as_int(Token const* tok)
     return atoi(tok->start);
 }
 
-static Node* new_node(NodeKind eNodeKind)
+static Node* new_node(NodeKind eNodeKind, Token const* tok)
 {
     Node* node = calloc(1, sizeof(Node));
+    node->tok = tok;
     node->eNodeKind = eNodeKind;
     return node;
 }
 
-static Node* new_num_node(int val)
+static Node* new_num_node(int val, Token const* tok)
 {
-    Node* node = new_node(ND_NUM);
+    Node* node = new_node(ND_NUM, tok);
     node->eNodeKind = ND_NUM;
     node->val = val;
     return node;
 }
 
-static Node* new_var_node(Obj* var)
+static Node* new_var_node(Obj* var, Token const* tok)
 {
-    Node* node = new_node(ND_VAR);
+    Node* node = new_node(ND_VAR, tok);
     node->var = var;
     return node;
 }
@@ -56,18 +59,18 @@ static Obj* new_lvar(char* name)
     return var;
 }
 
-static Node* new_binary_node(NodeKind eNodeKind, Node* lhs, Node* rhs)
+static Node* new_binary_node(NodeKind eNodeKind, Node* lhs, Node* rhs, Token const* tok)
 {
-    Node* node = new_node(eNodeKind);
+    Node* node = new_node(eNodeKind, tok);
     node->isBinary = true;
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
 }
 
-static Node* new_unary_node(NodeKind eNodeKind, Node* expr)
+static Node* new_unary_node(NodeKind eNodeKind, Node* expr, Token const* tok)
 {
-    Node* node = new_node(eNodeKind);
+    Node* node = new_node(eNodeKind, tok);
     node->isUnary = true;
     node->lhs = expr;
     return node;
@@ -84,7 +87,7 @@ static bool tok_eq(ListNode** pToks, const char* expect)
 {
     assert(pToks && *pToks);
 
-    Token const* token = (Token const*)(*pToks + 1);
+    Token const* token = AS_TOK(*pToks);
     int const expectLen = strlen(expect);
     if (expectLen != token->len) {
         return false;
@@ -102,7 +105,7 @@ static bool tok_eq(ListNode** pToks, const char* expect)
 static void tok_expect(ListNode** pToks, char const* expect)
 {
     assert(pToks && *pToks);
-    Token const* token = (Token const*)(*pToks + 1);
+    Token const* token = AS_TOK(*pToks);
     int const expectLen = strlen(expect);
     if (expectLen != token->len || (strncmp(token->start, expect, token->len) != 0)) {
         error_at_token(token, "expected '%s'", expect);
@@ -131,9 +134,9 @@ static Node* parse_primary(ListNode** pToks)
         return node;
     }
 
-    Token const* tok = (Token const*)(*pToks + 1);
+    Token const* tok = AS_TOK(*pToks);
     if (tok->eTokenKind == TK_NUM) {
-        Node* node = new_num_node(token_as_int(tok));
+        Node* node = new_num_node(token_as_int(tok), tok);
         tok_consume(pToks);
         return node;
     }
@@ -146,14 +149,14 @@ static Node* parse_primary(ListNode** pToks)
         }
 
         tok_consume(pToks);
-        return new_var_node(var);
+        return new_var_node(var, tok);
     }
 
-    error_at_token(tok, "expected expression, got '%.*s'", tok->len, tok->start);
+    error_at_token(tok, "expected expression before '%.*s' token", tok->len, tok->start);
     return nullptr;
 }
 
-// unary = ("+" | "-") unary
+// unary = ("+" | "-" | "*" | "&") unary
 //       | primary
 static Node* parse_unary(ListNode** pToks)
 {
@@ -161,8 +164,18 @@ static Node* parse_unary(ListNode** pToks)
         return parse_unary(pToks);
     }
 
+    Token* tok = AS_TOK(*pToks);
+
     if (tok_eq(pToks, "-")) {
-        return new_unary_node(ND_NEG, parse_unary(pToks));
+        return new_unary_node(ND_NEG, parse_unary(pToks), tok);
+    }
+
+    if (tok_eq(pToks, "*")) {
+        return new_unary_node(ND_DEREF, parse_unary(pToks), tok);
+    }
+
+    if (tok_eq(pToks, "&")) {
+        return new_unary_node(ND_ADDR, parse_unary(pToks), tok);
     }
 
     return parse_primary(pToks);
@@ -193,7 +206,7 @@ static Node* parse_binary_internal(ListNode** pToks, char const** symbols, Parse
             if (tok_eq(pToks, *p)) {
                 NodeKind kind = to_binary_node_kind(*p);
                 assert(kind != ND_INVALID);
-                node = new_binary_node(kind, node, fp(pToks));
+                node = new_binary_node(kind, node, fp(pToks), AS_TOK(pToks[0]->prev));
                 found = true;
                 break;
             }
@@ -240,7 +253,7 @@ static Node* parse_assign(ListNode** pToks)
 {
     Node* node = parse_equality(pToks);
     if (tok_eq(pToks, "=")) {
-        node = new_binary_node(ND_ASSIGN, node, parse_assign(pToks));
+        node = new_binary_node(ND_ASSIGN, node, parse_assign(pToks), AS_TOK(pToks[0]->prev));
     }
     return node;
 }
@@ -254,10 +267,12 @@ static Node* parse_expr(ListNode** pToks)
 // expr-stmt = expr? ";"
 static Node* parse_expr_stmt(ListNode** pToks)
 {
+    Token const* tok = AS_TOK(*pToks);
+
     if (tok_eq(pToks, ";")) {
-        return new_node(ND_BLOCK);
+        return new_node(ND_BLOCK, tok);
     }
-    Node* node = new_unary_node(ND_EXPR_STMT, parse_expr(pToks));
+    Node* node = new_unary_node(ND_EXPR_STMT, parse_expr(pToks), tok);
     tok_expect(pToks, ";");
     return node;
 }
@@ -270,14 +285,16 @@ static Node* parse_expr_stmt(ListNode** pToks)
 //      | expr-stmt
 static Node* parse_stmt(ListNode** pToks)
 {
+    Token const* tok = AS_TOK(*pToks);
+
     if (tok_eq(pToks, "return")) {
-        Node* node = new_unary_node(ND_RETURN, parse_expr(pToks));
+        Node* node = new_unary_node(ND_RETURN, parse_expr(pToks), tok);
         tok_expect(pToks, ";");
         return node;
     }
 
     if (tok_eq(pToks, "if")) {
-        Node* node = new_node(ND_IF);
+        Node* node = new_node(ND_IF, tok);
         tok_expect(pToks, "(");
         node->cond = parse_expr(pToks);
         tok_expect(pToks, ")");
@@ -289,8 +306,9 @@ static Node* parse_stmt(ListNode** pToks)
     }
 
     if (tok_eq(pToks, "for")) {
+        Node* node = new_node(ND_FOR, tok);
+
         tok_expect(pToks, "(");
-        Node* node = new_node(ND_FOR);
         node->init = parse_expr_stmt(pToks);
         if (!tok_eq(pToks, ";")) {
             node->cond = parse_expr(pToks);
@@ -306,7 +324,7 @@ static Node* parse_stmt(ListNode** pToks)
     }
 
     if (tok_eq(pToks, "while")) {
-        Node* node = new_node(ND_FOR);
+        Node* node = new_node(ND_FOR, tok);
         tok_expect(pToks, "(");
         node->cond = parse_expr(pToks);
         tok_expect(pToks, ")");
@@ -324,13 +342,14 @@ static Node* parse_stmt(ListNode** pToks)
 // compound-stmt = stmt* "}"
 static Node* parse_compound_stmt(ListNode** pToks)
 {
+    Token* tok = AS_TOK(pToks[0]->prev);
     Node head;
     Node* cur = &head;
     while (!tok_eq(pToks, "}")) {
         cur = cur->next = parse_stmt(pToks);
     }
 
-    Node* node = new_node(ND_BLOCK);
+    Node* node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
 }

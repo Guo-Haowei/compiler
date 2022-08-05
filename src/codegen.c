@@ -16,16 +16,24 @@ static void pop(char const* arg)
     depth--;
 }
 
+static void gen_expr(Node const* node);
+
 // Compute the absolute address of a given node.
 // It's an error if a given node does not reside in memory.
 static void gen_addr(Node const* node)
 {
-    if (node->eNodeKind == ND_VAR) {
+    switch (node->eNodeKind) {
+    case ND_VAR:
         printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
         return;
+    case ND_DEREF:
+        gen_expr(node->lhs);
+        return;
+    default:
+        break;
     }
 
-    assert(0 && "not an lvalue");
+    error_at_token(node->tok, "not an lvalue");
 }
 
 static void gen_cmp_expr(NodeKind eNodeKind)
@@ -62,6 +70,13 @@ static void gen_expr(Node const* node)
     case ND_VAR:
         gen_addr(node);
         printf("  mov (%%rax), %%rax\n");
+        return;
+    case ND_DEREF:
+        gen_expr(node->lhs);
+        printf("  mov (%%rax), %%rax\n");
+        return;
+    case ND_ADDR:
+        gen_addr(node->lhs);
         return;
     case ND_ASSIGN:
         gen_addr(node->lhs);
@@ -105,7 +120,7 @@ static void gen_expr(Node const* node)
         break;
     }
 
-    unreachable();
+    error_at_token(node->tok, "invalid statement");
 }
 
 // TODO: refactor
@@ -160,8 +175,7 @@ static void gen_stmt(Node const* node)
 
         gen_stmt(node->then);
 
-        if (node->inc)
-        {
+        if (node->inc) {
             gen_expr(node->inc);
         }
         printf("  jmp .L.begin.%d\n", c);
@@ -172,7 +186,7 @@ static void gen_stmt(Node const* node)
         break;
     }
 
-    unreachable();
+    error_at_token(node->tok, "invalid statement");
 }
 
 // Assign offsets to local variables.

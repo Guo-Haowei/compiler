@@ -77,6 +77,8 @@ struct node_t {
     Obj* var; // Used if eNodeKind == ND_VAR
     int val;  // Used if eNodeKind == ND_NUM
 
+    Token const* tok; // Representative token
+
     // "if" or "for" statement
     Node *cond;
     Node *then;

@@ -10,8 +10,9 @@ DEFINE_NODE(ND_SUB          , "-"           , 0         ) // -
 DEFINE_NODE(ND_MUL          , "*"           , 0         ) // *
 DEFINE_NODE(ND_DIV          , "/"           , 0         ) // /
 DEFINE_NODE(ND_REM          , "%"           , 0         ) // %
-DEFINE_NODE(ND_POS          , 0             , "+"       ) // -
-DEFINE_NODE(ND_NEG          , 0             , "-"       ) // -
+DEFINE_NODE(ND_NEG          , 0             , "-"       ) // unary -
+DEFINE_NODE(ND_ADDR         , 0             , "&"       ) // unary &
+DEFINE_NODE(ND_DEREF        , 0             , "*"       ) // unary *
 DEFINE_NODE(ND_EQ           , "=="          , 0         ) // ==
 DEFINE_NODE(ND_NE           , "!="          , 0         ) // !=
 DEFINE_NODE(ND_LT           , "<"           , 0         ) // <
