@@ -33,7 +33,7 @@ static void gen_addr(Node const* node)
         break;
     }
 
-    error_at_token(node->tok, "not an lvalue");
+    error_tok(node->tok, "not an lvalue");
 }
 
 static void gen_cmp_expr(NodeKind eNodeKind)
@@ -120,7 +120,7 @@ static void gen_expr(Node const* node)
         break;
     }
 
-    error_at_token(node->tok, "invalid statement");
+    error_tok(node->tok, "invalid statement");
 }
 
 // TODO: refactor
@@ -186,7 +186,7 @@ static void gen_stmt(Node const* node)
         break;
     }
 
-    error_at_token(node->tok, "invalid statement");
+    error_tok(node->tok, "invalid statement");
 }
 
 // Assign offsets to local variables.

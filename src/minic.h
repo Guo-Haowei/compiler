@@ -67,11 +67,14 @@ struct obj_t {
     int offset;       // Offset from RBP
 };
 
-// AST node
 typedef struct node_t Node;
+typedef struct type_t Type;
+
+// AST node
 struct node_t {
     NodeKind eNodeKind;
     Node* next;
+    Type* type;
     Node* lhs;
     Node* rhs;
     Obj* var; // Used if eNodeKind == ND_VAR
@@ -80,11 +83,11 @@ struct node_t {
     Token const* tok; // Representative token
 
     // "if" or "for" statement
-    Node *cond;
-    Node *then;
-    Node *els;
-    Node *init;
-    Node *inc;
+    Node* cond;
+    Node* then;
+    Node* els;
+    Node* init;
+    Node* inc;
 
     // {...} block statement
     Node* body;
@@ -110,19 +113,34 @@ typedef struct lexer_t {
 
 int token_as_int(Token const* tok);
 
-typedef Node* (*ParseBinaryFn)(ListNode**);
+// type
+typedef enum {
+    TY_INT,
+    TY_PTR,
+} TypeKind;
+
+struct type_t {
+    TypeKind eTypeKind;
+    Type* base;
+};
+
+extern Type* g_int_type;
+
+bool is_integer(Type* ty);
+void add_type(Node* node);
 
 List* lex(SourceInfo const* sourceInfo);
 Function* parse(List* toks);
 void gen(Function const* prog);
 
-void error_at_lexer(Lexer const* lexer, char const* const fmt, ...);
-void error_at_token(Token const* token, char const* const fmt, ...);
+void error_lex(Lexer const* lexer, char const* const fmt, ...);
+void error_tok(Token const* token, char const* const fmt, ...);
 
-// DEBUG
+// error
 char const* token_kind_to_string(TokenKind eTokenKind);
 char const* node_kind_to_string(NodeKind eNodeKind);
 
+// DEBUG
 void debug_print_token(Token const* tok);
 void debug_print_tokens(List const* toks);
 void debug_print_node(Node const* node);

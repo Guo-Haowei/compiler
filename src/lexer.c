@@ -223,7 +223,7 @@ List* lex(SourceInfo const* sourceInfo)
             continue;
         }
 
-        error_at_lexer(&lexer, "stray '%c' in program", c);
+        error_lex(&lexer, "stray '%c' in program", c);
     }
 
     add_eof(&lexer, toks);

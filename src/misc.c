@@ -44,7 +44,7 @@ static void verror_at(char const* file, char const* source, int sourceLen, int l
     exit(-1);
 }
 
-void error_at_lexer(Lexer const* lexer, char const* const fmt, ...)
+void error_lex(Lexer const* lexer, char const* const fmt, ...)
 {
     char const* file = lexer->sourceInfo->file;
     char const* source = lexer->sourceInfo->start;
@@ -58,7 +58,7 @@ void error_at_lexer(Lexer const* lexer, char const* const fmt, ...)
     va_end(args);
 }
 
-void error_at_token(Token const* tok, char const* const fmt, ...)
+void error_tok(Token const* tok, char const* const fmt, ...)
 {
     char const* file = tok->sourceInfo->file;
     char const* source = tok->sourceInfo->start;
