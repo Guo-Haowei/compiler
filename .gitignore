@@ -9,3 +9,7 @@
 *.asm
 tmp.*
 dummy.c
+
+minic
+list-test
+tmp

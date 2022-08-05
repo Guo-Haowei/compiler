@@ -1,5 +1,5 @@
 #!/bin/bash
-sh build.sh
+sh x64-build.sh
 
 assert() {
   expected="$1"

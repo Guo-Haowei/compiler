@@ -1,2 +1,2 @@
 #!/bin/bash
-rm *.exe
+rm *.exe *.ll minic tmp* &> /dev/null
