@@ -1,6 +1,6 @@
 #ifndef __LIST_H__
 #define __LIST_H__
-#include <stdint.h>
+#include <stddef.h>
 
 #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 

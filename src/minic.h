@@ -77,10 +77,12 @@ struct node_t {
     Obj* var; // Used if eNodeKind == ND_VAR
     int val;  // Used if eNodeKind == ND_NUM
 
-    // "if" statement
-    Node* cond;
-    Node* then;
-    Node* els;
+    // "if" or "for" statement
+    Node *cond;
+    Node *then;
+    Node *els;
+    Node *init;
+    Node *inc;
 
     // {...} block statement
     Node* body;

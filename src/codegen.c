@@ -109,7 +109,7 @@ static void gen_expr(Node const* node)
 }
 
 // TODO: refactor
-static int if_else_counter()
+static int label_counter()
 {
     static int i = 1;
     return i++;
@@ -119,7 +119,7 @@ static void gen_stmt(Node const* node)
 {
     switch (node->eNodeKind) {
     case ND_IF: {
-        int const c = if_else_counter();
+        int const c = label_counter();
         gen_expr(node->cond);
         printf("  cmp $0, %%rax\n");
         printf("  je  .L.else.%d\n", c);
@@ -144,6 +144,24 @@ static void gen_stmt(Node const* node)
             gen_stmt(n);
         }
         return;
+    case ND_FOR: {
+        int const c = label_counter();
+        gen_stmt(node->init);
+        printf(".L.begin.%d:\n", c);
+        if (node->cond) {
+            gen_expr(node->cond);
+            printf("  cmp $0, %%rax\n");
+            printf("  je  .L.end.%d\n", c);
+        }
+        gen_stmt(node->then);
+        if (node->inc)
+        {
+            gen_expr(node->inc);
+        }
+        printf("  jmp .L.begin.%d\n", c);
+        printf(".L.end.%d:\n", c);
+        return;
+    }
     default:
         break;
     }

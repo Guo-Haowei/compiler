@@ -291,6 +291,7 @@ static Node* parse_expr_stmt(ListNode** pToks)
 
 // stmt = "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "{" compound-stmt "}"
 //      | expr-stmt
 static Node* parse_stmt(ListNode** pToks)
@@ -310,6 +311,23 @@ static Node* parse_stmt(ListNode** pToks)
         if (tok_equal_then_consume(pToks, "else")) {
             node->els = parse_stmt(pToks);
         }
+        return node;
+    }
+
+    if (tok_equal_then_consume(pToks, "for")) {
+        tok_expect(pToks, "(");
+        Node* node = new_node(ND_FOR);
+        node->init = parse_expr_stmt(pToks);
+        if (!tok_equal_then_consume(pToks, ";")) {
+            node->cond = parse_expr(pToks);
+            tok_expect(pToks, ";");
+        }
+        if (!tok_equal_then_consume(pToks, ")")) {
+            node->inc = parse_expr(pToks);
+            tok_expect(pToks, ")");
+        }
+
+        node->then = parse_stmt(pToks);
         return node;
     }
 
