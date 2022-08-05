@@ -168,99 +168,71 @@ static Node* parse_unary(ListNode** pToks)
     return parse_primary(pToks);
 }
 
-// mul = unary ("*" unary | "/" unary)*
-static Node* parse_mul(ListNode** pToks)
+static bool streq(char const* a, char const* b)
 {
-    Node* node = parse_unary(pToks);
+    return strcmp(a, b) == 0;
+}
+
+static NodeKind to_binary_node_kind(char const* symbol)
+{
+#define DEFINE_NODE(NAME, BINOP, UNARYOP) \
+    if (BINOP && streq(symbol, BINOP))    \
+        return NAME;
+#include "node.inl"
+#undef DEFINE_NODE
+    return ND_INVALID;
+}
+
+static Node* parse_binary_internal(ListNode** pToks, char const** symbols, ParseBinaryFn fp)
+{
+    Node* node = fp(pToks);
 
     for (;;) {
-        if (tok_eq(pToks, "*")) {
-            node = new_binary_node(ND_MUL, node, parse_unary(pToks));
-            continue;
+        bool found = false;
+        for (char const** p = symbols; *p; ++p) {
+            if (tok_eq(pToks, *p)) {
+                NodeKind kind = to_binary_node_kind(*p);
+                assert(kind != ND_INVALID);
+                node = new_binary_node(kind, node, fp(pToks));
+                found = true;
+                break;
+            }
         }
 
-        if (tok_eq(pToks, "/")) {
-            node = new_binary_node(ND_DIV, node, parse_unary(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, "%")) {
-            node = new_binary_node(ND_REM, node, parse_unary(pToks));
+        if (found) {
             continue;
         }
 
         return node;
     }
+}
+
+// mul = unary ("*" unary | "/" unary)*
+static Node* parse_mul(ListNode** pToks)
+{
+    static char const* s_symbols[] = { "*", "/", "%", nullptr };
+    return parse_binary_internal(pToks, s_symbols, parse_unary);
 }
 
 // expr = mul ("+" mul | "-" mul)*
 static Node* parse_add(ListNode** pToks)
 {
-    Node* node = parse_mul(pToks);
-
-    for (;;) {
-        if (tok_eq(pToks, "+")) {
-            node = new_binary_node(ND_ADD, node, parse_mul(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, "-")) {
-            node = new_binary_node(ND_SUB, node, parse_mul(pToks));
-            continue;
-        }
-
-        return node;
-    }
+    static char const* s_symbols[] = { "+", "-", nullptr };
+    return parse_binary_internal(pToks, s_symbols, parse_mul);
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node* parse_relational(ListNode** pToks)
 {
-    Node* node = parse_add(pToks);
-
-    for (;;) {
-        if (tok_eq(pToks, "<")) {
-            node = new_binary_node(ND_LT, node, parse_add(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, "<=")) {
-            node = new_binary_node(ND_LE, node, parse_add(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, ">")) {
-            node = new_binary_node(ND_GT, node, parse_add(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, ">=")) {
-            node = new_binary_node(ND_GE, node, parse_add(pToks));
-            continue;
-        }
-
-        return node;
-    }
+    static char const* s_symbols[] = { "<", "<=", ">", ">=", nullptr };
+    return parse_binary_internal(pToks, s_symbols, parse_add);
 }
 
 // equality = relational ("==" relational | "!=" relational)*
 static Node* parse_equality(ListNode** pToks)
 {
-    Node* node = parse_relational(pToks);
-
-    for (;;) {
-        if (tok_eq(pToks, "==")) {
-            node = new_binary_node(ND_EQ, node, parse_relational(pToks));
-            continue;
-        }
-
-        if (tok_eq(pToks, "!=")) {
-            node = new_binary_node(ND_NE, node, parse_relational(pToks));
-            continue;
-        }
-
-        return node;
-    }
+    static char const* s_symbols[] = { "==", "!=", nullptr };
+    return parse_binary_internal(pToks, s_symbols, parse_relational);
 }
 
 // assign = equality ("=" assign)?

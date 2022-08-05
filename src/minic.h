@@ -35,7 +35,7 @@ typedef enum token_kind_t {
 } TokenKind;
 
 typedef enum node_kind_t {
-#define DEFINE_NODE(NAME) NAME,
+#define DEFINE_NODE(NAME, BINOP, UNARYOP) NAME,
 #include "node.inl"
 #undef DEFINE_NODE
     ND_COUNT,
@@ -107,6 +107,8 @@ typedef struct lexer_t {
 } Lexer;
 
 int token_as_int(Token const* tok);
+
+typedef Node* (*ParseBinaryFn)(ListNode**);
 
 List* lex(SourceInfo const* sourceInfo);
 Function* parse(List* toks);

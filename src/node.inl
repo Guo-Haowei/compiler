@@ -2,24 +2,28 @@
 #define DEFINE_NODE(...)
 #endif
 
-DEFINE_NODE(ND_INVALID)
-DEFINE_NODE(ND_ADD)       // +
-DEFINE_NODE(ND_SUB)       // -
-DEFINE_NODE(ND_MUL)       // *
-DEFINE_NODE(ND_DIV)       // /
-DEFINE_NODE(ND_REM)       // %
-DEFINE_NODE(ND_NEG)       // -
-DEFINE_NODE(ND_EQ)        // ==
-DEFINE_NODE(ND_NE)        // !=
-DEFINE_NODE(ND_LT)        // <
-DEFINE_NODE(ND_LE)        // <=
-DEFINE_NODE(ND_GT)        // >
-DEFINE_NODE(ND_GE)        // >=
-DEFINE_NODE(ND_ASSIGN)    // =
-DEFINE_NODE(ND_IF)        // "if"
-DEFINE_NODE(ND_FOR)       // "for" or "while"
-DEFINE_NODE(ND_RETURN)    // "return"
-DEFINE_NODE(ND_BLOCK)     // { ... }
-DEFINE_NODE(ND_EXPR_STMT) // expression statement
-DEFINE_NODE(ND_VAR)       // variable
-DEFINE_NODE(ND_NUM)       // number literal
+// clang-format off
+//          enum            , binary-op     , unary-op
+DEFINE_NODE(ND_INVALID      , 0             , 0         )
+DEFINE_NODE(ND_ADD          , "+"           , 0         ) // +
+DEFINE_NODE(ND_SUB          , "-"           , 0         ) // -
+DEFINE_NODE(ND_MUL          , "*"           , 0         ) // *
+DEFINE_NODE(ND_DIV          , "/"           , 0         ) // /
+DEFINE_NODE(ND_REM          , "%"           , 0         ) // %
+DEFINE_NODE(ND_POS          , 0             , "+"       ) // -
+DEFINE_NODE(ND_NEG          , 0             , "-"       ) // -
+DEFINE_NODE(ND_EQ           , "=="          , 0         ) // ==
+DEFINE_NODE(ND_NE           , "!="          , 0         ) // !=
+DEFINE_NODE(ND_LT           , "<"           , 0         ) // <
+DEFINE_NODE(ND_LE           , "<="          , 0         ) // <=
+DEFINE_NODE(ND_GT           , ">"           , 0         ) // >
+DEFINE_NODE(ND_GE           , ">="          , 0         ) // >=
+DEFINE_NODE(ND_ASSIGN       , 0             , 0         ) // =
+DEFINE_NODE(ND_IF           , 0             , 0         ) // "if"
+DEFINE_NODE(ND_FOR          , 0             , 0         ) // "for" or "while"
+DEFINE_NODE(ND_RETURN       , 0             , 0         ) // "return"
+DEFINE_NODE(ND_BLOCK        , 0             , 0         ) // { ... }
+DEFINE_NODE(ND_EXPR_STMT    , 0             , 0         ) // expression statement
+DEFINE_NODE(ND_VAR          , 0             , 0         ) // variable
+DEFINE_NODE(ND_NUM          , 0             , 0         ) // number literal
+// clang-format on

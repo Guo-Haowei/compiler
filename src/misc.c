@@ -95,7 +95,7 @@ char const* node_kind_to_string(NodeKind eNodeKind)
     assertindex(eNodeKind, ND_COUNT);
 
     static char const* const s_names[] = {
-#define DEFINE_NODE(NAME) #NAME,
+#define DEFINE_NODE(NAME, BINOP, UNARYOP) #NAME,
 #include "node.inl"
 #undef DEFINE_NODE
     };
