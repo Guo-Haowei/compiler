@@ -1,6 +1,7 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
+#include <stdint.h>
 
 #include "list.h"
 
