@@ -9,6 +9,7 @@
 *.asm
 tmp.*
 dummy.c
+build/
 
 minic
 list-test

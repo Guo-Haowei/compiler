@@ -1,0 +1,9 @@
+add_executable(minic
+    codegen-llvm.c
+    lexer.c
+    list.c
+    main.c
+    misc.c
+    parser.c
+    type.c
+)

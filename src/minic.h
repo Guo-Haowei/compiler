@@ -5,6 +5,7 @@
 #include "list.h"
 
 typedef int bool;
+typedef unsigned int uint;
 
 #ifndef false
 #define false 0

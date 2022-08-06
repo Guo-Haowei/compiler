@@ -1,4 +1,5 @@
 #!/bin/bash
+sh clean.sh
 sh x64-build.sh
 
 assert() {
