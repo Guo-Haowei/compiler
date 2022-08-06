@@ -2,12 +2,12 @@
 
 #include <stdlib.h>
 
-static Type s_int_type = { TY_INT, nullptr };
+static Type s_int_type = { TY_INT, nullptr, nullptr };
 Type* g_int_type = &s_int_type;
 
-bool is_integer(Type* ty)
+bool is_integer(Type* type)
 {
-    return ty->eTypeKind == TY_INT;
+    return type->eTypeKind == TY_INT;
 }
 
 Type* pointer_to(Type* base)
@@ -30,8 +30,10 @@ void add_type(Node* node)
     add_type(node->els);
     add_type(node->init);
     add_type(node->inc);
-    for (Node* n = node->body; n; n = n->next)
+    for (Node* n = node->body; n; n = n->next) {
         add_type(n);
+    }
+
     switch (node->eNodeKind) {
     case ND_ADD:
     case ND_SUB:

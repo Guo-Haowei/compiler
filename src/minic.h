@@ -60,16 +60,17 @@ typedef struct token_t {
     SourceInfo const* sourceInfo;
 } Token;
 
+typedef struct node_t Node;
+typedef struct type_t Type;
+
 // Local variable
 typedef struct obj_t Obj;
 struct obj_t {
     Obj* next;
     char const* name; // Variable name
+    Type* type;       // Type
     int offset;       // Offset from RBP
 };
-
-typedef struct node_t Node;
-typedef struct type_t Type;
 
 // AST node
 struct node_t {
@@ -123,11 +124,13 @@ typedef enum {
 struct type_t {
     TypeKind eTypeKind;
     Type* base;
+    Token* name;
 };
 
 extern Type* g_int_type;
 
-bool is_integer(Type* ty);
+Type* pointer_to(Type* base);
+bool is_integer(Type* type);
 void add_type(Node* node);
 
 List* lex(SourceInfo const* sourceInfo);
