@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+// TODO: generate IR
+
 static uint reg_id()
 {
     static uint s_id = 0;
@@ -27,16 +29,31 @@ static uint gen_expr(Node const* node)
     assert(node);
 
     switch (node->eNodeKind) {
+    case ND_VAR: {
+        assert(node->var);
+        // TODO: gen address
+        const Obj* var = node->var;
+        const uint id = reg_id();
+        printf("  %%reg%d = load i32, i32* %%var_%s_%d\n", id, var->name, var->id);
+        return id;
+    }
     case ND_NUM: {
         const uint id = reg_id();
         printf("  %%reg%d = add i32 %d, 0\n", id, node->val);
         return id;
     }
     case ND_NEG: {
-        const uint exprId = gen_expr(node->lhs);
+        const uint expr_id = gen_expr(node->lhs);
         const uint id = reg_id();
-        printf("  %%reg%d = sub i32 0, %%reg%d\n", id, exprId);
+        printf("  %%reg%d = sub i32 0, %%reg%d\n", id, expr_id);
         return id;
+    }
+    case ND_ASSIGN: {
+        assert(node->lhs->var);
+        const Obj* var = node->lhs->var;
+        const uint expr_id = gen_expr(node->rhs);
+        printf("  store i32 %%reg%d, i32* %%var_%s_%d\n", expr_id, var->name, var->id);
+        return expr_id;
     }
     default:
         break;
@@ -109,25 +126,53 @@ static void gen_stmt(Node const* node)
 
     switch (node->eNodeKind) {
     case ND_IF: {
-        const uint id_cond = gen_expr(node->cond);
-        const uint id_if = label_id();
-        const uint id_else = label_id();
-        const uint id_end = label_id();
-        const uint id_tmp = reg_id();
-        printf("  %%reg%d = trunc i32 %%reg%d to i1\n", id_tmp, id_cond);
-        printf("  br i1 %%reg%d, label %%L.if%d, label %%L.els%d\n", id_tmp, id_if, id_else);
-        printf("L.if%d:\n", id_if);
+        const uint condId = gen_expr(node->cond);
+        const uint labelId = label_id();
+        const uint bitId = reg_id();
+        printf("  %%reg%d = trunc i32 %%reg%d to i1\n", bitId, condId);
+        printf("  br i1 %%reg%d, label %%L.if%d, label %%L.els%d\n", bitId, labelId, labelId);
+        printf("L.if%d:\n", labelId);
         gen_stmt(node->then);
-        printf("  br label %%L.end%d\n", id_end);
-        printf("L.els%d:\n", id_else);
+        printf("  br label %%L.end%d\n", labelId);
+        printf("L.els%d:\n", labelId);
         if (node->els) {
             gen_stmt(node->els);
         } else {
             nop();
-            printf("  br label %%L.end%d\n", id_end);
+            printf("  br label %%L.end%d\n", labelId);
         }
-        printf("L.end%d:\n", id_end);
+        printf("L.end%d:\n", labelId);
         nop();
+        return;
+    }
+    case ND_FOR: {
+        const uint loopId = label_id();
+        if (node->init) {
+            gen_stmt(node->init);
+        }
+
+        printf("  br label %%L.loop.begin%d\n", loopId);
+        printf("L.loop.begin%d:\n", loopId);
+        nop();
+        if (node->cond) {
+            const uint condId = gen_expr(node->cond);
+            const uint bitId = reg_id();
+            printf("  %%reg%d = trunc i32 %%reg%d to i1\n", bitId, condId);
+            printf("  br i1 %%reg%d, label %%L.loop.body%d, label %%L.loop.end%d\n", bitId, loopId, loopId);
+        }
+
+        // DO NOT add label if no cond
+        if (node->cond) {
+            printf("L.loop.body%d:\n", loopId);
+        }
+        gen_stmt(node->then);
+
+        if (node->inc) {
+            gen_expr(node->inc);
+        }
+
+        printf("  br label %%L.loop.begin%d\n", loopId);
+        printf("L.loop.end%d:\n", loopId);
         return;
     }
     case ND_EXPR_STMT:
@@ -149,11 +194,19 @@ static void gen_stmt(Node const* node)
     error_tok(node->tok, "not implemented");
 }
 
-void gen(Function const* prog)
+static void declare_vars(const Function* prog)
+{
+    for (Obj* var = prog->locals; var; var = var->next) {
+        printf("  %%var_%s_%d = alloca i32\n", var->name, var->id);
+    }
+}
+
+void gen(const Function* prog)
 {
     (void)prog;
     printf("define i32 @main() #0 {\n");
     printf("  %%retval = alloca i32\n");
+    declare_vars(prog);
 
     gen_stmt(prog->body);
 

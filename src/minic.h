@@ -66,6 +66,7 @@ typedef struct type_t Type;
 // Local variable
 typedef struct obj_t Obj;
 struct obj_t {
+    uint id;
     Obj* next;
     char const* name; // Variable name
     Type* type;       // Type
@@ -74,6 +75,7 @@ struct obj_t {
 
 // AST node
 struct node_t {
+    uint id;
     NodeKind eNodeKind;
     Node* next;
     Type* type;
