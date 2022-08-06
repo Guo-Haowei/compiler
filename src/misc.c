@@ -36,7 +36,7 @@ static void verror_at(char const* file, char const* source, int sourceLen, int l
         lineEnd = source + sourceLen;
     }
 
-    int const lineLen = lineEnd - lineStart;
+    const int lineLen = (int)(lineEnd - lineStart);
     fprintf(stderr, "%5d | %.*s\n", line, lineLen, lineStart);
 
     fprintf(stderr, "      |%.*s%.*s\n", col, EMPTYLINE, span, UNDERLINE);

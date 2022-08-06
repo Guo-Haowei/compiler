@@ -1,4 +1,14 @@
-add_executable(minic
+add_executable(minic-x64
+    codegen-x64.c
+    lexer.c
+    list.c
+    main.c
+    misc.c
+    parser.c
+    type.c
+)
+
+add_executable(minic-llvm
     codegen-llvm.c
     lexer.c
     list.c

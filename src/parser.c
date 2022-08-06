@@ -93,7 +93,7 @@ static bool tok_eq(ListNode** pToks, const char* expect)
     assert(pToks && *pToks);
 
     Token const* token = as_tok(*pToks);
-    int const expectLen = strlen(expect);
+    const int expectLen = (int)strlen(expect);
     if (expectLen != token->len) {
         return false;
     }
@@ -111,7 +111,7 @@ static void tok_expect(ListNode** pToks, char const* expect)
 {
     assert(pToks && *pToks);
     Token const* token = as_tok(*pToks);
-    int const expectLen = strlen(expect);
+    const int expectLen = (int)strlen(expect);
     if (expectLen != token->len || (strncmp(token->start, expect, token->len) != 0)) {
         error_tok(token, "expected '%s'", expect);
     }

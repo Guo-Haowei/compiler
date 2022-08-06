@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     {
         sourceInfo.file = "<unknown>";
         sourceInfo.start = argv[1];
-        sourceInfo.len = strlen(argv[1]);
+        sourceInfo.len = (int)strlen(argv[1]);
         sourceInfo.end = sourceInfo.start + sourceInfo.len;
     }
 

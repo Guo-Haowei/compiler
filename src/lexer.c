@@ -89,7 +89,7 @@ static void add_decimal_number(Lexer* lexer, List* list)
     }
 
     tok.end = lexer->p;
-    tok.len = tok.end - tok.start;
+    tok.len = (int)(tok.end - tok.start);
 
     list_push_back(list, tok);
 }
@@ -111,10 +111,10 @@ static void add_identifier_or_keyword(Lexer* lexer, List* list)
         lexer_read(lexer);
     }
     tok.end = lexer->p;
-    tok.len = tok.end - tok.start;
+    tok.len = (int)(tok.end - tok.start);
 
     for (const char* const* p = s_keywords; *p; ++p) {
-        int const len = strlen(*p);
+        const int len = (int)strlen(*p);
         if (len == tok.len && strncmp(tok.start, *p, len) == 0) {
             tok.eTokenKind = TK_KEYWORD;
             break;
@@ -144,7 +144,7 @@ static bool try_add_punct(Lexer* lexer, List* list)
             Token tok;
             tok.eTokenKind = TK_PUNCT;
             lexer_fill_tok(lexer, &tok);
-            tok.len = strlen(s_multi_char_puncts[i]);
+            tok.len = (int)strlen(s_multi_char_puncts[i]);
             tok.end = tok.start + tok.len;
             lexer_shift(lexer, tok.len);
             list_push_back(list, tok);
