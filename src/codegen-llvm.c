@@ -27,16 +27,31 @@ static uint gen_expr(Node const* node)
     assert(node);
 
     switch (node->eNodeKind) {
+    case ND_VAR: {
+        assert(node->var);
+        // TODO: gen address
+        const Obj* var = node->var;
+        const uint id = reg_id();
+        printf("  %%reg%d = load i32, i32* %%var_%s_%d\n", id, var->name, var->id);
+        return id;
+    }
     case ND_NUM: {
         const uint id = reg_id();
         printf("  %%reg%d = add i32 %d, 0\n", id, node->val);
         return id;
     }
     case ND_NEG: {
-        const uint exprId = gen_expr(node->lhs);
+        const uint expr_id = gen_expr(node->lhs);
         const uint id = reg_id();
-        printf("  %%reg%d = sub i32 0, %%reg%d\n", id, exprId);
+        printf("  %%reg%d = sub i32 0, %%reg%d\n", id, expr_id);
         return id;
+    }
+    case ND_ASSIGN: {
+        assert(node->lhs->var);
+        const Obj* var = node->lhs->var;
+        const uint expr_id = gen_expr(node->rhs);
+        printf("  store i32 %%reg%d, i32* %%var_%s_%d\n", expr_id, var->name, var->id);
+        return expr_id;
     }
     default:
         break;
@@ -149,11 +164,19 @@ static void gen_stmt(Node const* node)
     error_tok(node->tok, "not implemented");
 }
 
-void gen(Function const* prog)
+static void declare_vars(const Function* prog)
+{
+    for (Obj* var = prog->locals; var; var = var->next) {
+        printf("  %%var_%s_%d = alloca i32\n", var->name, var->id);
+    }
+}
+
+void gen(const Function* prog)
 {
     (void)prog;
     printf("define i32 @main() #0 {\n");
     printf("  %%retval = alloca i32\n");
+    declare_vars(prog);
 
     gen_stmt(prog->body);
 

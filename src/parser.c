@@ -7,9 +7,16 @@
 /**
  * Create Node API
  */
+static uint obj_id()
+{
+    static int s_id = 0;
+    return s_id++;
+}
+
 static Node* new_node(NodeKind eNodeKind, Token const* tok)
 {
     Node* node = calloc(1, sizeof(Node));
+    node->id = obj_id();
     node->tok = tok;
     node->eNodeKind = eNodeKind;
     return node;
@@ -54,6 +61,7 @@ Obj* g_locals;
 static Obj* new_lvar(const char* name, Type* type)
 {
     Obj* var = calloc(1, sizeof(Obj));
+    var->id = obj_id();
     var->name = name;
     var->type = type;
     var->next = g_locals;
@@ -89,12 +97,6 @@ static void tok_shift(ListNode** pToks)
 {
     assert(pToks && *pToks && (*pToks)->next);
     *pToks = (*pToks)->next;
-}
-
-static void tok_unshift(ListNode** pToks)
-{
-    assert(pToks && *pToks && (*pToks)->prev);
-    *pToks = (*pToks)->prev;
 }
 
 static bool tok_eq(ListNode** pToks, const char* expect)
@@ -503,12 +505,12 @@ static Node* parse_decl(ListNode** pToks)
         }
         Type* type = parse_declarator(pToks, base_type);
         Obj* var = new_lvar(get_ident(type->name), type);
-        if (tok_eq(pToks, "=")) {
-            tok_unshift(pToks); // unshift the var name back
+        if (tok_consume(pToks, "=")) {
+            const Token* eqTok = as_tok(pToks[0]->prev);
             Node* lhs = new_var(var, type->name);
             Node* rhs = parse_assign(pToks);
-            Node* node = new_binary(ND_ASSIGN, lhs, rhs, as_tok(pToks[0]->prev));
-            cur = cur->next = new_unary(ND_EXPR_STMT, node, as_tok(*pToks));
+            Node* node = new_binary(ND_ASSIGN, lhs, rhs, eqTok);
+            cur = cur->next = new_unary(ND_EXPR_STMT, node, lhs->tok);
         }
     }
 
