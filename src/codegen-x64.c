@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 
-static int depth;
+// @TODO: refactor
+static int depth = 0;
+static char* argreg[] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static void push()
 {
@@ -84,6 +86,21 @@ static void gen_expr(Node const* node)
         gen_expr(node->rhs);
         pop("%rdi");
         printf("  mov %%rax, (%%rdi)\n");
+        return;
+    case ND_FUNCCALL:
+        Node* arg = node->args;
+        for (int i = 0; i < node->argc; ++i, arg = arg->next) {
+            gen_expr(arg);
+            push();
+        }
+        assert(arg == nullptr);
+
+        for (int i = node->argc - 1; i >= 0; --i) {
+            pop(argreg[i]);
+        }
+
+        printf("  mov $0, %%rax\n");
+        printf("  call %s\n", node->funcname);
         return;
     default:
         break;

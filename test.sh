@@ -83,4 +83,8 @@ assert 7 '{ int x=3; int y=5; *(&x+1)=7; return y; }'
 assert 7 '{ int x=3; int y=5; *(&y-2+1)=7; return x; }'
 assert 5 '{ int x=3; return (&x+2)-&x+3; }'
 
+assert 10 '{ exit(10); return 20; }'
+assert 20 '{ exit(20); return 10; }'
+assert 19 '{ exit(abs(-19)); }'
+
 echo OK

@@ -49,6 +49,7 @@ void add_type(Node* node)
     case ND_LE:
     case ND_VAR:
     case ND_NUM:
+    case ND_FUNCCALL:
         node->type = g_int_type;
         return;
     case ND_ADDR:

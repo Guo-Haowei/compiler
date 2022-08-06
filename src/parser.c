@@ -99,11 +99,12 @@ static void tok_shift(ListNode** pToks)
     *pToks = (*pToks)->next;
 }
 
-static bool tok_eq(ListNode** pToks, const char* expect)
+static bool tok_eq(ListNode* toks, const char* expect)
 {
-    assert(pToks && *pToks);
+    // @TODO: handle unexpected EOF
+    assert(toks);
 
-    const Token* tok = as_tok(*pToks);
+    const Token* tok = as_tok(toks);
     const int expectLen = (int)strlen(expect);
     if (expectLen != tok->len) {
         return false;
@@ -114,7 +115,8 @@ static bool tok_eq(ListNode** pToks, const char* expect)
 
 static bool tok_consume(ListNode** pToks, const char* expect)
 {
-    const bool equal = tok_eq(pToks, expect);
+    // @TODO: handle unexpected EOF
+    const bool equal = tok_eq(*pToks, expect);
     if (equal) {
         tok_shift(pToks);
         return true;
@@ -148,7 +150,30 @@ static Node* parse_decl(ListNode** pToks);
 
 #define TOKSTR(TOK) (TOK)->len, (TOK)->start
 
-// primary = "(" expr ")" | num | ident
+// funcall = ident "(" (assign ("," assign)*)? ")"
+static Node* parse_funccall(ListNode** pToks)
+{
+    const Token* funcname = as_tok(*pToks);
+    tok_shift(pToks);
+    tok_expect(pToks, "(");
+    Node head;
+    head.next = nullptr;
+    Node* cur = &head;
+    int argc = 0;
+    for (; !tok_consume(pToks, ")"); ++argc) {
+        if (argc) {
+            tok_expect(pToks, ",");
+        }
+        cur = cur->next = parse_assign(pToks);
+    }
+    Node* node = new_node(ND_FUNCCALL, funcname);
+    node->funcname = strnduplicate(funcname->start, funcname->len);
+    node->args = head.next;
+    node->argc = argc;
+    return node;
+}
+
+// primary = "(" expr ")" | ident func-args? | num
 static Node* parse_primary(ListNode** pToks)
 {
     if (tok_consume(pToks, "(")) {
@@ -165,6 +190,10 @@ static Node* parse_primary(ListNode** pToks)
     }
 
     if (tok->eTokenKind == TK_IDENT) {
+        if (tok_eq((*pToks)->next, "(")) {
+            return parse_funccall(pToks);
+        }
+
         Obj* var = find_var(tok);
         if (!var) {
             // if not found, create
@@ -442,7 +471,7 @@ static Node* parse_compound_stmt(ListNode** pToks)
     memset(&head, 0, sizeof(Node));
     Node* cur = &head;
     while (!tok_consume(pToks, "}")) {
-        if (tok_eq(pToks, "int")) {
+        if (tok_eq(*pToks, "int")) {
             cur = cur->next = parse_decl(pToks);
         } else {
             cur = cur->next = parse_stmt(pToks);

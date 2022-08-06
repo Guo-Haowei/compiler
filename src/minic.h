@@ -96,6 +96,11 @@ struct node_t {
     // {...} block statement
     Node* body;
 
+    // Function call
+    char* funcname;
+    Node* args;
+    int argc;
+
     // @TODO: remove flags
     int isBinary;
     int isUnary;
