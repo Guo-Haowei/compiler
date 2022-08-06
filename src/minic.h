@@ -1,11 +1,11 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
-#include <stdint.h>
 
 #include "list.h"
 
 typedef int bool;
+typedef unsigned int uint;
 
 #ifndef false
 #define false 0

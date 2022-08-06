@@ -1,4 +1,5 @@
 #!/bin/bash
+sh clean.sh
 sh llvm-build.sh
 
 assert() {
@@ -51,9 +52,17 @@ assert 0 '{ return 1>2; }'
 assert 1 '{ return 1>=0; }'
 assert 1 '{ return 1>=1; }'
 assert 0 '{ return 1>=2; }'
-echo OK
 
 assert 25 '{ (1 + 333); (2 - -333); return (- -12 + 13); }'
+
+# if else
+assert 3 '{ if (0) return 2; return 3; }'
+assert 3 '{ if (1-1) return 2; return 3; }'
+assert 2 '{ if (1) return 2; return 3; }'
+assert 2 '{ if (2-1) return 2; return 3; }'
+assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
+assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
+exit 1
 
 # assign
 assert 3 '{ a=3; return a; }'
@@ -71,13 +80,6 @@ assert 3 '{ 1; 2; return 3; }'
 assert 3 '{ 1; 2; { return 3; 4; 5; } }'
 assert 12 '{ ; abc = 12;; return abc; }'
 
-# if else
-assert 3 '{ if (0) return 2; return 3; }'
-assert 3 '{ if (1-1) return 2; return 3; }'
-assert 2 '{ if (1) return 2; return 3; }'
-assert 2 '{ if (2-1) return 2; return 3; }'
-assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
-assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
 assert 100 '{ a = 10; if (a < 5) { return a; } else { return a = 100; } }'
 
 # loop
