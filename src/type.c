@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-static Type s_int_type;
+static Type s_int_type = { .eTypeKind = TY_INT, .size = 8 };
 
 Type* g_int_type = &s_int_type;
 
@@ -15,7 +15,18 @@ Type* pointer_to(Type* base)
 {
     Type* ty = calloc(1, sizeof(Type));
     ty->eTypeKind = TY_PTR;
+    ty->size = 8;
     ty->base = base;
+    return ty;
+}
+
+Type* array_of(Type* base, int len)
+{
+    Type* ty = calloc(1, sizeof(Type));
+    ty->eTypeKind = TY_ARRAY;
+    ty->size = base->size * len;
+    ty->base = base;
+    ty->arrayLen = len;
     return ty;
 }
 
@@ -39,6 +50,7 @@ void add_type(Node* node)
     if (!node || node->type) {
         return;
     }
+
     add_type(node->lhs);
     add_type(node->rhs);
     add_type(node->cond);
@@ -58,27 +70,37 @@ void add_type(Node* node)
     case ND_MUL:
     case ND_DIV:
     case ND_NEG:
+        node->type = node->lhs->type;
+        return;
     case ND_ASSIGN:
+        if (node->lhs->type->eTypeKind == TY_ARRAY) {
+            error_tok(node->lhs->tok, "not an lvalue");
+        }
         node->type = node->lhs->type;
         return;
     case ND_EQ:
     case ND_NE:
     case ND_LT:
     case ND_LE:
-    case ND_VAR:
     case ND_NUM:
     case ND_FUNCCALL:
         node->type = g_int_type;
         return;
+    case ND_VAR:
+        node->type = node->var->type;
+        return;
     case ND_ADDR:
-        node->type = pointer_to(node->lhs->type);
+        if (node->lhs->type->eTypeKind == TY_ARRAY) {
+            node->type = pointer_to(node->lhs->type->base);
+        } else {
+            node->type = pointer_to(node->lhs->type);
+        }
         return;
     case ND_DEREF:
-        if (node->lhs->type->eTypeKind == TY_PTR) {
-            node->type = node->lhs->type->base;
-        } else {
-            node->type = g_int_type;
+        if (!node->lhs->type->base) {
+            error_tok(node->tok, "invalid pointer dereference, %d", node->lhs->type->eTypeKind);
         }
+        node->type = node->lhs->type->base;
         return;
     default:
         return;

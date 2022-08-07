@@ -158,8 +158,7 @@ static Node* parse_funccall(ListNode** pToks)
     const Token* funcname = as_tok(*pToks);
     tok_shift(pToks);
     tok_expect(pToks, "(");
-    Node head;
-    head.next = nullptr;
+    Node head = { .next = nullptr };
     Node* cur = &head;
     int argc = 0;
     for (; !tok_consume(pToks, ")"); ++argc) {
@@ -305,7 +304,7 @@ static Node* new_add_node(Node* lhs, Node* rhs, Token* tok)
     }
 
     // ptr + num
-    rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+    rhs = new_binary(ND_MUL, rhs, new_num(lhs->type->base->size, tok), tok);
     return new_binary(ND_ADD, lhs, rhs, tok);
 }
 
@@ -316,7 +315,6 @@ static Node* new_sub_node(Node* lhs, Node* rhs, Token* tok)
 
     // num - num
     if (is_integer(lhs->type) && is_integer(rhs->type)) {
-
         return new_binary(ND_SUB, lhs, rhs, tok);
     }
 
@@ -500,25 +498,49 @@ static Type* parse_declspec(ListNode** pToks)
 // type-suffix = ("(" func-params? ")")?
 // func-params = param ("," param)*
 // param       = declspec declarator
+// func-params = (param ("," param)*)? ")"
+// param       = declspec declarator
+static Type* parse_func_params(ListNode** pToks, Type* type)
+{
+    Type head = { .next = nullptr };
+    Type* cur = &head;
+    while (!tok_consume(pToks, ")")) {
+        if (cur != &head) {
+            tok_expect(pToks, ",");
+        }
+        Type* basety = parse_declspec(pToks);
+        Type* ty = parse_declarator(pToks, basety);
+        cur = cur->next = copy_type(ty);
+    }
+    type = func_type(type);
+    type->params = head.next;
+    return type;
+}
+
+static int get_number(Token* tok)
+{
+    if (tok->eTokenKind != TK_NUM) {
+        error_tok(tok, "expected a number");
+    }
+    return token_as_int(tok);
+}
+
+// type-suffix = "(" func-params
+//             | "[" num "]"
+//             | ε
 static Type* parse_type_suffix(ListNode** pToks, Type* type)
 {
     if (tok_consume(pToks, "(")) {
-        Type head;
-        head.next = nullptr;
-
-        Type* cur = &head;
-        while (!tok_consume(pToks, ")")) {
-            if (cur != &head) {
-                tok_expect(pToks, ",");
-            }
-            Type* basety = parse_declspec(pToks);
-            Type* ty = parse_declarator(pToks, basety);
-            cur = cur->next = copy_type(ty);
-        }
-        type = func_type(type);
-        type->params = head.next;
-        return type;
+        return parse_func_params(pToks, type);
     }
+
+    if (tok_consume(pToks, "[")) {
+        int arrayLen = get_number(as_tok(*pToks));
+        tok_shift(pToks);
+        tok_expect(pToks, "]");
+        return array_of(type, arrayLen);
+    }
+
     return type;
 }
 
@@ -552,16 +574,17 @@ static char* get_ident(const Token* tok)
 static Node* parse_decl(ListNode** pToks)
 {
     Type* base_type = parse_declspec(pToks);
-    Node head;
-    memset(&head, 0, sizeof(Node));
+    Node head = { .next = nullptr };
     Node* cur = &head;
     int i = 0;
     while (!tok_consume(pToks, ";")) {
         if (i++ > 0) {
             tok_expect(pToks, ",");
         }
+
         Type* type = parse_declarator(pToks, base_type);
         Obj* var = new_lvar(get_ident(type->name), type);
+
         if (tok_consume(pToks, "=")) {
             const Token* eqTok = as_tok(pToks[0]->prev);
             Node* lhs = new_var(var, type->name);
@@ -601,8 +624,7 @@ static Function* parse_function(ListNode** pToks)
 
 Function* parse(List* toks)
 {
-    Function head;
-    head.next = nullptr;
+    Function head = { .next = nullptr };
     Function* cur = &head;
     ListNode* iter = toks->front;
     while (as_tok(iter)->eTokenKind != TK_EOF) {
