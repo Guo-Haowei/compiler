@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TOKSTR(TOK) (TOK)->len, (TOK)->start
+
 /**
  * Create Node API
  */
@@ -144,6 +146,7 @@ static Node* parse_add(ListNode** pToks);
 static Node* parse_relational(ListNode** pToks);
 static Node* parse_equality(ListNode** pToks);
 static Node* parse_assign(ListNode** pToks);
+static Node* parse_funccall(ListNode** pToks);
 static Node* parse_expr(ListNode** pToks);
 static Node* parse_expr_stmt(ListNode** pToks);
 static Node* parse_compound_stmt(ListNode** pToks);
@@ -154,7 +157,40 @@ static Type* parse_declarator(ListNode** pToks, Type* type);
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 
-#define TOKSTR(TOK) (TOK)->len, (TOK)->start
+// primary = "(" expr ")" | ident func-args? | num
+static Node* parse_primary(ListNode** pToks)
+{
+    if (tok_consume(pToks, "(")) {
+        Node* node = parse_add(pToks);
+        tok_expect(pToks, ")"); // consume ')'
+        return node;
+    }
+
+    Token const* tok = as_tok(*pToks);
+    if (tok->eTokenKind == TK_NUM) {
+        Node* node = new_num(token_as_int(tok), tok);
+        tok_shift(pToks);
+        return node;
+    }
+
+    if (tok->eTokenKind == TK_IDENT) {
+        if (tok_eq((*pToks)->next, "(")) {
+            return parse_funccall(pToks);
+        }
+
+        Obj* var = find_var(tok);
+        if (!var) {
+            // if not found, create
+            error_tok(tok, "undefined variable '%.*s'", TOKSTR(tok));
+        }
+
+        tok_shift(pToks);
+        return new_var(var, tok);
+    }
+
+    error_tok(tok, "expected expression before '%.*s' token", TOKSTR(tok));
+    return nullptr;
+}
 
 // unary = ("+" | "-" | "*" | "&") unary
 //       | postfix
@@ -193,69 +229,6 @@ static Node* parse_postfix(ListNode** pToks)
         node = new_unary(ND_DEREF, new_add(node, idx, start), start);
     }
     return node;
-}
-
-// funcall = ident "(" (assign ("," assign)*)? ")"
-static Node* parse_funccall(ListNode** pToks)
-{
-    const Token* funcname = as_tok(*pToks);
-    tok_shift(pToks);
-    tok_expect(pToks, "(");
-    Node head = { .next = nullptr };
-    Node* cur = &head;
-    int argc = 0;
-    for (; !tok_consume(pToks, ")"); ++argc) {
-        if (argc) {
-            tok_expect(pToks, ",");
-        }
-        cur = cur->next = parse_assign(pToks);
-    }
-    Node* node = new_node(ND_FUNCCALL, funcname);
-    node->funcname = strnduplicate(funcname->start, funcname->len);
-    node->args = head.next;
-    node->argc = argc;
-    return node;
-}
-
-// primary = "(" expr ")" | ident func-args? | num
-static Node* parse_primary(ListNode** pToks)
-{
-    if (tok_consume(pToks, "(")) {
-        Node* node = parse_add(pToks);
-        tok_expect(pToks, ")"); // consume ')'
-        return node;
-    }
-
-    Token const* tok = as_tok(*pToks);
-    if (tok->eTokenKind == TK_NUM) {
-        Node* node = new_num(token_as_int(tok), tok);
-        tok_shift(pToks);
-        return node;
-    }
-
-    if (tok->eTokenKind == TK_IDENT) {
-        if (tok_eq((*pToks)->next, "(")) {
-            return parse_funccall(pToks);
-        }
-
-        Obj* var = find_var(tok);
-        if (!var) {
-            // if not found, create
-            // var = new_lvar(strnduplicate(tok->start, tok->len));
-            error_tok(tok, "undefined variable '%.*s'", TOKSTR(tok));
-        }
-
-        tok_shift(pToks);
-        return new_var(var, tok);
-    }
-
-    error_tok(tok, "expected expression before '%.*s' token", TOKSTR(tok));
-    return nullptr;
-}
-
-static bool streq(char const* a, char const* b)
-{
-    return strcmp(a, b) == 0;
 }
 
 static NodeKind to_binary_node_kind(char const* symbol)
@@ -397,6 +370,28 @@ static Node* parse_assign(ListNode** pToks)
     if (tok_consume(pToks, "=")) {
         node = new_binary(ND_ASSIGN, node, parse_assign(pToks), as_tok(pToks[0]->prev));
     }
+    return node;
+}
+
+// funcall = ident "(" (assign ("," assign)*)? ")"
+static Node* parse_funccall(ListNode** pToks)
+{
+    const Token* funcname = as_tok(*pToks);
+    tok_shift(pToks);
+    tok_expect(pToks, "(");
+    Node head = { .next = nullptr };
+    Node* cur = &head;
+    int argc = 0;
+    for (; !tok_consume(pToks, ")"); ++argc) {
+        if (argc) {
+            tok_expect(pToks, ",");
+        }
+        cur = cur->next = parse_assign(pToks);
+    }
+    Node* node = new_node(ND_FUNCCALL, funcname);
+    node->funcname = strncopy(funcname->start, funcname->len);
+    node->args = head.next;
+    node->argc = argc;
     return node;
 }
 
@@ -586,7 +581,7 @@ static char* get_ident(const Token* tok)
     if (tok->eTokenKind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
     }
-    return strnduplicate(tok->start, tok->len);
+    return strncopy(tok->start, tok->len);
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"

@@ -6,6 +6,7 @@ add_executable(minic-x64
     misc.c
     parser.c
     type.c
+    string.c
 )
 
 add_executable(minic-llvm
@@ -16,4 +17,5 @@ add_executable(minic-llvm
     misc.c
     parser.c
     type.c
+    string.c
 )

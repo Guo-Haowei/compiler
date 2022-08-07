@@ -125,6 +125,7 @@ typedef struct lexer_t {
     int col;
 } Lexer;
 
+// TODO: refactor
 int token_as_int(Token const* tok);
 
 // type
@@ -175,19 +176,21 @@ void gen(Function* prog);
 void error_lex(Lexer const* lexer, char const* const fmt, ...);
 void error_tok(Token const* token, char const* const fmt, ...);
 
-// error
-char const* token_kind_to_string(TokenKind eTokenKind);
-char const* node_kind_to_string(NodeKind eNodeKind);
+/**
+ * misc
+ */
+const char* token_kind_to_string(TokenKind eTokenKind);
+const char* node_kind_to_string(NodeKind eNodeKind);
 
 // DEBUG
 void debug_print_token(Token const* tok);
 void debug_print_tokens(List const* toks);
-void debug_print_node(Node const* node);
 
-// @TODO: implement
-void debug_validate_node(Node const* node);
-
-// utils
-char* strnduplicate(char const* const src, int n);
+/**
+ * string
+ */
+bool streq(const char* a, const char* b);
+char* strncopy(const char* src, int n);
+char* format(const char* fmt, ...);
 
 #endif

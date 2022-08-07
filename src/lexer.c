@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char const* const s_multi_char_puncts[] = {
-    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
-    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
-};
-
 static bool is_decimal(char const c)
 {
     return '0' <= c && c <= '9';
@@ -139,6 +134,11 @@ static void add_one_char_punct(Lexer* lexer, List* list)
 
 static bool try_add_punct(Lexer* lexer, List* list)
 {
+    static const char* s_multi_char_puncts[] = {
+        "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
+        ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
+    };
+
     for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
         if (begin_with(lexer->p, s_multi_char_puncts[i])) {
             Token tok;

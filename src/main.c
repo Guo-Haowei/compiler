@@ -28,7 +28,6 @@ int main(int argc, char** argv)
     DEBUG_ONLY(debug_print_tokens(toks));
 
     Function* prog = parse(toks);
-    DEBUG_ONLY(debug_print_node(prog->body));
     DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
     gen(prog);
