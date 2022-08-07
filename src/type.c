@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 
-static Type s_int_type = { TY_INT, nullptr, nullptr };
+static Type s_int_type;
+
 Type* g_int_type = &s_int_type;
 
 bool is_integer(Type* type)
@@ -16,6 +17,21 @@ Type* pointer_to(Type* base)
     ty->eTypeKind = TY_PTR;
     ty->base = base;
     return ty;
+}
+
+Type* func_type(Type* retType)
+{
+    Type* type = calloc(1, sizeof(Type));
+    type->eTypeKind = TY_FUNC;
+    type->retType = retType;
+    return type;
+}
+
+Type* copy_type(Type* type)
+{
+    Type* ret = calloc(1, sizeof(Type));
+    *ret = *type;
+    return ret;
 }
 
 void add_type(Node* node)
@@ -33,7 +49,9 @@ void add_type(Node* node)
     for (Node* n = node->body; n; n = n->next) {
         add_type(n);
     }
-
+    for (Node* n = node->args; n; n = n->next) {
+        add_type(n);
+    }
     switch (node->eNodeKind) {
     case ND_ADD:
     case ND_SUB:

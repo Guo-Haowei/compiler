@@ -147,6 +147,8 @@ static Node* parse_expr(ListNode** pToks);
 static Node* parse_expr_stmt(ListNode** pToks);
 static Node* parse_compound_stmt(ListNode** pToks);
 static Node* parse_decl(ListNode** pToks);
+static Type* parse_declspec(ListNode** pToks);
+static Type* parse_declarator(ListNode** pToks, Type* type);
 
 #define TOKSTR(TOK) (TOK)->len, (TOK)->start
 
@@ -495,7 +497,32 @@ static Type* parse_declspec(ListNode** pToks)
     return nullptr;
 }
 
-// declarator = "*"* ident
+// type-suffix = ("(" func-params? ")")?
+// func-params = param ("," param)*
+// param       = declspec declarator
+static Type* parse_type_suffix(ListNode** pToks, Type* type)
+{
+    if (tok_consume(pToks, "(")) {
+        Type head;
+        head.next = nullptr;
+
+        Type* cur = &head;
+        while (!tok_consume(pToks, ")")) {
+            if (cur != &head) {
+                tok_expect(pToks, ",");
+            }
+            Type* basety = parse_declspec(pToks);
+            Type* ty = parse_declarator(pToks, basety);
+            cur = cur->next = copy_type(ty);
+        }
+        type = func_type(type);
+        type->params = head.next;
+        return type;
+    }
+    return type;
+}
+
+// declarator = "*"* ident type-suffix
 static Type* parse_declarator(ListNode** pToks, Type* type)
 {
     while (tok_consume(pToks, "*")) {
@@ -508,11 +535,12 @@ static Type* parse_declarator(ListNode** pToks, Type* type)
     }
 
     tok_shift(pToks);
+    type = parse_type_suffix(pToks, type);
     type->name = tok;
     return type;
 }
 
-static const char* get_ident(const Token* tok)
+static char* get_ident(const Token* tok)
 {
     if (tok->eTokenKind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
@@ -548,13 +576,37 @@ static Node* parse_decl(ListNode** pToks)
     return node;
 }
 
+static void create_param_lvars(Type* param)
+{
+    if (param) {
+        create_param_lvars(param->next);
+        new_lvar(get_ident(param->name), param);
+    }
+}
+
+static Function* parse_function(ListNode** pToks)
+{
+    Type* type = parse_declspec(pToks);
+    type = parse_declarator(pToks, type);
+    g_locals = nullptr;
+    Function* fn = calloc(1, sizeof(Function));
+    fn->name = get_ident(type->name);
+    create_param_lvars(type->params);
+    fn->params = g_locals;
+    tok_expect(pToks, "{");
+    fn->body = parse_compound_stmt(pToks);
+    fn->locals = g_locals;
+    return fn;
+}
+
 Function* parse(List* toks)
 {
+    Function head;
+    head.next = nullptr;
+    Function* cur = &head;
     ListNode* iter = toks->front;
-
-    Function* prog = calloc(1, sizeof(Function));
-    tok_expect(&iter, "{");
-    prog->body = parse_compound_stmt(&iter);
-    prog->locals = g_locals;
-    return prog;
+    while (as_tok(iter)->eTokenKind != TK_EOF) {
+        cur = cur->next = parse_function(&iter);
+    }
+    return head.next;
 }

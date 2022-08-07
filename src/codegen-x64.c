@@ -3,19 +3,20 @@
 #include <stdio.h>
 
 // @TODO: refactor
-static int depth = 0;
-static char* argreg[] = { "%rcx", "%rdx", "%r8", "%r9" };
+static int s_depth = 0;
+static char* s_argreg[] = { "%rcx", "%rdx", "%r8", "%r9" };
+static Function* s_current_fn;
 
 static void push()
 {
     printf("  push %%rax\n");
-    depth++;
+    s_depth++;
 }
 
 static void pop(char const* arg)
 {
     printf("  pop %s\n", arg);
-    depth--;
+    s_depth--;
 }
 
 static void gen_expr(Node const* node);
@@ -96,7 +97,7 @@ static void gen_expr(Node const* node)
         assert(arg == nullptr);
 
         for (int i = node->argc - 1; i >= 0; --i) {
-            pop(argreg[i]);
+            pop(s_argreg[i]);
         }
 
         printf("  mov $0, %%rax\n");
@@ -169,7 +170,7 @@ static void gen_stmt(Node const* node)
         return;
     case ND_RETURN:
         gen_expr(node->lhs);
-        printf("  jmp .L.return\n");
+        printf("  jmp .L.return.%s\n", s_current_fn->name);
         return;
     case ND_BLOCK:
         for (Node* n = node->body; n; n = n->next) {
@@ -207,36 +208,46 @@ static void gen_stmt(Node const* node)
 }
 
 // Assign offsets to local variables.
-static void assign_lvar_offsets(Function const* prog)
+static void assign_lvar_offsets(Function* prog)
 {
-    int offset = 0;
-    for (Obj* var = prog->locals; var; var = var->next) {
-        offset += 8;
-        var->offset = -offset;
+    for (Function* fn = prog; fn; fn = fn->next) {
+        int offset = 0;
+        for (Obj* var = fn->locals; var; var = var->next) {
+            offset += 8;
+            var->offset = -offset;
+        }
+        fn->stackSize = align_to(offset, 16);
     }
-
-    // HACK: cast away const qualifier
-    ((Function*)prog)->stackSize = align_to(offset, 16);
 }
 
-void gen(Function const* prog)
+void gen(Function* prog)
 {
     assign_lvar_offsets(prog);
 
     printf("  .text\n");
-    printf("  .globl main\n");
-    printf("main:\n");
 
-    // Prologue
-    printf("  push %%rbp\n");
-    printf("  mov %%rsp, %%rbp\n");
-    printf("  sub $%d, %%rsp\n", prog->stackSize);
+    for (Function* fn = prog; fn; fn = fn->next) {
+        printf("  .globl %s\n", fn->name);
+        printf("%s:\n", fn->name);
+        s_current_fn = fn;
+        // Prologue
+        printf("  push %%rbp\n");
+        printf("  mov %%rsp, %%rbp\n");
+        printf("  sub $%d, %%rsp\n", fn->stackSize);
+        // Emit code
 
-    gen_stmt(prog->body);
-    assert(depth == 0);
+        // Save passed-by-register arguments to the stack
+        int i = 0;
+        for (Obj* var = fn->params; var; var = var->next) {
+            printf("  mov %s, %d(%%rbp)\n", s_argreg[i++], var->offset);
+        }
 
-    printf(".L.return:\n");
-    printf("  mov %%rbp, %%rsp\n");
-    printf("  pop %%rbp\n");
-    printf("  ret\n");
+        gen_stmt(fn->body);
+        assert(s_depth == 0);
+        // Epilogue
+        printf(".L.return.%s:\n", fn->name);
+        printf("  mov %%rbp, %%rsp\n");
+        printf("  pop %%rbp\n");
+        printf("  ret\n");
+    }
 }

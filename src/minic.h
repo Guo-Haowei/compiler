@@ -62,9 +62,10 @@ typedef struct token_t {
 
 typedef struct node_t Node;
 typedef struct type_t Type;
+typedef struct function_t Function;
+typedef struct obj_t Obj;
 
 // Local variable
-typedef struct obj_t Obj;
 struct obj_t {
     uint id;
     Obj* next;
@@ -107,11 +108,15 @@ struct node_t {
 };
 
 // Function
-typedef struct function_t {
+struct function_t {
+    Function* next;
+    char* name;
+    Obj* params;
+
     Node* body;
     Obj* locals;
     int stackSize;
-} Function;
+};
 
 typedef struct lexer_t {
     SourceInfo const* sourceInfo;
@@ -126,23 +131,31 @@ int token_as_int(Token const* tok);
 typedef enum {
     TY_INT,
     TY_PTR,
+    TY_FUNC,
 } TypeKind;
 
 struct type_t {
     TypeKind eTypeKind;
     Type* base;
     Token* name;
+
+    // function
+    Type* retType;
+    Type* params;
+    Type* next;
 };
 
 extern Type* g_int_type;
 
 Type* pointer_to(Type* base);
 bool is_integer(Type* type);
+Type* func_type(Type* returnType);
 void add_type(Node* node);
+Type* copy_type(Type* type);
 
 List* lex(SourceInfo const* sourceInfo);
 Function* parse(List* toks);
-void gen(Function const* prog);
+void gen(Function* prog);
 
 void error_lex(Lexer const* lexer, char const* const fmt, ...);
 void error_tok(Token const* token, char const* const fmt, ...);
