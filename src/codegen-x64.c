@@ -253,6 +253,9 @@ void gen(Function* prog)
         // Prologue
         printf("  push %%rbp\n");
         printf("  mov %%rsp, %%rbp\n");
+        for (Obj* var = fn->locals; var; var = var->next) {
+            printf("  # var %s [%d]\n", var->name, var->offset);
+        }
         printf("  sub $%d, %%rsp\n", fn->stackSize);
         // Emit code
 

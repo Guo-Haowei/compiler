@@ -137,6 +137,7 @@ static void tok_expect(ListNode** pToks, char const* expect)
 }
 
 static Node* parse_primary(ListNode** pToks);
+static Node* parse_postfix(ListNode** pToks);
 static Node* parse_unary(ListNode** pToks);
 static Node* parse_mul(ListNode** pToks);
 static Node* parse_add(ListNode** pToks);
@@ -150,7 +151,49 @@ static Node* parse_decl(ListNode** pToks);
 static Type* parse_declspec(ListNode** pToks);
 static Type* parse_declarator(ListNode** pToks, Type* type);
 
+static Node* new_add(Node* lhs, Node* rhs, Token* tok);
+static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
+
 #define TOKSTR(TOK) (TOK)->len, (TOK)->start
+
+// unary = ("+" | "-" | "*" | "&") unary
+//       | postfix
+static Node* parse_unary(ListNode** pToks)
+{
+    if (tok_consume(pToks, "+")) {
+        return parse_unary(pToks);
+    }
+
+    Token* tok = as_tok(*pToks);
+
+    if (tok_consume(pToks, "-")) {
+        return new_unary(ND_NEG, parse_unary(pToks), tok);
+    }
+
+    if (tok_consume(pToks, "*")) {
+        return new_unary(ND_DEREF, parse_unary(pToks), tok);
+    }
+
+    if (tok_consume(pToks, "&")) {
+        return new_unary(ND_ADDR, parse_unary(pToks), tok);
+    }
+
+    return parse_postfix(pToks);
+}
+
+// postfix = primary ("[" expr "]")*
+static Node* parse_postfix(ListNode** pToks)
+{
+    Node* node = parse_primary(pToks);
+    while (tok_consume(pToks, "[")) {
+        // x[y] is short for *(x+y)
+        Token* start = as_tok(*pToks);
+        Node* idx = parse_expr(pToks);
+        tok_expect(pToks, "]");
+        node = new_unary(ND_DEREF, new_add(node, idx, start), start);
+    }
+    return node;
+}
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node* parse_funccall(ListNode** pToks)
@@ -210,31 +253,6 @@ static Node* parse_primary(ListNode** pToks)
     return nullptr;
 }
 
-// unary = ("+" | "-" | "*" | "&") unary
-//       | primary
-static Node* parse_unary(ListNode** pToks)
-{
-    if (tok_consume(pToks, "+")) {
-        return parse_unary(pToks);
-    }
-
-    Token* tok = as_tok(*pToks);
-
-    if (tok_consume(pToks, "-")) {
-        return new_unary(ND_NEG, parse_unary(pToks), tok);
-    }
-
-    if (tok_consume(pToks, "*")) {
-        return new_unary(ND_DEREF, parse_unary(pToks), tok);
-    }
-
-    if (tok_consume(pToks, "&")) {
-        return new_unary(ND_ADDR, parse_unary(pToks), tok);
-    }
-
-    return parse_primary(pToks);
-}
-
 static bool streq(char const* a, char const* b)
 {
     return strcmp(a, b) == 0;
@@ -281,7 +299,7 @@ static Node* parse_mul(ListNode** pToks)
     return parse_binary_internal(pToks, s_symbols, parse_unary);
 }
 
-static Node* new_add_node(Node* lhs, Node* rhs, Token* tok)
+static Node* new_add(Node* lhs, Node* rhs, Token* tok)
 {
     add_type(lhs);
     add_type(rhs);
@@ -308,7 +326,7 @@ static Node* new_add_node(Node* lhs, Node* rhs, Token* tok)
     return new_binary(ND_ADD, lhs, rhs, tok);
 }
 
-static Node* new_sub_node(Node* lhs, Node* rhs, Token* tok)
+static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
 {
     add_type(lhs);
     add_type(rhs);
@@ -345,12 +363,12 @@ static Node* parse_add(ListNode** pToks)
 
     for (;;) {
         if (tok_consume(pToks, "+")) {
-            node = new_add_node(node, parse_mul(pToks), start);
+            node = new_add(node, parse_mul(pToks), start);
             continue;
         }
 
         if (tok_consume(pToks, "-")) {
-            node = new_sub_node(node, parse_mul(pToks), start);
+            node = new_sub(node, parse_mul(pToks), start);
             continue;
         }
 
@@ -526,7 +544,7 @@ static int get_number(Token* tok)
 }
 
 // type-suffix = "(" func-params
-//             | "[" num "]"
+//             | "[" num "]" type-suffix
 //             | ε
 static Type* parse_type_suffix(ListNode** pToks, Type* type)
 {
@@ -538,6 +556,7 @@ static Type* parse_type_suffix(ListNode** pToks, Type* type)
         int arrayLen = get_number(as_tok(*pToks));
         tok_shift(pToks);
         tok_expect(pToks, "]");
+        type = parse_type_suffix(pToks, type);
         return array_of(type, arrayLen);
     }
 
