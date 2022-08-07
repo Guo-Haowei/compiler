@@ -62,16 +62,27 @@ typedef struct token_t {
 
 typedef struct node_t Node;
 typedef struct type_t Type;
-typedef struct function_t Function;
-typedef struct obj_t Obj;
 
-// Local variable
-struct obj_t {
+typedef struct Obj Obj;
+
+// Variable or function
+struct Obj {
     uint id;
+    char* name;
     Obj* next;
-    char const* name; // Variable name
-    Type* type;       // Type
-    int offset;       // Offset from RBP
+    Type* type;
+
+    bool isLocal;
+    bool isFunc;
+
+    // variable
+    int offset;
+
+    // function
+    Obj* params;
+    Node* body;
+    Obj* locals;
+    int stackSize;
 };
 
 // AST node
@@ -105,17 +116,6 @@ struct node_t {
     // @TODO: remove flags
     int isBinary;
     int isUnary;
-};
-
-// Function
-struct function_t {
-    Function* next;
-    char* name;
-    Obj* params;
-
-    Node* body;
-    Obj* locals;
-    int stackSize;
 };
 
 typedef struct lexer_t {
@@ -170,8 +170,8 @@ Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
 List* lex(SourceInfo const* sourceInfo);
-Function* parse(List* toks);
-void gen(Function* prog);
+Obj* parse(List* toks);
+void gen(Obj* prog);
 
 void error_lex(Lexer const* lexer, char const* const fmt, ...);
 void error_tok(Token const* token, char const* const fmt, ...);

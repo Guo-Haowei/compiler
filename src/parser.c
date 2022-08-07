@@ -6,6 +6,11 @@
 
 #define TOKSTR(TOK) (TOK)->len, (TOK)->start
 
+// All local variable instances created during parsing are
+// accumulated to this list.
+static Obj* s_locals;
+static Obj* s_globals;
+
 /**
  * Create Node API
  */
@@ -56,18 +61,29 @@ static Node* new_unary(NodeKind eNodeKind, Node* expr, Token const* tok)
     return node;
 }
 
-// All local variable instances created during parsing are
-// accumulated to this list.
-Obj* g_locals;
-
-static Obj* new_lvar(const char* name, Type* type)
+static Obj* new_variable(char* name, Type* type)
 {
     Obj* var = calloc(1, sizeof(Obj));
     var->id = obj_id();
     var->name = name;
     var->type = type;
-    var->next = g_locals;
-    g_locals = var;
+    return var;
+}
+
+static Obj* new_lvar(char* name, Type* type)
+{
+    Obj* var = new_variable(name, type);
+    var->isLocal = true;
+    var->next = s_locals;
+    s_locals = var;
+    return var;
+}
+
+static Obj* new_gvar(char* name, Type* type)
+{
+    Obj* var = new_variable(name, type);
+    var->next = s_globals;
+    s_globals = var;
     return var;
 }
 
@@ -76,7 +92,7 @@ typedef Node* (*ParseBinaryFn)(ListNode**);
 // Find a local variable by name.
 static Obj* find_var(Token const* tok)
 {
-    for (Obj* var = g_locals; var; var = var->next) {
+    for (Obj* var = s_locals; var; var = var->next) {
         if ((int)strlen(var->name) == tok->len && !strncmp(tok->start, var->name, tok->len)) {
             return var;
         }
@@ -627,28 +643,28 @@ static void create_param_lvars(Type* param)
     }
 }
 
-static Function* parse_function(ListNode** pToks)
+static Obj* parse_function(ListNode** pToks, Type* basetpye)
 {
-    Type* type = parse_declspec(pToks);
-    type = parse_declarator(pToks, type);
-    g_locals = nullptr;
-    Function* fn = calloc(1, sizeof(Function));
-    fn->name = get_ident(type->name);
+    Type* type = parse_declarator(pToks, basetpye);
+    Obj* fn = new_gvar(get_ident(type->name), type);
+    fn->isFunc = true;
+    s_locals = nullptr;
     create_param_lvars(type->params);
-    fn->params = g_locals;
+    fn->params = s_locals;
     tok_expect(pToks, "{");
     fn->body = parse_compound_stmt(pToks);
-    fn->locals = g_locals;
+    fn->locals = s_locals;
     return fn;
 }
 
-Function* parse(List* toks)
+// program = (function-definition | global-variable)*
+Obj* parse(List* toks)
 {
-    Function head = { .next = nullptr };
-    Function* cur = &head;
+    s_globals = NULL;
     ListNode* iter = toks->front;
     while (as_tok(iter)->eTokenKind != TK_EOF) {
-        cur = cur->next = parse_function(&iter);
+        Type* basety = parse_declspec(&iter);
+        parse_function(&iter, basety);
     }
-    return head.next;
+    return s_globals;
 }

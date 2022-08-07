@@ -5,7 +5,7 @@
 // @TODO: refactor
 static int s_depth = 0;
 static char* s_argreg[] = { "%rcx", "%rdx", "%r8", "%r9" };
-static Function* s_current_fn;
+static Obj* s_current_fn;
 
 static void push()
 {
@@ -228,9 +228,13 @@ static void gen_stmt(Node const* node)
 }
 
 // Assign offsets to local variables.
-static void assign_lvar_offsets(Function* prog)
+static void assign_lvar_offsets(Obj* prog)
 {
-    for (Function* fn = prog; fn; fn = fn->next) {
+    for (Obj* fn = prog; fn; fn = fn->next) {
+        if (!fn->isFunc) {
+            continue;
+        }
+
         int offset = 0;
         for (Obj* var = fn->locals; var; var = var->next) {
             offset += var->type->size;
@@ -240,14 +244,17 @@ static void assign_lvar_offsets(Function* prog)
     }
 }
 
-void gen(Function* prog)
+void gen(Obj* prog)
 {
     assign_lvar_offsets(prog);
 
-    printf("  .text\n");
+    for (Obj* fn = prog; fn; fn = fn->next) {
+        if (!fn->isFunc) {
+            continue;
+        }
 
-    for (Function* fn = prog; fn; fn = fn->next) {
         printf("  .globl %s\n", fn->name);
+        printf("  .text\n");
         printf("%s:\n", fn->name);
         s_current_fn = fn;
         // Prologue

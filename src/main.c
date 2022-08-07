@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     List* toks = lex(&sourceInfo);
     DEBUG_ONLY(debug_print_tokens(toks));
 
-    Function* prog = parse(toks);
+    Obj* prog = parse(toks);
     DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
     gen(prog);
