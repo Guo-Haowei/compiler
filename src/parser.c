@@ -157,16 +157,22 @@ static Type* parse_declarator(ListNode** pToks, Type* type);
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")" | "sizeof" unary | ident func-args? | num
 static Node* parse_primary(ListNode** pToks)
 {
     if (tok_consume(pToks, "(")) {
-        Node* node = parse_add(pToks);
+        Node* node = parse_expr(pToks);
         tok_expect(pToks, ")"); // consume ')'
         return node;
     }
 
-    Token const* tok = as_tok(*pToks);
+    Token* tok = as_tok(*pToks);
+    if (tok_consume(pToks, "sizeof")) {
+        Node* node = parse_unary(pToks);
+        add_type(node);
+        return new_num(node->type->size, tok);
+    }
+
     if (tok->eTokenKind == TK_NUM) {
         Node* node = new_num(token_as_int(tok), tok);
         tok_shift(pToks);
