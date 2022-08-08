@@ -88,7 +88,7 @@ struct Obj {
     int stackSize;
 
     // Global variable
-    char *initData;
+    char* initData;
     Token* tok;
 };
 
@@ -178,12 +178,13 @@ Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
-List* lex(SourceInfo const* sourceInfo);
+List* lex_file(const char* filename);
 Obj* parse(List* toks);
 void gen(Obj* prog);
 
-void error_lex(Lexer const* lexer, char const* const fmt, ...);
-void error_tok(Token const* token, char const* const fmt, ...);
+void error(const char* const fmt, ...);
+void error_lex(const Lexer* lexer, const char* const fmt, ...);
+void error_tok(const Token* token, const char* const fmt, ...);
 
 /**
  * misc

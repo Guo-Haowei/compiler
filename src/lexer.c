@@ -252,7 +252,7 @@ static void add_eof(Lexer* lexer, List* list)
     list_push_back(list, tok);
 }
 
-List* lex(SourceInfo const* sourceInfo)
+static List* lex(const SourceInfo* sourceInfo)
 {
     List* toks = list_new();
     Lexer lexer;
@@ -321,4 +321,37 @@ List* lex(SourceInfo const* sourceInfo)
     add_eof(&lexer, toks);
 
     return toks;
+}
+
+static char* read_file(const char* path)
+{
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        error("cannot open %s: %s", path, strerror(errno));
+    }
+
+    fseek(fp, 0, SEEK_END);
+    int size = (int)ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    char* buf = malloc(size + 1);
+    int read = fread(buf, 1, size, fp);
+    if (read != size) {
+        assert(0);
+    }
+    fclose(fp);
+
+    buf[read] = 0;
+    return buf;
+}
+
+List* lex_file(const char* filename)
+{
+    SourceInfo* sourceInfo = malloc(sizeof(SourceInfo));
+    sourceInfo->file = filename;
+    sourceInfo->start = read_file(filename);
+    sourceInfo->len = (int)strlen(sourceInfo->start);
+    sourceInfo->end = sourceInfo->start + sourceInfo->len;
+
+    return lex(sourceInfo);
 }

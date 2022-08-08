@@ -1,5 +1,5 @@
+__pycache__/
 .vscode/
-.vs/
 *.exe
 *.a
 *.o
@@ -7,10 +7,9 @@
 *.out
 *.s
 *.asm
-tmp.*
 dummy.c
 build/
 
 minic
 list-test
-tmp
+tmp*

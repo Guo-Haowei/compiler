@@ -16,15 +16,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    SourceInfo sourceInfo;
-    {
-        sourceInfo.file = "<unknown>";
-        sourceInfo.start = argv[1];
-        sourceInfo.len = (int)strlen(argv[1]);
-        sourceInfo.end = sourceInfo.start + sourceInfo.len;
-    }
-
-    List* toks = lex(&sourceInfo);
+    List* toks = lex_file(argv[1]);
     DEBUG_ONLY(debug_print_tokens(toks));
 
     Obj* prog = parse(toks);

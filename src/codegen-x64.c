@@ -355,9 +355,11 @@ static void emit_text(Obj* prog)
 
 void gen(Obj* prog)
 {
-    s_output = stdout;
+    s_output = fopen("tmp.s", "w");
 
     assign_lvar_offsets(prog);
     emit_text(prog);
     emit_data(prog);
+
+    fclose(s_output);
 }

@@ -8,7 +8,7 @@
 #define EMPTYLINE "                                                                                "
 #define UNDERLINE "^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-static void verror_at(char const* file, char const* source, int sourceLen, int line, int col, int span, char const* const fmt, va_list args)
+static void verror_at(const char* file, const char* source, int sourceLen, int line, int col, int span, const char* const fmt, va_list args)
 {
     assert(file);
     assert(source);
@@ -44,7 +44,16 @@ static void verror_at(char const* file, char const* source, int sourceLen, int l
     exit(-1);
 }
 
-void error_lex(Lexer const* lexer, char const* const fmt, ...)
+void error(const char* const fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    exit(-1);
+    va_end(args);
+}
+
+void error_lex(const Lexer* lexer, const char* const fmt, ...)
 {
     char const* file = lexer->sourceInfo->file;
     char const* source = lexer->sourceInfo->start;
@@ -58,7 +67,7 @@ void error_lex(Lexer const* lexer, char const* const fmt, ...)
     va_end(args);
 }
 
-void error_tok(Token const* tok, char const* const fmt, ...)
+void error_tok(const Token* tok, const char* const fmt, ...)
 {
     char const* file = tok->sourceInfo->file;
     char const* source = tok->sourceInfo->start;
