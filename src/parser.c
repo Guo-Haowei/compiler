@@ -504,6 +504,11 @@ static Node* parse_stmt(ListNode** pToks)
     return parse_expr_stmt(pToks);
 }
 
+static bool is_typename(ListNode* tok)
+{
+    return tok_eq(tok, "char") || tok_eq(tok, "int");
+}
+
 // compound-stmt = (declaration | stmt)* "}"
 static Node* parse_compound_stmt(ListNode** pToks)
 {
@@ -512,7 +517,7 @@ static Node* parse_compound_stmt(ListNode** pToks)
     memset(&head, 0, sizeof(Node));
     Node* cur = &head;
     while (!tok_consume(pToks, "}")) {
-        if (tok_eq(*pToks, "int")) {
+        if (is_typename(*pToks)) {
             cur = cur->next = parse_decl(pToks);
         } else {
             cur = cur->next = parse_stmt(pToks);
@@ -525,14 +530,19 @@ static Node* parse_compound_stmt(ListNode** pToks)
     return node;
 }
 
-// declspec = "int"
+// declspec = "char" | "int"
 static Type* parse_declspec(ListNode** pToks)
 {
     if (tok_consume(pToks, "int")) {
         return g_int_type;
     }
 
-    unreachable();
+    if (tok_consume(pToks, "char")) {
+        return g_char_type;
+    }
+
+    Token* tok = as_tok(*pToks);
+    error_tok(tok, "expect type specifier, got '%.*s'", TOKSTR(tok));
     return nullptr;
 }
 

@@ -3,12 +3,14 @@
 #include <stdlib.h>
 
 static Type s_int_type = { .eTypeKind = TY_INT, .size = 8 };
+static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1 };
 
 Type* g_int_type = &s_int_type;
+Type* g_char_type = &s_char_type;
 
 bool is_integer(Type* type)
 {
-    return type->eTypeKind == TY_INT;
+    return type->eTypeKind == TY_INT || type->eTypeKind == TY_CHAR;
 }
 
 Type* pointer_to(Type* base)

@@ -131,6 +131,7 @@ int token_as_int(Token const* tok);
 // type
 typedef enum {
     TY_INT,
+    TY_CHAR,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -161,6 +162,7 @@ struct type_t {
 };
 
 extern Type* g_int_type;
+extern Type* g_char_type;
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);
