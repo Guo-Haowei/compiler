@@ -97,6 +97,12 @@ static Obj* find_var(Token const* tok)
             return var;
         }
     }
+
+    for (Obj* var = s_globals; var; var = var->next) {
+        if ((int)strlen(var->name) == tok->len && !strncmp(tok->start, var->name, tok->len)) {
+            return var;
+        }
+    }
     return nullptr;
 }
 
@@ -643,6 +649,20 @@ static void create_param_lvars(Type* param)
     }
 }
 
+static void parse_global_variable(ListNode** pToks, Type* basety)
+{
+    int cnt = 0;
+    while (!tok_consume(pToks, ";")) {
+        if (cnt) {
+            tok_expect(pToks, ",");
+        }
+
+        Type* type = parse_declarator(pToks, basety);
+        new_gvar(get_ident(type->name), type);
+        ++cnt;
+    }
+}
+
 static Obj* parse_function(ListNode** pToks, Type* basetpye)
 {
     Type* type = parse_declarator(pToks, basetpye);
@@ -657,14 +677,36 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
     return fn;
 }
 
+// Lookahead tokens and returns true if a given token is a start
+// of a function definition or declaration.
+static bool is_function(ListNode** pToks)
+{
+    if (tok_eq(*pToks, ";")) {
+        return false;
+    }
+
+    Type dummy;
+    Type* type = parse_declarator(pToks, &dummy);
+    return type->eTypeKind == TY_FUNC;
+}
+
 // program = (function-definition | global-variable)*
 Obj* parse(List* toks)
 {
     s_globals = NULL;
     ListNode* iter = toks->front;
     while (as_tok(iter)->eTokenKind != TK_EOF) {
-        Type* basety = parse_declspec(&iter);
-        parse_function(&iter, basety);
+        Type* basetype = parse_declspec(&iter);
+
+        ListNode* dummy = iter;
+        // do not pass the actual iter
+        // because we only need to peek ahead to find out if object is a function or not
+        if (is_function(&dummy)) {
+            parse_function(&iter, basetype);
+            continue;
+        }
+
+        parse_global_variable(&iter, basetype);
     }
     return s_globals;
 }

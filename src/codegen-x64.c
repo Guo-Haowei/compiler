@@ -48,7 +48,11 @@ static void gen_addr(Node const* node)
 {
     switch (node->eNodeKind) {
     case ND_VAR:
-        printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
+        if (node->var->isLocal) {
+            printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
+        } else {
+            printf("  lea %s(%%rip), %%rax\n", node->var->name);
+        }
         return;
     case ND_DEREF:
         gen_expr(node->lhs);
@@ -244,12 +248,30 @@ static void assign_lvar_offsets(Obj* prog)
     }
 }
 
-void gen(Obj* prog)
+static void emit_data(Obj* prog)
 {
-    assign_lvar_offsets(prog);
+    printf("# data section\n");
+    for (Obj* var = prog; var; var = var->next) {
+        if (var->isFunc)
+        {
+            continue;
+        }
 
+        assert(!var->isLocal);
+
+        printf("  .data\n");
+        printf("  .globl %s\n", var->name);
+        printf("%s:\n", var->name);
+        printf("  .zero %d\n", var->type->size);
+    }
+}
+
+static void emit_text(Obj* prog)
+{
+    printf("# text section\n");
     for (Obj* fn = prog; fn; fn = fn->next) {
-        if (!fn->isFunc) {
+        if (!fn->isFunc)
+        {
             continue;
         }
 
@@ -280,4 +302,11 @@ void gen(Obj* prog)
         printf("  pop %%rbp\n");
         printf("  ret\n");
     }
+}
+
+void gen(Obj* prog)
+{
+    assign_lvar_offsets(prog);
+    emit_text(prog);
+    emit_data(prog);
 }
