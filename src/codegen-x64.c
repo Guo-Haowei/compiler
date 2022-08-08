@@ -303,7 +303,8 @@ static void emit_data(Obj* prog)
 
         if (var->initData) {
             for (int i = 0; i < var->type->size; i++) {
-                writeln("  .byte %d", var->initData[i]);
+                uint c = (unsigned char)(var->initData[i]);
+                writeln("  .byte %u", c);
             }
         } else {
             writeln("  .zero %d", var->type->size);

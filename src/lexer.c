@@ -1,37 +1,18 @@
 #include "minic.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static bool is_decimal(char const c)
-{
-    return '0' <= c && c <= '9';
-}
-
-static bool is_lowercase(char const c)
-{
-    return ('a' <= c && c <= 'z');
-}
-
-static bool is_uppercase(char const c)
-{
-    return ('A' <= c && c <= 'Z');
-}
-
-static bool is_letter(char const c)
-{
-    return is_lowercase(c) || is_uppercase(c);
-}
-
 static bool is_ident1(char const c)
 {
-    return is_letter(c) || c == '_';
+    return isalpha(c) || c == '_';
 }
 
 static bool is_ident2(char const c)
 {
-    return is_ident1(c) || is_decimal(c);
+    return is_ident1(c) || isdigit(c);
 }
 
 static bool begin_with(char const* str, char const* prefix)
@@ -79,7 +60,7 @@ static void add_decimal_number(Lexer* lexer, List* list)
     tok.eTokenKind = TK_NUM;
     lexer_fill_tok(lexer, &tok);
 
-    while (is_decimal(lexer_peek(lexer))) {
+    while (isdigit(lexer_peek(lexer))) {
         lexer_read(lexer);
     }
 
@@ -89,31 +70,108 @@ static void add_decimal_number(Lexer* lexer, List* list)
     list_push_back(list, tok);
 }
 
+static const char* find_string_end(Lexer* lexer)
+{
+    const char* p = lexer->p + 1; // skip '"'
+    for (; *p != '"'; ++p) {
+        if (*p == '\n' || *p == '\0') {
+            error_lex(lexer, "unclosed string literal");
+        }
+        if (*p == '\\') {
+            ++p;
+        }
+    }
+
+    return p + 1;
+}
+
+static int from_hex(char c)
+{
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if ('a' <= c && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    return c - 'A' + 10;
+}
+
+static int read_escaped_char(Lexer* lexer, const char** new_pos, const char* p)
+{
+    if ('0' <= *p && *p <= '7') {
+        // Read an octal number.
+        int ocatal = *p++ - '0';
+        if ('0' <= *p && *p <= '7') {
+            ocatal = (ocatal << 3) + (*p++ - '0');
+            if ('0' <= *p && *p <= '7') {
+                ocatal = (ocatal << 3) + (*p++ - '0');
+            }
+        }
+        *new_pos = p;
+        return ocatal;
+    }
+
+    if (*p == 'x') {
+        ++p;
+        if (!isxdigit(*p)) {
+            error_lex(lexer, "invalid hex escape sequence");
+        }
+
+        int hex = 0;
+        for (; isxdigit(*p); ++p) {
+            hex = (hex << 4) + from_hex(*p);
+        }
+        *new_pos = p;
+        return hex;
+    }
+
+    *new_pos = p + 1;
+
+    // clang-format off
+    static char s_escape[] = {
+        '\a', '\b', 'c', 'd', 27, '\f', 'g',
+        'h', 'i', 'j', 'k', 'l', 'm', '\n',
+        'o', 'p', 'q', '\r', 's', '\t',
+        'u', '\v', 'w', 'x', 'y', 'z'
+    };
+    // clang-format on
+    if (islower(*p)) {
+        return s_escape[*p - 'a'];
+    }
+
+    return *p;
+}
+
 static void add_string(Lexer* lexer, List* list)
 {
-    Lexer copy = *lexer;
+    const char* start = lexer->p;
+    const char* end = find_string_end(lexer);
+    int maxStringLen = (int)(end - start);
+    char* buf = calloc(1, maxStringLen);
+
+    int len = 0;
+    for (const char* p = start + 1; *p != '"';) {
+        if (*p == '\\') {
+            buf[len++] = read_escaped_char(lexer, &p, p + 1);
+        } else {
+            buf[len++] = *p++;
+        }
+    }
+    assert(len <= maxStringLen);
+    ++len;
 
     Token tok;
     tok.eTokenKind = TK_STR;
     lexer_fill_tok(lexer, &tok);
-    lexer_read(lexer); // read '"'
-
-    char c;
-    do {
-        c = lexer_peek(lexer);
-        if (c == '\0' || c == '\n') {
-            // TODO: report error
-            error_lex(&copy, "missing terminating character");
-        }
-
-        lexer_read(lexer);
-    } while ( c != '"');
-
-    tok.end = lexer->p;
+    tok.end = end;
     tok.len = (int)(tok.end - tok.start);
 
-    tok.type = array_of(g_char_type, tok.len - 1);
-    tok.str = strncopy(tok.start + 1, tok.len - 2);
+    while (lexer->p != end) {
+        lexer_read(lexer);
+    }
+
+    tok.type = array_of(g_char_type, len);
+    tok.str = buf;
     list_push_back(list, tok);
 }
 
@@ -235,7 +293,7 @@ List* lex(SourceInfo const* sourceInfo)
         }
 
         // decimal number
-        if (is_decimal(c)) {
+        if (isdigit(c)) {
             add_decimal_number(&lexer, toks);
             continue;
         }
