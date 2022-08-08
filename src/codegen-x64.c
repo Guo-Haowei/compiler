@@ -295,8 +295,19 @@ static void emit_data(Obj* prog)
 
         writeln("  .data");
         writeln("  .globl %s", var->name);
+        Token* tok = var->tok;
+        if (tok) {
+            writeln("# %.*s", tok->len, tok->start);
+        }
         writeln("%s:", var->name);
-        writeln("  .zero %d", var->type->size);
+
+        if (var->initData) {
+            for (int i = 0; i < var->type->size; i++) {
+                writeln("  .byte %d", var->initData[i]);
+            }
+        } else {
+            writeln("  .zero %d", var->type->size);
+        }
     }
 }
 

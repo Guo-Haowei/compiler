@@ -49,6 +49,10 @@ typedef struct source_info_t {
     int len;
 } SourceInfo;
 
+typedef struct node_t Node;
+typedef struct Type Type;
+typedef struct Obj Obj;
+
 typedef struct token_t {
     TokenKind eTokenKind;
     int line;
@@ -57,13 +61,12 @@ typedef struct token_t {
     char const* end;
     int len;
 
-    SourceInfo const* sourceInfo;
+    const SourceInfo* sourceInfo;
+
+    // string
+    Type* type;
+    char* str;
 } Token;
-
-typedef struct node_t Node;
-typedef struct type_t Type;
-
-typedef struct Obj Obj;
 
 // Variable or function
 struct Obj {
@@ -83,6 +86,10 @@ struct Obj {
     Node* body;
     Obj* locals;
     int stackSize;
+
+    // Global variable
+    char *initData;
+    Token* tok;
 };
 
 // AST node
@@ -119,7 +126,7 @@ struct node_t {
 };
 
 typedef struct lexer_t {
-    SourceInfo const* sourceInfo;
+    const SourceInfo* sourceInfo;
     char const* p;
     int line;
     int col;
@@ -137,7 +144,7 @@ typedef enum {
     TY_ARRAY,
 } TypeKind;
 
-struct type_t {
+struct Type {
     TypeKind eTypeKind;
     int size; // sizeof() value
 

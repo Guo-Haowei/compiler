@@ -13,7 +13,6 @@ bool streq(const char* a, const char* b)
 char* strncopy(const char* src, int n)
 {
     assert(src);
-    assert(n);
     assert((int)strlen(src) >= n);
 
     char* ret = calloc(1, n + 1);

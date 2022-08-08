@@ -89,6 +89,34 @@ static void add_decimal_number(Lexer* lexer, List* list)
     list_push_back(list, tok);
 }
 
+static void add_string(Lexer* lexer, List* list)
+{
+    Lexer copy = *lexer;
+
+    Token tok;
+    tok.eTokenKind = TK_STR;
+    lexer_fill_tok(lexer, &tok);
+    lexer_read(lexer); // read '"'
+
+    char c;
+    do {
+        c = lexer_peek(lexer);
+        if (c == '\0' || c == '\n') {
+            // TODO: report error
+            error_lex(&copy, "missing terminating character");
+        }
+
+        lexer_read(lexer);
+    } while ( c != '"');
+
+    tok.end = lexer->p;
+    tok.len = (int)(tok.end - tok.start);
+
+    tok.type = array_of(g_char_type, tok.len - 1);
+    tok.str = strncopy(tok.start + 1, tok.len - 2);
+    list_push_back(list, tok);
+}
+
 static void add_identifier_or_keyword(Lexer* lexer, List* list)
 {
     static char const* const s_keywords[] = {
@@ -197,6 +225,12 @@ List* lex(SourceInfo const* sourceInfo)
         // whitespace
         if (strchr(" \n\t\r", c) != nullptr) {
             lexer_read(&lexer);
+            continue;
+        }
+
+        // string literal
+        if (c == '"') {
+            add_string(&lexer, toks);
             continue;
         }
 

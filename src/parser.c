@@ -160,6 +160,33 @@ static void tok_expect(ListNode** pToks, char const* expect)
     *pToks = (*pToks)->next;
 }
 
+static char* new_unique_name()
+{
+    static int s_id = 0;
+    return format(".L.anon.%d", s_id++);
+}
+
+static Obj* new_anon_gvar(Type* ty)
+{
+    return new_gvar(new_unique_name(), ty);
+}
+
+static Obj* new_string_literal(char* p, Type* type, Token* tok)
+{
+    Obj* var = new_anon_gvar(type);
+    var->initData = p;
+    var->tok = tok;
+    return var;
+}
+
+static char* get_ident(const Token* tok)
+{
+    if (tok->eTokenKind != TK_IDENT) {
+        error_tok(tok, "expected an identifier");
+    }
+    return strncopy(tok->start, tok->len);
+}
+
 static Node* parse_primary(ListNode** pToks);
 static Node* parse_postfix(ListNode** pToks);
 static Node* parse_unary(ListNode** pToks);
@@ -179,7 +206,7 @@ static Type* parse_declarator(ListNode** pToks, Type* type);
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 
-// primary = "(" expr ")" | "sizeof" unary | ident func-args? | num
+// primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
 static Node* parse_primary(ListNode** pToks)
 {
     if (tok_consume(pToks, "(")) {
@@ -199,6 +226,12 @@ static Node* parse_primary(ListNode** pToks)
         Node* node = new_num(token_as_int(tok), tok);
         tok_shift(pToks);
         return node;
+    }
+
+    if (tok->eTokenKind == TK_STR) {
+        Obj* var = new_string_literal(tok->str, tok->type, tok);
+        tok_shift(pToks);
+        return new_var(var, tok);
     }
 
     if (tok->eTokenKind == TK_IDENT) {
@@ -612,14 +645,6 @@ static Type* parse_declarator(ListNode** pToks, Type* type)
     type = parse_type_suffix(pToks, type);
     type->name = tok;
     return type;
-}
-
-static char* get_ident(const Token* tok)
-{
-    if (tok->eTokenKind != TK_IDENT) {
-        error_tok(tok, "expected an identifier");
-    }
-    return strncopy(tok->start, tok->len);
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
