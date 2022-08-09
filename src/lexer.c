@@ -46,6 +46,17 @@ static void lexer_shift(Lexer* lexer, int n)
     }
 }
 
+static void lexer_skipline(Lexer* lexer)
+{
+    for (;;) {
+        const char c = lexer_peek(lexer);
+        if (c == '\n' || c == '\0') {
+            break;
+        }
+        lexer_read(lexer);
+    }
+}
+
 static void lexer_fill_tok(Lexer const* lexer, Token* tok)
 {
     tok->line = lexer->line;
@@ -264,21 +275,30 @@ static List* lex(const SourceInfo* sourceInfo)
     int c = 0;
     while ((c = lexer_peek(&lexer))) {
         // one line comment
-        // if (strncmp(loc->p, "//", 2) == 0) {
-        //     skipline();
-        //     continue;
-        // }
+        if (strncmp(lexer.p, "//", 2) == 0) {
+            lexer_skipline(&lexer);
+            continue;
+        }
 
         // comment block
-        // if (strncmp(loc->p, "/*", 2) == 0) {
-        //     shift(2); // skip /*
-        //     // assume comment is always closed
-        //     while (strncmp(loc->p, "*/", 2) != 0) {
-        //         read();
-        //     }
-        //     shift(2); // skip */
-        //     continue;
-        // }
+        if (strncmp(lexer.p, "/*", 2) == 0) {
+            Lexer bak = lexer;
+            lexer_shift(&lexer, 2); // skip /*
+            // assume comment is always closed
+            for (;;) {
+                if (lexer.p[0] == '\0' || lexer.p[1] == '\0') {
+                    error_lex(&bak, "unterminated comment");
+                }
+
+                if (strncmp(lexer.p, "*/", 2) == 0) {
+                    break;
+                }
+
+                lexer_read(&lexer);
+            }
+            lexer_shift(&lexer, 2); // skip */
+            continue;
+        }
 
         // whitespace
         if (strchr(" \n\t\r", c) != nullptr) {
@@ -336,9 +356,6 @@ static char* read_file(const char* path)
 
     char* buf = malloc(size + 1);
     int read = fread(buf, 1, size, fp);
-    if (read != size) {
-        assert(0);
-    }
     fclose(fp);
 
     buf[read] = 0;

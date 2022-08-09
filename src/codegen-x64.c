@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 // @TODO: refactor
 static int s_depth = 0;
@@ -353,9 +354,21 @@ static void emit_text(Obj* prog)
     }
 }
 
-void gen(Obj* prog)
+void gen(Obj* prog, const char* inputName)
 {
-    s_output = fopen("tmp.s", "w");
+    char outName[512];
+    const size_t size = strlen(inputName);
+    assert(size + 3 <= sizeof(outName)); // ".c\0"
+
+    strncpy(outName, inputName, sizeof(outName));
+    char* p = strrchr(outName, '.');
+    if (!p) {
+        p = outName + size;
+    }
+    p[1] = 's';
+    p[2] = '\0';
+
+    s_output = fopen(outName, "w");
 
     assign_lvar_offsets(prog);
     emit_text(prog);

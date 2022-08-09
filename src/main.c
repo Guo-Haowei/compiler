@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     Obj* prog = parse(toks);
     DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
 
-    gen(prog);
+    gen(prog, argv[1]);
 
     list_delete(toks);
     return 0;

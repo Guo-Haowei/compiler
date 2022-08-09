@@ -52,10 +52,6 @@ def run_case(expect, input, i, total):
         print(f'Failed to execute: {" ".join(cmd)}')
         os._exit(1)
 
-    if os.system(' '.join(['mv', 'tmp.s', f'{test_name}.s'])) != 0:
-        print(f'Failed to rename file')
-        os._exit(1)
-
     cmd = ['gcc', '-static', '-o', 'tmp', f'{test_name}.s']
     cmd = ' '.join(cmd)
     if os.system(cmd) != 0:
@@ -334,6 +330,14 @@ def test_main():
     add_test(119, r'int main() { return "\x77"[0]; }')
     # add_test(165, r'int main() { return "\xA5"[0]; }')
     # add_test(255, r'int main() { return "\x00ff"[0]; }')
+
+    test_section_begin('comment')
+    # add_test(0, r'/*')
+
+    add_test(
+        24, r'''int main(/** int a, char** b **/) { return 2 * 3 * 4; } /**/''')
+    add_test(8, r'''int main()// comment1
+{ return 8; } ///* comment 2''')
 
 
 if __name__ == "__main__":

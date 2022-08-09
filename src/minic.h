@@ -127,7 +127,7 @@ struct node_t {
 
 typedef struct lexer_t {
     const SourceInfo* sourceInfo;
-    char const* p;
+    const char* p;
     int line;
     int col;
 } Lexer;
@@ -180,7 +180,7 @@ void add_type(Node* node);
 
 List* lex_file(const char* filename);
 Obj* parse(List* toks);
-void gen(Obj* prog);
+void gen(Obj* prog, const char* inputName);
 
 void error(const char* const fmt, ...);
 void error_lex(const Lexer* lexer, const char* const fmt, ...);
