@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static Type s_int_type = { .eTypeKind = TY_INT, .size = 8, .align = 8 };
+static Type s_int_type = { .eTypeKind = TY_INT, .size = 4, .align = 4 };
 static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1, .align = 1 };
 
 Type* g_int_type = &s_int_type;

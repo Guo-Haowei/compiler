@@ -17,7 +17,7 @@ int main()
         assert(1, x.a);
         assert(2, x.b);
         assert(3, x.c);
-        assert(24, sizeof(x));
+        assert(12, sizeof(x));
     }
     {
         struct { char a, b; } x[3];
@@ -46,7 +46,7 @@ int main()
     }
     {
         struct { int a; } x;
-        assert(8, sizeof(x));
+        assert(4, sizeof(x));
     }
     {
         struct { int a, b; } x;
@@ -54,11 +54,11 @@ int main()
         struct { char a; char b; } z;
         struct { char a; int b; } w;
         struct { int a; char b; } u;
-        assert(16, sizeof(x));
-        assert(16, sizeof(y));
+        assert(8, sizeof(x));
+        assert(8, sizeof(y));
         assert(2, sizeof(z));
-        assert(16, sizeof(w));
-        assert(16, sizeof(u));
+        assert(8, sizeof(w));
+        assert(8, sizeof(u));
     }
 
     printf("OK\n");

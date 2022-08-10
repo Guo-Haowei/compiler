@@ -20,8 +20,8 @@ int main()
     assert(1, arr[1]);
     assert(2, arr[2]);
     assert(3, arr[3]);
-    assert(8, sizeof(x));
-    assert(32, sizeof(arr));
+    assert(4, sizeof(x));
+    assert(16, sizeof(arr));
 
     printf("OK\n");
     return 0;
