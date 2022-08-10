@@ -11,6 +11,14 @@
 static Obj* s_locals;
 static Obj* s_globals;
 
+// Scope for struct tags
+typedef struct TagScope TagScope;
+struct TagScope {
+    TagScope* next;
+    char* name;
+    Type* ty;
+};
+
 // Scope for local or global variables.
 typedef struct VarScope VarScope;
 struct VarScope {
@@ -24,6 +32,7 @@ typedef struct Scope Scope;
 struct Scope {
     Scope* next;
     VarScope* vars;
+    TagScope* tags;
 };
 
 static Scope _s_scope;
@@ -41,13 +50,23 @@ static void leave_scope(void)
     s_scope = s_scope->next;
 }
 
-static VarScope* push_scope(char* name, Obj* var)
+static VarScope* push_var_scope(char* name, Obj* var)
 {
     VarScope* sc = calloc(1, sizeof(VarScope));
     sc->name = name;
     sc->var = var;
     sc->next = s_scope->vars;
     s_scope->vars = sc;
+    return sc;
+}
+
+static TagScope* push_tag_scope(Token* tok, Type* ty)
+{
+    TagScope* sc = calloc(1, sizeof(TagScope));
+    sc->name = strncopy(tok->start, tok->len);
+    sc->ty = ty;
+    sc->next = s_scope->tags;
+    s_scope->tags = sc;
     return sc;
 }
 
@@ -103,7 +122,7 @@ static Obj* new_variable(char* name, Type* type)
     var->id = s_id++;
     var->name = name;
     var->type = type;
-    push_scope(name, var);
+    push_var_scope(name, var);
     return var;
 }
 
@@ -127,6 +146,17 @@ static Obj* new_gvar(char* name, Type* type)
 typedef Node* (*ParseBinaryFn)(ListNode**);
 
 // Find a local variable by name.
+static Type* find_tag(Token* tok)
+{
+    for (Scope* sc = s_scope; sc; sc = sc->next) {
+        for (TagScope* sc2 = sc->tags; sc2; sc2 = sc2->next) {
+            if (strncmp(tok->start, sc2->name, tok->len) == 0) {
+                return sc2->ty;
+            }
+        }
+    }
+    return nullptr;
+}
 
 static Obj* find_var(Token const* tok)
 {
@@ -314,7 +344,8 @@ static Node* parse_unary(ListNode** pToks)
 }
 
 // struct-members = (declspec declarator (","  declarator)* ";")*
-static void parse_struct_members(ListNode **pToks, Type *ty) {
+static void parse_struct_members(ListNode** pToks, Type* ty)
+{
     Member head = { .next = nullptr };
     Member* cur = &head;
 
@@ -335,8 +366,25 @@ static void parse_struct_members(ListNode **pToks, Type *ty) {
     ty->members = head.next;
 }
 
-// struct-decl = "{" struct-members
-static Type *parse_struct_decl(ListNode** pToks) {
+// struct-decl = ident? "{" struct-members
+static Type* parse_struct_decl(ListNode** pToks)
+{
+    // Read a struct tag.
+    Token* tag = nullptr;
+    Token* tok = as_tok(*pToks);
+    if (tok->eTokenKind == TK_IDENT) {
+        tag = tok;
+        tok_shift(pToks);
+    }
+
+    if (tag && !tok_eq(*pToks, "{")) {
+        Type* ty = find_tag(tag);
+        if (!ty) {
+            error_tok(tag, "unknown struct %.*s", TOKSTR(tag));
+        }
+        return ty;
+    }
+
     tok_expect(pToks, "{");
 
     Type* ty = calloc(1, sizeof(Type));
@@ -354,6 +402,11 @@ static Type *parse_struct_decl(ListNode** pToks) {
         ty->align = MAX(ty->align, mem->type->align);
     }
     ty->size = align_to(offset, ty->align);
+
+    // Register the struct type if a name was given.
+    if (tag) {
+        push_tag_scope(tag, ty);
+    }
     return ty;
 }
 
@@ -575,8 +628,7 @@ static Node* parse_expr(ListNode** pToks)
     Node* node = parse_assign(pToks);
 
     Token* tok = as_tok(*pToks);
-    if (tok_consume(pToks, ","))
-    {
+    if (tok_consume(pToks, ",")) {
         return new_binary(ND_COMMA, node, parse_expr(pToks), tok);
     }
 
@@ -720,8 +772,6 @@ static Type* parse_declspec(ListNode** pToks)
 
 // type-suffix = ("(" func-params? ")")?
 // func-params = param ("," param)*
-// param       = declspec declarator
-// func-params = (param ("," param)*)? ")"
 // param       = declspec declarator
 static Type* parse_func_params(ListNode** pToks, Type* type)
 {

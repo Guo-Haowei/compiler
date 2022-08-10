@@ -8,14 +8,3 @@ add_executable(minic-x64
     type.c
     string.c
 )
-
-add_executable(minic-llvm
-    codegen-llvm.c
-    lexer.c
-    list.c
-    main.c
-    misc.c
-    parser.c
-    type.c
-    string.c
-)

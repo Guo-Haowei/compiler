@@ -1,5 +1,6 @@
 #include "test.h"
 
+// clang-format off
 int main()
 {
     {
@@ -59,6 +60,26 @@ int main()
         assert(2, sizeof(z));
         assert(8, sizeof(w));
         assert(8, sizeof(u));
+    }
+    {
+        struct t {int a; int b;} x;
+        struct t y;
+        assert(8, sizeof(y));
+        struct tt { char a[2]; };
+        struct tt z;
+        assert(2, sizeof(z));
+        {
+            struct tt { char a[4]; };
+            struct tt z;
+            assert(4, sizeof(z));
+        }
+    }
+    {
+        struct t {int x;};
+        int t=1;
+        struct t y;
+        y.x=2;
+        assert(3, t + y.x);
     }
 
     printf("OK\n");
