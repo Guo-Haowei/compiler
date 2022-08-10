@@ -20,6 +20,13 @@ int main()
         b = -a;
         assert(-999, b);
     }
+    {
+        int i = 2, j = 3;
+        (i = 5, j) = 6;
+        assert(5, i);
+        assert(6, j);
+    }
+
     printf("OK\n");
     return 0;
 }

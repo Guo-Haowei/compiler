@@ -491,10 +491,18 @@ static Node* parse_funccall(ListNode** pToks)
     return node;
 }
 
-// expr = assign
+// expr = assign ("," expr)?
 static Node* parse_expr(ListNode** pToks)
 {
-    return parse_assign(pToks);
+    Node* node = parse_assign(pToks);
+
+    Token* tok = as_tok(*pToks);
+    if (tok_consume(pToks, ","))
+    {
+        return new_binary(ND_COMMA, node, parse_expr(pToks), tok);
+    }
+
+    return node;
 }
 
 // expr-stmt = expr? ";"

@@ -91,6 +91,9 @@ void add_type(Node* node)
     case ND_VAR:
         node->type = node->var->type;
         return;
+    case ND_COMMA:
+        node->type = node->rhs->type;
+        return;
     case ND_ADDR:
         if (node->lhs->type->eTypeKind == TY_ARRAY) {
             node->type = pointer_to(node->lhs->type->base);

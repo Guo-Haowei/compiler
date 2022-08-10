@@ -85,13 +85,19 @@ static void gen_addr(Node const* node)
     switch (node->eNodeKind) {
     case ND_VAR:
         if (node->var->isLocal) {
+            // local
             writeln("  lea %d(%%rbp), %%rax", node->var->offset);
         } else {
+            // global
             writeln("  lea %s(%%rip), %%rax", node->var->name);
         }
         return;
     case ND_DEREF:
         gen_expr(node->lhs);
+        return;
+    case ND_COMMA:
+        gen_expr(node->lhs);
+        gen_addr(node->rhs);
         return;
     default:
         break;
@@ -149,6 +155,10 @@ static void gen_expr(Node const* node)
         push();
         gen_expr(node->rhs);
         store(node->type);
+        return;
+    case ND_COMMA:
+        gen_expr(node->lhs);
+        gen_expr(node->rhs);
         return;
     case ND_FUNCCALL:
         Node* arg = node->args;

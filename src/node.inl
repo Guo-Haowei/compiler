@@ -20,6 +20,7 @@ DEFINE_NODE(ND_LE           , "<="          , 0         ) // <=
 DEFINE_NODE(ND_GT           , ">"           , 0         ) // >
 DEFINE_NODE(ND_GE           , ">="          , 0         ) // >=
 DEFINE_NODE(ND_ASSIGN       , 0             , 0         ) // =
+DEFINE_NODE(ND_COMMA        , 0             , 0         ) // ,
 DEFINE_NODE(ND_IF           , 0             , 0         ) // "if"
 DEFINE_NODE(ND_FOR          , 0             , 0         ) // "for" or "while"
 DEFINE_NODE(ND_RETURN       , 0             , 0         ) // "return"
