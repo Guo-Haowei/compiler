@@ -11,19 +11,54 @@
 static Obj* s_locals;
 static Obj* s_globals;
 
+// Scope for local or global variables.
+typedef struct VarScope VarScope;
+struct VarScope {
+    VarScope* next;
+    char* name;
+    Obj* var;
+};
+
+// Represents a block scope.
+typedef struct Scope Scope;
+struct Scope {
+    Scope* next;
+    VarScope* vars;
+};
+
+static Scope _s_scope;
+static Scope* s_scope = &_s_scope;
+
+static void enter_scope(void)
+{
+    Scope* scope = calloc(1, sizeof(Scope));
+    scope->next = s_scope;
+    s_scope = scope;
+}
+
+static void leave_scope(void)
+{
+    s_scope = s_scope->next;
+}
+
+static VarScope* push_scope(char* name, Obj* var)
+{
+    VarScope* sc = calloc(1, sizeof(VarScope));
+    sc->name = name;
+    sc->var = var;
+    sc->next = s_scope->vars;
+    s_scope->vars = sc;
+    return sc;
+}
+
 /**
  * Create Node API
  */
-static uint obj_id()
-{
-    static int s_id = 0;
-    return s_id++;
-}
-
 static Node* new_node(NodeKind eNodeKind, Token const* tok)
 {
+    static int s_id = 0;
     Node* node = calloc(1, sizeof(Node));
-    node->id = obj_id();
+    node->id = s_id++;
     node->tok = tok;
     node->eNodeKind = eNodeKind;
     return node;
@@ -63,10 +98,12 @@ static Node* new_unary(NodeKind eNodeKind, Node* expr, Token const* tok)
 
 static Obj* new_variable(char* name, Type* type)
 {
+    static int s_id = 0;
     Obj* var = calloc(1, sizeof(Obj));
-    var->id = obj_id();
+    var->id = s_id++;
     var->name = name;
     var->type = type;
+    push_scope(name, var);
     return var;
 }
 
@@ -90,19 +127,17 @@ static Obj* new_gvar(char* name, Type* type)
 typedef Node* (*ParseBinaryFn)(ListNode**);
 
 // Find a local variable by name.
+
 static Obj* find_var(Token const* tok)
 {
-    for (Obj* var = s_locals; var; var = var->next) {
-        if ((int)strlen(var->name) == tok->len && !strncmp(tok->start, var->name, tok->len)) {
-            return var;
+    for (Scope* sc1 = s_scope; sc1; sc1 = sc1->next) {
+        for (VarScope* sc2 = sc1->vars; sc2; sc2 = sc2->next) {
+            if (strncmp(tok->start, sc2->name, tok->len) == 0) {
+                return sc2->var;
+            }
         }
     }
 
-    for (Obj* var = s_globals; var; var = var->next) {
-        if ((int)strlen(var->name) == tok->len && !strncmp(tok->start, var->name, tok->len)) {
-            return var;
-        }
-    }
     return nullptr;
 }
 
@@ -546,9 +581,11 @@ static bool is_typename(ListNode* tok)
 static Node* parse_compound_stmt(ListNode** pToks)
 {
     Token* tok = as_tok(pToks[0]->prev);
-    Node head;
-    memset(&head, 0, sizeof(Node));
+    Node head = { .next = nullptr };
     Node* cur = &head;
+
+    enter_scope();
+
     while (!tok_consume(pToks, "}")) {
         if (is_typename(*pToks)) {
             cur = cur->next = parse_decl(pToks);
@@ -557,6 +594,8 @@ static Node* parse_compound_stmt(ListNode** pToks)
         }
         add_type(cur);
     }
+
+    leave_scope();
 
     Node* node = new_node(ND_BLOCK, tok);
     node->body = head.next;
@@ -704,11 +743,17 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
     Obj* fn = new_gvar(get_ident(type->name), type);
     fn->isFunc = true;
     s_locals = nullptr;
+
+    enter_scope();
+
     create_param_lvars(type->params);
     fn->params = s_locals;
     tok_expect(pToks, "{");
     fn->body = parse_compound_stmt(pToks);
     fn->locals = s_locals;
+
+    leave_scope();
+
     return fn;
 }
 

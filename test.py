@@ -339,6 +339,11 @@ def test_main():
     add_test(8, r'''int main()// comment1
 { return 8; } ///* comment 2''')
 
+    test_section_begin('scope')
+    add_test(2, 'int main() { int x=2; { int x=3; } return x; }')
+    add_test(2, 'int main() { int x=2; { int x=3; } { int y=4; return x; }}')
+    add_test(3, 'int main() { int x=2; { x=3; } return x; }')
+
 
 if __name__ == "__main__":
     test_main()
