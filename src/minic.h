@@ -53,7 +53,7 @@ typedef struct node_t Node;
 typedef struct Type Type;
 typedef struct Obj Obj;
 
-typedef struct token_t {
+typedef struct Token {
     TokenKind eTokenKind;
     int line;
     int col;

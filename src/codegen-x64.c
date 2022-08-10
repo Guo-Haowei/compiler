@@ -123,6 +123,8 @@ static void gen_cmp_expr(NodeKind eNodeKind)
 
 static void gen_expr(Node const* node)
 {
+    writeln(".loc 1 %d", node->tok->line);
+
     switch (node->eNodeKind) {
     case ND_NUM:
         writeln("  mov $%d, %%rax", node->val);
@@ -210,6 +212,8 @@ static int label_counter()
 
 static void gen_stmt(Node const* node)
 {
+    writeln("  .loc 1 %d", node->tok->line);
+
     switch (node->eNodeKind) {
     case ND_IF: {
         const int c = label_counter();
@@ -370,6 +374,8 @@ void gen(Obj* prog, const char* inputName)
     s_output = fopen(outName, "w");
 
     assign_lvar_offsets(prog);
+
+    writeln("  .file 1 \"%s\"", inputName);
     emit_text(prog);
     emit_data(prog);
 
