@@ -286,7 +286,7 @@ static void assign_lvar_offsets(Obj* prog)
 
 static void emit_data(Obj* prog)
 {
-    writeln("# data section");
+    writeln("  .data");
     for (Obj* var = prog; var; var = var->next) {
         if (var->isFunc) {
             continue;
@@ -294,7 +294,6 @@ static void emit_data(Obj* prog)
 
         assert(!var->isLocal);
 
-        writeln("  .data");
         writeln("  .globl %s", var->name);
         Token* tok = var->tok;
         if (tok) {
@@ -315,19 +314,19 @@ static void emit_data(Obj* prog)
 
 static void emit_text(Obj* prog)
 {
-    writeln("# text section");
+    writeln("  .text");
     for (Obj* fn = prog; fn; fn = fn->next) {
         if (!fn->isFunc) {
             continue;
         }
 
         writeln("  .globl %s", fn->name);
-        writeln("  .text");
         writeln("%s:", fn->name);
         s_current_fn = fn;
         // Prologue
         writeln("  push %%rbp");
         writeln("  mov %%rsp, %%rbp");
+        writeln("  sub $32, %%rsp"); // HACK: fix main segfault
         for (Obj* var = fn->locals; var; var = var->next) {
             writeln("  # var %s [%d]", var->name, var->offset);
         }

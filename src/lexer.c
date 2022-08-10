@@ -300,6 +300,12 @@ static List* lex(const SourceInfo* sourceInfo)
             continue;
         }
 
+        // skip '#' for now
+        if (c == '#') {
+            lexer_skipline(&lexer);
+            continue;
+        }
+
         // whitespace
         if (strchr(" \n\t\r", c) != nullptr) {
             lexer_read(&lexer);
@@ -330,7 +336,7 @@ static List* lex(const SourceInfo* sourceInfo)
         }
 
         // one char punct
-        if (strchr("=+-*/%()<>{},;&[]", c) != nullptr) {
+        if (strchr("=+-*/%()<>{},;&[]#", c) != nullptr) {
             add_one_char_punct(&lexer, toks);
             continue;
         }
