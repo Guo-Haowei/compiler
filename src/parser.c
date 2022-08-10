@@ -433,22 +433,30 @@ static Node* struct_ref(Node* lhs, Token* tok)
     return node;
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
 static Node* parse_postfix(ListNode** pToks)
 {
     Node* node = parse_primary(pToks);
 
     for (;;) {
+        Token* tok = as_tok(*pToks);
         if (tok_consume(pToks, "[")) {
             // x[y] is short for *(x+y)
-            Token* start = as_tok(*pToks);
             Node* idx = parse_expr(pToks);
             tok_expect(pToks, "]");
-            node = new_unary(ND_DEREF, new_add(node, idx, start), start);
+            node = new_unary(ND_DEREF, new_add(node, idx, tok), tok);
             continue;
         }
 
         if (tok_consume(pToks, ".")) {
+            node = struct_ref(node, as_tok(*pToks));
+            tok_shift(pToks);
+            continue;
+        }
+
+        if (tok_consume(pToks, "->")) {
+            // x->y is short for (*x).y
+            node = new_unary(ND_DEREF, node, tok);
             node = struct_ref(node, as_tok(*pToks));
             tok_shift(pToks);
             continue;
