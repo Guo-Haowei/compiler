@@ -7,6 +7,7 @@
 // @TODO: refactor
 static int s_depth = 0;
 static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
 static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
 static Obj* s_current_fn;
 
@@ -52,6 +53,9 @@ static void load(Type* type)
     case 1:
         writeln("  movsbq (%%rax), %%rax");
         break;
+    case 4:
+        writeln("  movsxd (%%rax), %%rax");
+        break;
     case 8:
         writeln("  mov (%%rax), %%rax");
         break;
@@ -68,6 +72,9 @@ static void store(Type* type)
     switch (type->size) {
     case 1:
         writeln("  mov %%al, (%%rdi)");
+        break;
+    case 4:
+        writeln("  mov %%eax, (%%rdi)");
         break;
     case 8:
         writeln("  mov %%rax, (%%rdi)");
@@ -287,6 +294,16 @@ static void gen_stmt(Node const* node)
     error_tok(node->tok, "invalid statement");
 }
 
+static List* build_reversed_var_list(Obj* var)
+{
+    List* list = list_new();
+    for (Obj* c = var; c; c = c->next) {
+        size_t ptr = (size_t)c;
+        list_push_front(list, ptr);
+    }
+    return list;
+}
+
 // Assign offsets to local variables.
 static void assign_lvar_offsets(Obj* prog)
 {
@@ -298,6 +315,7 @@ static void assign_lvar_offsets(Obj* prog)
         int offset = 0;
         for (Obj* var = fn->locals; var; var = var->next) {
             offset += var->type->size;
+            offset = align_to(offset, var->type->align);
             var->offset = -offset;
         }
         fn->stackSize = align_to(offset, 16);
@@ -332,6 +350,22 @@ static void emit_data(Obj* prog)
     }
 }
 
+static void store_gp(int r, int offset, int sz)
+{
+    switch (sz) {
+    case 1:
+        writeln("  mov %s, %d(%%rbp)", s_argreg8[r], offset);
+        return;
+    case 4:
+        writeln("  mov %s, %d(%%rbp)", s_argreg32[r], offset);
+        return;
+    case 8:
+        writeln("  mov %s, %d(%%rbp)", s_argreg64[r], offset);
+        return;
+    }
+    unreachable();
+}
+
 static void emit_text(Obj* prog)
 {
     writeln("  .text");
@@ -343,24 +377,27 @@ static void emit_text(Obj* prog)
         writeln("  .globl %s", fn->name);
         writeln("%s:", fn->name);
         s_current_fn = fn;
+
         // Prologue
         writeln("  push %%rbp");
         writeln("  mov %%rsp, %%rbp");
         writeln("  sub $32, %%rsp"); // HACK: fix main segfault
-        for (Obj* var = fn->locals; var; var = var->next) {
+
+        // print local variables
+        List* locals = build_reversed_var_list(fn->locals);
+        for (ListNode* c = locals->front; c; c = c->next) {
+            Obj* var = *(Obj**)(c + 1);
             writeln("  # var %s [%d]", var->name, var->offset);
         }
+        list_delete(locals);
+
         writeln("  sub $%d, %%rsp", fn->stackSize);
         // Emit code
 
         // Save passed-by-register arguments to the stack
         int i = 0;
         for (Obj* var = fn->params; var; var = var->next) {
-            if (var->type->size == 1) {
-                writeln("  mov %s, %d(%%rbp)", s_argreg8[i++], var->offset);
-            } else {
-                writeln("  mov %s, %d(%%rbp)", s_argreg64[i++], var->offset);
-            }
+            store_gp(i++, var->offset, var->type->size);
         }
 
         gen_stmt(fn->body);

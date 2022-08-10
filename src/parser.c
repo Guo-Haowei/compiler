@@ -485,7 +485,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
 
     // ptr - num
     if (lhs->type->base && is_integer(rhs->type)) {
-        rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+        rhs = new_binary(ND_MUL, rhs, new_num(lhs->type->base->size, tok), tok);
         add_type(rhs);
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
         node->type = lhs->type;
@@ -495,7 +495,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     if (lhs->type->base && rhs->type->base) {
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
         node->type = g_int_type;
-        return new_binary(ND_DIV, node, new_num(8, tok), tok);
+        return new_binary(ND_DIV, node, new_num(lhs->type->base->size, tok), tok);
     }
 
     error_tok(tok, "invalid operands");
