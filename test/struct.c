@@ -81,6 +81,29 @@ int main()
         y.x=2;
         assert(3, t + y.x);
     }
+    {
+        struct t { char a; } x;
+        struct t* y = &x;
+        x.a = 3;
+        assert(3, y->a);
+        y->a = 4;
+        assert(4, x.a);
+    }
+    {
+        struct A { int x, y; };
+        struct B { struct A* p; };
+    
+        struct A a;
+        a.x = 1;
+        a.y = 2;
+        struct B b;
+        b.p = &a;
+        struct B* pB = &b;
+        assert(1, b.p->x);
+        assert(2, b.p->y);
+        assert(1, pB->p->x);
+        assert(2, pB->p->y);
+    }
 
     printf("OK\n");
     return 0;
