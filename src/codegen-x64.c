@@ -99,7 +99,12 @@ static void gen_addr(Node const* node)
         gen_expr(node->lhs);
         gen_addr(node->rhs);
         return;
+    case ND_MEMBER:
+        gen_addr(node->lhs);
+        writeln("  add $%d, %%rax", node->member->offset);
+        return;
     default:
+        // @TODO: remove break
         break;
     }
 
@@ -140,6 +145,7 @@ static void gen_expr(Node const* node)
         writeln("  neg %%rax");
         return;
     case ND_VAR:
+    case ND_MEMBER:
         gen_addr(node);
         load(node->type);
         return;

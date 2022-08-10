@@ -1,12 +1,22 @@
 #include "minic.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
-static Type s_int_type = { .eTypeKind = TY_INT, .size = 8 };
-static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1 };
+static Type s_int_type = { .eTypeKind = TY_INT, .size = 8, .align = 8 };
+static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1, .align = 1 };
 
 Type* g_int_type = &s_int_type;
 Type* g_char_type = &s_char_type;
+
+static Type* new_type(TypeKind kind, int size, int align)
+{
+    Type* ty = calloc(1, sizeof(Type));
+    ty->eTypeKind = kind;
+    ty->size = size;
+    ty->align = align;
+    return ty;
+}
 
 bool is_integer(Type* type)
 {
@@ -15,7 +25,7 @@ bool is_integer(Type* type)
 
 Type* pointer_to(Type* base)
 {
-    Type* ty = calloc(1, sizeof(Type));
+    Type* ty = new_type(TY_PTR, 8, 8);
     ty->eTypeKind = TY_PTR;
     ty->size = 8;
     ty->base = base;
@@ -24,7 +34,7 @@ Type* pointer_to(Type* base)
 
 Type* array_of(Type* base, int len)
 {
-    Type* ty = calloc(1, sizeof(Type));
+    Type *ty = new_type(TY_ARRAY, base->size * len, base->align);
     ty->eTypeKind = TY_ARRAY;
     ty->size = base->size * len;
     ty->base = base;
@@ -84,6 +94,8 @@ void add_type(Node* node)
     case ND_NE:
     case ND_LT:
     case ND_LE:
+    case ND_GT:
+    case ND_GE:
     case ND_NUM:
     case ND_FUNCCALL:
         node->type = g_int_type;
@@ -107,7 +119,19 @@ void add_type(Node* node)
         }
         node->type = node->lhs->type->base;
         return;
-    default:
+    case ND_MEMBER:
+        node->type = node->member->type;
+        return;
+    case ND_IF:
+    case ND_FOR:
+    case ND_RETURN:
+    case ND_BLOCK:
+    case ND_EXPR_STMT:
+    case ND_INVALID:
+    case ND_COUNT:
         return;
     }
+
+    fprintf(stderr, "unhandled node type %s\n", node_kind_to_string(node->eNodeKind));
+    assert(0);
 }

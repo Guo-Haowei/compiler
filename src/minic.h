@@ -24,6 +24,8 @@ typedef unsigned int uint;
 // utilities
 #define ARRAY_COUNTER(arr) (sizeof(arr) / sizeof(*(arr)))
 #define STATIC_ASSERT(COND) typedef char _static_assertion_[(COND) ? 1 : -1]
+#define MAX(a, b) ((a > b) ? a : b)
+#define MIN(a, b) ((a < b) ? a : b)
 
 #define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
 #define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
@@ -49,9 +51,10 @@ typedef struct source_info_t {
     int len;
 } SourceInfo;
 
-typedef struct node_t Node;
+typedef struct Node Node;
 typedef struct Type Type;
 typedef struct Obj Obj;
+typedef struct Member Member;
 
 typedef struct Token {
     TokenKind eTokenKind;
@@ -93,7 +96,7 @@ struct Obj {
 };
 
 // AST node
-struct node_t {
+struct Node {
     uint id;
     NodeKind eNodeKind;
     Node* next;
@@ -114,6 +117,9 @@ struct node_t {
 
     // {...} block statement
     Node* body;
+
+    // Struct member access
+    Member *member;
 
     // Function call
     char* funcname;
@@ -142,11 +148,13 @@ typedef enum {
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
+    TY_STRUCT,
 } TypeKind;
 
 struct Type {
     TypeKind eTypeKind;
-    int size; // sizeof() value
+    int size;  // sizeof() value
+    int align; // alignment
 
     // Pointer-to or array-of type. We intentionally use the same member
     // to represent pointer/array duality in C.
@@ -162,10 +170,21 @@ struct Type {
     // Array
     int arrayLen;
 
+    // Struct
+    Member *members;
+
     // function
     Type* retType;
     Type* params;
     Type* next;
+};
+
+// Struct member
+struct Member {
+    Member *next;
+    Type *type;
+    Token *name;
+    int offset;
 };
 
 extern Type* g_int_type;

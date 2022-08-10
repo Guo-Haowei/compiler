@@ -313,18 +313,96 @@ static Node* parse_unary(ListNode** pToks)
     return parse_postfix(pToks);
 }
 
-// postfix = primary ("[" expr "]")*
+// struct-members = (declspec declarator (","  declarator)* ";")*
+static void parse_struct_members(ListNode **pToks, Type *ty) {
+    Member head = { .next = nullptr };
+    Member* cur = &head;
+
+    while (!tok_consume(pToks, "}")) {
+        Type* basety = parse_declspec(pToks);
+        int i = 0;
+        while (!tok_consume(pToks, ";")) {
+            if (i++) {
+                tok_expect(pToks, ",");
+            }
+
+            Member* member = calloc(1, sizeof(Member));
+            member->type = parse_declarator(pToks, basety);
+            member->name = member->type->name;
+            cur = cur->next = member;
+        }
+    }
+    ty->members = head.next;
+}
+
+// struct-decl = "{" struct-members
+static Type *parse_struct_decl(ListNode** pToks) {
+    tok_expect(pToks, "{");
+
+    Type* ty = calloc(1, sizeof(Type));
+    ty->eTypeKind = TY_STRUCT;
+    ty->align = 1;
+    parse_struct_members(pToks, ty);
+
+    // Assign offsets within the struct to members.
+    int offset = 0;
+    for (Member* mem = ty->members; mem; mem = mem->next) {
+        offset = align_to(offset, mem->type->align);
+        mem->offset = offset;
+        offset += mem->type->size;
+
+        ty->align = MAX(ty->align, mem->type->align);
+    }
+    ty->size = align_to(offset, ty->align);
+    return ty;
+}
+
+static Member* get_struct_member(Type* ty, Token* tok)
+{
+    for (Member* mem = ty->members; mem; mem = mem->next) {
+        if (mem->name->len == tok->len && !strncmp(mem->name->start, tok->start, tok->len)) {
+            return mem;
+        }
+    }
+    error_tok(tok, "no member '%.*s'", TOKSTR(tok));
+    return nullptr;
+}
+
+static Node* struct_ref(Node* lhs, Token* tok)
+{
+    add_type(lhs);
+    if (lhs->type->eTypeKind != TY_STRUCT) {
+        error_tok(lhs->tok, "not a struct");
+    }
+
+    Node* node = new_unary(ND_MEMBER, lhs, tok);
+    node->member = get_struct_member(lhs->type, tok);
+    return node;
+}
+
+// postfix = primary ("[" expr "]" | "." ident)*
 static Node* parse_postfix(ListNode** pToks)
 {
     Node* node = parse_primary(pToks);
-    while (tok_consume(pToks, "[")) {
-        // x[y] is short for *(x+y)
-        Token* start = as_tok(*pToks);
-        Node* idx = parse_expr(pToks);
-        tok_expect(pToks, "]");
-        node = new_unary(ND_DEREF, new_add(node, idx, start), start);
+
+    for (;;) {
+        if (tok_consume(pToks, "[")) {
+            // x[y] is short for *(x+y)
+            Token* start = as_tok(*pToks);
+            Node* idx = parse_expr(pToks);
+            tok_expect(pToks, "]");
+            node = new_unary(ND_DEREF, new_add(node, idx, start), start);
+            continue;
+        }
+
+        if (tok_consume(pToks, ".")) {
+            node = struct_ref(node, as_tok(*pToks));
+            tok_shift(pToks);
+            continue;
+        }
+
+        return node;
     }
-    return node;
 }
 
 static NodeKind to_binary_node_kind(char const* symbol)
@@ -582,7 +660,17 @@ static Node* parse_stmt(ListNode** pToks)
 
 static bool is_typename(ListNode* tok)
 {
-    return tok_eq(tok, "char") || tok_eq(tok, "int");
+    static const char* s_types[] = {
+        "char", "int", "struct"
+    };
+
+    for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
+        if (tok_eq(tok, s_types[i])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // compound-stmt = (declaration | stmt)* "}"
@@ -610,7 +698,7 @@ static Node* parse_compound_stmt(ListNode** pToks)
     return node;
 }
 
-// declspec = "char" | "int"
+// declspec = "char" | "int" | "struct"
 static Type* parse_declspec(ListNode** pToks)
 {
     if (tok_consume(pToks, "int")) {
@@ -619,6 +707,10 @@ static Type* parse_declspec(ListNode** pToks)
 
     if (tok_consume(pToks, "char")) {
         return g_char_type;
+    }
+
+    if (tok_consume(pToks, "struct")) {
+        return parse_struct_decl(pToks);
     }
 
     Token* tok = as_tok(*pToks);

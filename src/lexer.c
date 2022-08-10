@@ -336,7 +336,7 @@ static List* lex(const SourceInfo* sourceInfo)
         }
 
         // one char punct
-        if (strchr("=+-*/%()<>{},;&[]#", c) != nullptr) {
+        if (strchr("=+-*/%()<>{}.,;&[]#", c) != nullptr) {
             add_one_char_punct(&lexer, toks);
             continue;
         }
