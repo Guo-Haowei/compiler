@@ -784,23 +784,72 @@ static Node* parse_compound_stmt(ListNode** pToks)
 //          | struct-decl | union-decl
 static Type* parse_declspec(ListNode** pToks)
 {
-#define DEFINE_BASE_TYPE(name, enum, sz, al) \
-    if (tok_consume(pToks, #name))           \
-        return g_##name##_type;
-#include "base_type.inl"
-#undef DEFINE_BASE_TYPE
-
-    if (tok_consume(pToks, "struct")) {
-        return parse_struct_decl(pToks);
-    }
-
-    if (tok_consume(pToks, "union")) {
-        return parse_union_decl(pToks);
-    }
+    enum {
+        VOID = 1 << 0,
+        CHAR = 1 << 2,
+        SHORT = 1 << 4,
+        INT = 1 << 6,
+        LONG = 1 << 8,
+        OTHER = 1 << 10,
+    };
 
     Token* tok = as_tok(*pToks);
-    error_tok(tok, "expect type specifier, got '%.*s'", TOKSTR(tok));
-    return nullptr;
+    Type *ty = g_int_type;
+    int counter = 0;
+
+    while (is_typename(*pToks)) {
+        // Handle user-defined types.
+        if (tok_consume(pToks, "struct")) {
+            ty = parse_struct_decl(pToks);
+            counter += OTHER;
+            continue;
+        }
+
+        if (tok_consume(pToks, "union")) {
+            ty = parse_union_decl(pToks);
+            counter += OTHER;
+            continue;
+        }
+
+        if (tok_consume(pToks, "void"))
+            counter += VOID;
+        else if (tok_consume(pToks, "char"))
+            counter += CHAR;
+        else if (tok_consume(pToks, "short"))
+            counter += SHORT;
+        else if (tok_consume(pToks, "int"))
+            counter += INT;
+        else if (tok_consume(pToks, "long"))
+            counter += LONG;
+        else
+            unreachable();
+
+        switch (counter) {
+        case VOID:
+            ty = g_void_type;
+            break;
+        case CHAR:
+            ty = g_char_type;
+            break;
+        case SHORT:
+        case SHORT + INT:
+            ty = g_short_type;
+            break;
+        case INT:
+            ty = g_int_type;
+            break;
+        case LONG:
+        case LONG + INT:
+        case LONG + LONG:
+        case LONG + LONG + INT:
+            ty = g_long_type;
+            break;
+        default:
+            error_tok(tok, "invalid type specifer");
+        }
+    }
+
+    return ty;
 }
 
 // type-suffix = ("(" func-params? ")")?

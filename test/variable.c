@@ -26,16 +26,6 @@ int main()
         assert(5, i);
         assert(6, j);
     }
-    {
-        char a;
-        short b;
-        int c;
-        long d;
-        assert(1, sizeof a);
-        assert(2, sizeof b);
-        assert(4, sizeof c);
-        assert(8, sizeof d);
-    }
     { void *x; }
     printf("OK\n");
     return 0;
