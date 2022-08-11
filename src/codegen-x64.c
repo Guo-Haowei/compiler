@@ -380,7 +380,7 @@ static void emit_text(Obj* prog)
 {
     writeln("  .text");
     for (Obj* fn = prog; fn; fn = fn->next) {
-        if (!fn->isFunc) {
+        if (!fn->isFunc || !fn->isDefinition) {
             continue;
         }
 

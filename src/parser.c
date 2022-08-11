@@ -930,6 +930,11 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
     Type* type = parse_declarator(pToks, basetpye);
     Obj* fn = new_gvar(get_ident(type->name), type);
     fn->isFunc = true;
+    fn->isDefinition = !tok_consume(pToks, ";");
+    if (!fn->isDefinition) {
+        return fn;
+    }
+
     s_locals = nullptr;
 
     enter_scope();
