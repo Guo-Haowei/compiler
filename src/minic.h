@@ -1,6 +1,7 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
+#include <stdint.h>
 
 #include "list.h"
 
@@ -66,6 +67,9 @@ typedef struct Token {
 
     const SourceInfo* sourceInfo;
 
+    // int
+    int64_t val;
+
     // string
     Type* type;
     char* str;
@@ -104,7 +108,7 @@ struct Node {
     Node* lhs;
     Node* rhs;
     Obj* var; // Used if eNodeKind == ND_VAR
-    int val;  // Used if eNodeKind == ND_NUM
+    int64_t val;  // Used if eNodeKind == ND_NUM
 
     Token const* tok; // Representative token
 
@@ -138,13 +142,12 @@ typedef struct lexer_t {
     int col;
 } Lexer;
 
-// TODO: refactor
-int token_as_int(Token const* tok);
-
 // type
 typedef enum {
-    TY_INT,
     TY_CHAR,
+    TY_INT,
+    TY_SHORT,
+    TY_LONG,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -187,8 +190,10 @@ struct Member {
     int offset;
 };
 
-extern Type* g_int_type;
 extern Type* g_char_type;
+extern Type* g_short_type;
+extern Type* g_int_type;
+extern Type* g_long_type;
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);

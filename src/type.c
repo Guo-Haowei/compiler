@@ -3,11 +3,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static Type s_int_type = { .eTypeKind = TY_INT, .size = 4, .align = 4 };
 static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1, .align = 1 };
+static Type s_short_type = { .eTypeKind = TY_SHORT, .size = 2, .align = 2 };
+static Type s_int_type = { .eTypeKind = TY_INT, .size = 4, .align = 4 };
+static Type s_long_type = { .eTypeKind = TY_LONG, .size = 8, .align = 8 };
 
-Type* g_int_type = &s_int_type;
 Type* g_char_type = &s_char_type;
+Type* g_short_type = &s_short_type;
+Type* g_int_type = &s_int_type;
+Type* g_long_type = &s_long_type;
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
@@ -20,7 +24,16 @@ static Type* new_type(TypeKind kind, int size, int align)
 
 bool is_integer(Type* type)
 {
-    return type->eTypeKind == TY_INT || type->eTypeKind == TY_CHAR;
+    switch (type->eTypeKind)
+    {
+    case TY_CHAR:
+    case TY_INT:
+    case TY_SHORT:
+    case TY_LONG:
+        return true;
+    default:
+        return false;
+    }
 }
 
 Type* pointer_to(Type* base)
@@ -98,7 +111,7 @@ void add_type(Node* node)
     case ND_GE:
     case ND_NUM:
     case ND_FUNCCALL:
-        node->type = g_int_type;
+        node->type = g_long_type;
         return;
     case ND_VAR:
         node->type = node->var->type;

@@ -104,6 +104,13 @@ int main()
         assert(1, pB->p->x);
         assert(2, pB->p->y);
     }
+    {
+        struct X {char a; long b;} x;
+        struct Y {char a; short b;} y;
+        assert(16, sizeof(x));
+        assert(4, sizeof(x));
+    }
+
 
     printf("OK\n");
     return 0;

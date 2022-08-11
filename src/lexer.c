@@ -78,6 +78,7 @@ static void add_decimal_number(Lexer* lexer, List* list)
     tok.end = lexer->p;
     tok.len = (int)(tok.end - tok.start);
 
+    tok.val = atoll(tok.start);
     list_push_back(list, tok);
 }
 
@@ -188,10 +189,10 @@ static void add_string(Lexer* lexer, List* list)
 
 static void add_identifier_or_keyword(Lexer* lexer, List* list)
 {
-    static char const* const s_keywords[] = {
+    static const char* const s_keywords[] = {
         "auto", "break", "char", "const", "continue", "do", "else", "enum",
-        "extern", "for", "if", "int", "return", "sizeof", "static",
-        "struct", "typedef", "unsigned", "void", "while", nullptr
+        "extern", "for", "if", "int", "long", "return", "short", "sizeof", "static",
+        "struct", "typedef", "union", "unsigned", "void", "while"
     };
 
     Token tok;
@@ -205,9 +206,9 @@ static void add_identifier_or_keyword(Lexer* lexer, List* list)
     tok.end = lexer->p;
     tok.len = (int)(tok.end - tok.start);
 
-    for (const char* const* p = s_keywords; *p; ++p) {
-        const int len = (int)strlen(*p);
-        if (len == tok.len && strncmp(tok.start, *p, len) == 0) {
+    for (size_t i = 0; i < ARRAY_COUNTER(s_keywords); ++i) {
+        const int len = (int)strlen(s_keywords[i]);
+        if (len == tok.len && strncmp(tok.start, s_keywords[i], len) == 0) {
             tok.eTokenKind = TK_KEYWORD;
             break;
         }

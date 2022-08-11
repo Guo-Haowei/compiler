@@ -83,7 +83,7 @@ static Node* new_node(NodeKind eNodeKind, Token const* tok)
     return node;
 }
 
-static Node* new_num(int val, Token const* tok)
+static Node* new_num(int64_t val, Token const* tok)
 {
     Node* node = new_node(ND_NUM, tok);
     node->eNodeKind = ND_NUM;
@@ -174,12 +174,6 @@ static Obj* find_var(Token const* tok)
 static Token* as_tok(ListNode* listnode)
 {
     return (Token*)(listnode + 1);
-}
-
-int token_as_int(Token const* tok)
-{
-    assert(tok->eTokenKind == TK_NUM);
-    return atoi(tok->start);
 }
 
 static void tok_shift(ListNode** pToks)
@@ -288,7 +282,7 @@ static Node* parse_primary(ListNode** pToks)
     }
 
     if (tok->eTokenKind == TK_NUM) {
-        Node* node = new_num(token_as_int(tok), tok);
+        Node* node = new_num(tok->val, tok);
         tok_shift(pToks);
         return node;
     }
@@ -721,7 +715,7 @@ static Node* parse_stmt(ListNode** pToks)
 static bool is_typename(ListNode* tok)
 {
     static const char* s_types[] = {
-        "char", "int", "struct"
+        "char","int", "long", "short", "struct", "union"
     };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
@@ -758,15 +752,23 @@ static Node* parse_compound_stmt(ListNode** pToks)
     return node;
 }
 
-// declspec = "char" | "int" | "struct"
+// declspec = "char" | "short" | "int" | "long" | struct-decl | union-decl
 static Type* parse_declspec(ListNode** pToks)
 {
+    if (tok_consume(pToks, "char")) {
+        return g_char_type;
+    }
+
+    if (tok_consume(pToks, "short")) {
+        return g_short_type;
+    }
+
     if (tok_consume(pToks, "int")) {
         return g_int_type;
     }
 
-    if (tok_consume(pToks, "char")) {
-        return g_char_type;
+    if (tok_consume(pToks, "long")) {
+        return g_long_type;
     }
 
     if (tok_consume(pToks, "struct")) {
@@ -798,12 +800,12 @@ static Type* parse_func_params(ListNode** pToks, Type* type)
     return type;
 }
 
-static int get_number(Token* tok)
+static int64_t get_number(Token* tok)
 {
     if (tok->eTokenKind != TK_NUM) {
         error_tok(tok, "expected a number");
     }
-    return token_as_int(tok);
+    return  tok->val;
 }
 
 // type-suffix = "(" func-params
@@ -816,7 +818,7 @@ static Type* parse_type_suffix(ListNode** pToks, Type* type)
     }
 
     if (tok_consume(pToks, "[")) {
-        int arrayLen = get_number(as_tok(*pToks));
+        int arrayLen = (int)get_number(as_tok(*pToks));
         tok_shift(pToks);
         tok_expect(pToks, "]");
         type = parse_type_suffix(pToks, type);

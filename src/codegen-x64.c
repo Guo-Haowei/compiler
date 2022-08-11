@@ -7,6 +7,7 @@
 // @TODO: refactor
 static int s_depth = 0;
 static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char *s_argreg16[] = {"%cx", "%dx", "%r8w", "%r9w"};
 static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
 static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
 static Obj* s_current_fn;
@@ -53,6 +54,9 @@ static void load(Type* type)
     case 1:
         writeln("  movsbq (%%rax), %%rax");
         break;
+    case 2:
+        writeln("  movswq (%%rax), %%rax");
+        break;
     case 4:
         writeln("  movsxd (%%rax), %%rax");
         break;
@@ -72,6 +76,9 @@ static void store(Type* type)
     switch (type->size) {
     case 1:
         writeln("  mov %%al, (%%rdi)");
+        break;
+    case 2:
+        writeln("  mov %%ax, (%%rdi)");
         break;
     case 4:
         writeln("  mov %%eax, (%%rdi)");
@@ -145,7 +152,7 @@ static void gen_expr(Node const* node)
 
     switch (node->eNodeKind) {
     case ND_NUM:
-        writeln("  mov $%d, %%rax", node->val);
+        writeln("  mov $%ld, %%rax", node->val);
         return;
     case ND_NEG:
         gen_expr(node->lhs);
@@ -355,6 +362,9 @@ static void store_gp(int r, int offset, int sz)
     switch (sz) {
     case 1:
         writeln("  mov %s, %d(%%rbp)", s_argreg8[r], offset);
+        return;
+    case 2:
+        writeln("  mov %s, %d(%%rbp)", s_argreg16[r], offset);
         return;
     case 4:
         writeln("  mov %s, %d(%%rbp)", s_argreg32[r], offset);
