@@ -144,6 +144,7 @@ typedef struct lexer_t {
 
 // type
 typedef enum {
+    TY_INVALID,
     TY_CHAR,
     TY_INT,
     TY_SHORT,
@@ -152,6 +153,7 @@ typedef enum {
     TY_FUNC,
     TY_ARRAY,
     TY_STRUCT,
+    TY_UNION,
 } TypeKind;
 
 struct Type {

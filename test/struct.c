@@ -108,7 +108,7 @@ int main()
         struct X {char a; long b;} x;
         struct Y {char a; short b;} y;
         assert(16, sizeof(x));
-        assert(4, sizeof(x));
+        assert(4, sizeof(y));
     }
 
 

@@ -11,7 +11,7 @@
 static Obj* s_locals;
 static Obj* s_globals;
 
-// Scope for struct tags
+// Scope for struct or union tags
 typedef struct TagScope TagScope;
 struct TagScope {
     TagScope* next;
@@ -360,8 +360,8 @@ static void parse_struct_members(ListNode** pToks, Type* ty)
     ty->members = head.next;
 }
 
-// struct-decl = ident? "{" struct-members
-static Type* parse_struct_decl(ListNode** pToks)
+// struct-union-decl = ident? ("{" struct-members)?
+static Type* parse_struct_union_decl(ListNode** pToks)
 {
     // Read a struct tag.
     Token* tag = nullptr;
@@ -379,12 +379,26 @@ static Type* parse_struct_decl(ListNode** pToks)
         return ty;
     }
 
+    // Construct a struct object.
     tok_expect(pToks, "{");
 
     Type* ty = calloc(1, sizeof(Type));
-    ty->eTypeKind = TY_STRUCT;
+    ty->eTypeKind = TY_INVALID;
     ty->align = 1;
     parse_struct_members(pToks, ty);
+
+    if (tag) {
+        push_tag_scope(tag, ty);
+    }
+
+    return ty;
+}
+
+// struct-decl = ident? "{" struct-members
+static Type* parse_struct_decl(ListNode** pToks)
+{
+    Type* ty = parse_struct_union_decl(pToks);
+    ty->eTypeKind = TY_STRUCT;
 
     // Assign offsets within the struct to members.
     int offset = 0;
@@ -397,10 +411,19 @@ static Type* parse_struct_decl(ListNode** pToks)
     }
     ty->size = align_to(offset, ty->align);
 
-    // Register the struct type if a name was given.
-    if (tag) {
-        push_tag_scope(tag, ty);
+    return ty;
+}
+
+// union-decl = struct-union-decl
+static Type* parse_union_decl(ListNode** pToks)
+{
+    Type* ty = parse_struct_union_decl(pToks);
+    ty->eTypeKind = TY_UNION;
+    for (Member* mem = ty->members; mem; mem = mem->next) {
+        ty->align = MAX(ty->align, mem->type->align);
+        ty->size = MAX(ty->size, mem->type->size);
     }
+    ty->size = align_to(ty->size, ty->align);
     return ty;
 }
 
@@ -418,8 +441,9 @@ static Member* get_struct_member(Type* ty, Token* tok)
 static Node* struct_ref(Node* lhs, Token* tok)
 {
     add_type(lhs);
-    if (lhs->type->eTypeKind != TY_STRUCT) {
-        error_tok(lhs->tok, "not a struct");
+    const TypeKind k = lhs->type->eTypeKind;
+    if (k != TY_STRUCT && k != TY_UNION) {
+        error_tok(lhs->tok, "not a struct or union");
     }
 
     Node* node = new_unary(ND_MEMBER, lhs, tok);
@@ -715,7 +739,7 @@ static Node* parse_stmt(ListNode** pToks)
 static bool is_typename(ListNode* tok)
 {
     static const char* s_types[] = {
-        "char","int", "long", "short", "struct", "union"
+        "char", "int", "long", "short", "struct", "union"
     };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
@@ -775,6 +799,10 @@ static Type* parse_declspec(ListNode** pToks)
         return parse_struct_decl(pToks);
     }
 
+    if (tok_consume(pToks, "union")) {
+        return parse_union_decl(pToks);
+    }
+
     Token* tok = as_tok(*pToks);
     error_tok(tok, "expect type specifier, got '%.*s'", TOKSTR(tok));
     return nullptr;
@@ -805,7 +833,7 @@ static int64_t get_number(Token* tok)
     if (tok->eTokenKind != TK_NUM) {
         error_tok(tok, "expected a number");
     }
-    return  tok->val;
+    return tok->val;
 }
 
 // type-suffix = "(" func-params
