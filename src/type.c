@@ -1,17 +1,13 @@
 #include "minic.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-static Type s_char_type = { .eTypeKind = TY_CHAR, .size = 1, .align = 1 };
-static Type s_short_type = { .eTypeKind = TY_SHORT, .size = 2, .align = 2 };
-static Type s_int_type = { .eTypeKind = TY_INT, .size = 4, .align = 4 };
-static Type s_long_type = { .eTypeKind = TY_LONG, .size = 8, .align = 8 };
-
-Type* g_char_type = &s_char_type;
-Type* g_short_type = &s_short_type;
-Type* g_int_type = &s_int_type;
-Type* g_long_type = &s_long_type;
+#define DEFINE_BASE_TYPE(name, kind, sz, al)                                      \
+    static Type s_##name##_type = { .eTypeKind = kind, .size = sz, .align = al }; \
+    Type* g_##name##_type = &s_##name##_type;
+#include "base_type.inl"
+#undef DEFINE_BASE_TYPE
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
@@ -24,8 +20,7 @@ static Type* new_type(TypeKind kind, int size, int align)
 
 bool is_integer(Type* type)
 {
-    switch (type->eTypeKind)
-    {
+    switch (type->eTypeKind) {
     case TY_CHAR:
     case TY_INT:
     case TY_SHORT:
@@ -47,7 +42,7 @@ Type* pointer_to(Type* base)
 
 Type* array_of(Type* base, int len)
 {
-    Type *ty = new_type(TY_ARRAY, base->size * len, base->align);
+    Type* ty = new_type(TY_ARRAY, base->size * len, base->align);
     ty->eTypeKind = TY_ARRAY;
     ty->size = base->size * len;
     ty->base = base;
@@ -129,6 +124,9 @@ void add_type(Node* node)
     case ND_DEREF:
         if (!node->lhs->type->base) {
             error_tok(node->tok, "invalid pointer dereference, %d", node->lhs->type->eTypeKind);
+        }
+        if (node->lhs->type->base->eTypeKind == TY_VOID) {
+            error_tok(node->tok, "dereferencing a void pointer");
         }
         node->type = node->lhs->type->base;
         return;

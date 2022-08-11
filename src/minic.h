@@ -108,8 +108,8 @@ struct Node {
     Type* type;
     Node* lhs;
     Node* rhs;
-    Obj* var; // Used if eNodeKind == ND_VAR
-    int64_t val;  // Used if eNodeKind == ND_NUM
+    Obj* var;    // Used if eNodeKind == ND_VAR
+    int64_t val; // Used if eNodeKind == ND_NUM
 
     Token const* tok; // Representative token
 
@@ -124,7 +124,7 @@ struct Node {
     Node* body;
 
     // Struct member access
-    Member *member;
+    Member* member;
 
     // Function call
     char* funcname;
@@ -146,10 +146,9 @@ typedef struct lexer_t {
 // type
 typedef enum {
     TY_INVALID,
-    TY_CHAR,
-    TY_INT,
-    TY_SHORT,
-    TY_LONG,
+#define DEFINE_BASE_TYPE(name, kind, sz, al) kind,
+#include "base_type.inl"
+#undef DEFINE_BASE_TYPE
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -177,7 +176,7 @@ struct Type {
     int arrayLen;
 
     // Struct
-    Member *members;
+    Member* members;
 
     // function
     Type* retType;
@@ -187,16 +186,15 @@ struct Type {
 
 // Struct member
 struct Member {
-    Member *next;
-    Type *type;
-    Token *name;
+    Member* next;
+    Type* type;
+    Token* name;
     int offset;
 };
 
-extern Type* g_char_type;
-extern Type* g_short_type;
-extern Type* g_int_type;
-extern Type* g_long_type;
+#define DEFINE_BASE_TYPE(name, enum, sz, al) extern Type* g_##name##_type;
+#include "base_type.inl"
+#undef DEFINE_BASE_TYPE
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);

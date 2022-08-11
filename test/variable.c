@@ -36,7 +36,7 @@ int main()
         assert(4, sizeof c);
         assert(8, sizeof d);
     }
-
+    { void *x; }
     printf("OK\n");
     return 0;
 }

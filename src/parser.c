@@ -739,7 +739,11 @@ static Node* parse_stmt(ListNode** pToks)
 static bool is_typename(ListNode* tok)
 {
     static const char* s_types[] = {
-        "char", "int", "long", "short", "struct", "union"
+#define DEFINE_BASE_TYPE(name, enum, sz, al) #name,
+#include "base_type.inl"
+#undef DEFINE_BASE_TYPE
+        "struct",
+        "union",
     };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
@@ -776,24 +780,15 @@ static Node* parse_compound_stmt(ListNode** pToks)
     return node;
 }
 
-// declspec = "char" | "short" | "int" | "long" | struct-decl | union-decl
+// declspec = "void" | "char" | "short" | "int" | "long"
+//          | struct-decl | union-decl
 static Type* parse_declspec(ListNode** pToks)
 {
-    if (tok_consume(pToks, "char")) {
-        return g_char_type;
-    }
-
-    if (tok_consume(pToks, "short")) {
-        return g_short_type;
-    }
-
-    if (tok_consume(pToks, "int")) {
-        return g_int_type;
-    }
-
-    if (tok_consume(pToks, "long")) {
-        return g_long_type;
-    }
+#define DEFINE_BASE_TYPE(name, enum, sz, al) \
+    if (tok_consume(pToks, #name))           \
+        return g_##name##_type;
+#include "base_type.inl"
+#undef DEFINE_BASE_TYPE
 
     if (tok_consume(pToks, "struct")) {
         return parse_struct_decl(pToks);
