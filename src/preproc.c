@@ -79,6 +79,7 @@ static void convert_kw(List* toks)
 
 List* preproc(List* toks)
 {
+    // @TODO: move it to pass1
     check_if_bol(toks);
 
     List* newList = preproc2(toks);

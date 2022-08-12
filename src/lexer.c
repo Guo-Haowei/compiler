@@ -251,7 +251,7 @@ static void add_eof(Lexer* lexer, List* list)
     list_push_back(list, tok);
 }
 
-static List* lex(const SourceInfo* sourceInfo)
+static List* lex_source_info(const SourceInfo* sourceInfo)
 {
     List* toks = list_new();
     Lexer lexer;
@@ -350,7 +350,13 @@ static char* read_file(const char* path)
     return buf;
 }
 
-List* lex_file(const char* filename)
+void lex_file(struct Array* arr, const char* filename);
+
+/// pass1: array of tokens without preprocessing, cache
+/// pass2: preprocess
+/// pass3: cleanup and check if keywords
+
+List* lex(const char* filename)
 {
     SourceInfo* sourceInfo = malloc(sizeof(SourceInfo));
     sourceInfo->file = filename;
@@ -358,5 +364,5 @@ List* lex_file(const char* filename)
     sourceInfo->len = (int)strlen(sourceInfo->start);
     sourceInfo->end = sourceInfo->start + sourceInfo->len;
 
-    return lex(sourceInfo);
+    return lex_source_info(sourceInfo);
 }
