@@ -39,15 +39,24 @@ void array_clear(struct Array* arr)
 }
 
 void* _array_at(struct Array* arr, int idx) {
+    assert(arr->len > idx);
+
+    return arr->buffer + idx * arr->eleSize;
+}
+
+void _array_push_back(struct Array* arr, void* data)
+{
     assert(arr->eleSize);
     assert(arr->buffer);
     assert(arr->capacity);
-
-    if (idx >= arr->capacity) {
-        // @TODO: find the best size to grow to
-        assert(0);
-        array_new_cap(arr, idx);
+    assert(arr->len <= arr->capacity);
+    
+    if (arr->len + 1 > arr->capacity) {
+        int newCap = arr->capacity * 2;
+        array_new_cap(arr, newCap);
     }
 
-    return ((char*)arr->buffer)[idx * arr->eleSize];
+    char* ptr = arr->buffer + arr->eleSize * arr->len;
+    memcpy(ptr, data, arr->eleSize);
+    arr->len = arr->len + 1;
 }
