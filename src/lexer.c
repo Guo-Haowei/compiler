@@ -66,7 +66,7 @@ static void lexer_fill_tok(Lexer const* lexer, Token* tok)
     tok->isFirstTok = false;
 }
 
-static void add_decimal_number(Lexer* lexer, List* list)
+static void add_decimal_number(Lexer* lexer, Array* arr)
 {
     Token tok;
     tok.eTokenKind = TK_NUM;
@@ -80,7 +80,7 @@ static void add_decimal_number(Lexer* lexer, List* list)
     tok.len = (int)(tok.end - tok.start);
 
     tok.val = atoll(tok.start);
-    list_push_back(list, tok);
+    array_push_back(Token, arr, tok);
 }
 
 static const char* find_string_end(Lexer* lexer)
@@ -155,7 +155,7 @@ static int read_escaped_char(Lexer* lexer, const char** new_pos, const char* p)
     return *p;
 }
 
-static void add_string(Lexer* lexer, List* list)
+static void add_string(Lexer* lexer, Array* arr)
 {
     const char* start = lexer->p;
     const char* end = find_string_end(lexer);
@@ -185,10 +185,11 @@ static void add_string(Lexer* lexer, List* list)
 
     tok.type = array_of(g_char_type, len);
     tok.str = buf;
-    list_push_back(list, tok);
+
+    array_push_back(Token, arr, tok);
 }
 
-static void add_identifier_or_keyword(Lexer* lexer, List* list)
+static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
 {
     Token tok;
     tok.eTokenKind = TK_IDENT;
@@ -201,10 +202,10 @@ static void add_identifier_or_keyword(Lexer* lexer, List* list)
     tok.end = lexer->p;
     tok.len = (int)(tok.end - tok.start);
 
-    list_push_back(list, tok);
+    array_push_back(Token, arr, tok);
 }
 
-static void add_one_char_punct(Lexer* lexer, List* list)
+static void add_one_char_punct(Lexer* lexer, Array* arr)
 {
     Token tok;
     tok.eTokenKind = TK_PUNCT;
@@ -214,10 +215,10 @@ static void add_one_char_punct(Lexer* lexer, List* list)
     tok.end = lexer->p;
     tok.len = 1;
 
-    list_push_back(list, tok);
+    array_push_back(Token, arr, tok);
 }
 
-static bool try_add_punct(Lexer* lexer, List* list)
+static bool try_add_punct(Lexer* lexer, Array* arr)
 {
     static const char* s_multi_char_puncts[] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
@@ -232,7 +233,7 @@ static bool try_add_punct(Lexer* lexer, List* list)
             tok.len = (int)strlen(s_multi_char_puncts[i]);
             tok.end = tok.start + tok.len;
             lexer_shift(lexer, tok.len);
-            list_push_back(list, tok);
+            array_push_back(Token, arr, tok);
             return true;
         }
     }
@@ -240,7 +241,7 @@ static bool try_add_punct(Lexer* lexer, List* list)
     return false;
 }
 
-static void add_eof(Lexer* lexer, List* list)
+static void add_eof(Lexer* lexer, Array* arr)
 {
     Token tok;
     tok.eTokenKind = TK_EOF;
@@ -248,12 +249,37 @@ static void add_eof(Lexer* lexer, List* list)
     tok.end = lexer->p;
     tok.len = 0;
 
-    list_push_back(list, tok);
+    array_push_back(Token, arr, tok);
 }
 
-static List* lex_source_info(const SourceInfo* sourceInfo)
+static void check_if_bol(Array* toks)
 {
-    List* toks = list_new();
+    int currentLine = 0;
+
+    for (int idx = 0; idx < toks->len; ++idx) {
+        Token* tok = array_at(Token, toks, idx);
+        if (tok->eTokenKind == TK_EOF) {
+            break;
+        }
+
+        if (tok->line != currentLine) {
+            currentLine = tok->line;
+            tok->isFirstTok = true;
+        }
+    }
+}
+
+static Array* lex_source_info(const SourceInfo* sourceInfo)
+{
+    Array* cached = fcache_get(sourceInfo->file);
+    if (cached) {
+        assert(0 && "It's not possible to have cache without implementing #include");
+        return cached;
+    }
+
+    Array* tokArray = malloc(sizeof(Array));
+    array_init(tokArray, sizeof(Token), 128);
+
     Lexer lexer;
     lexer.sourceInfo = sourceInfo;
     lexer.p = sourceInfo->start;
@@ -296,39 +322,41 @@ static List* lex_source_info(const SourceInfo* sourceInfo)
 
         // string literal
         if (c == '"') {
-            add_string(&lexer, toks);
+            add_string(&lexer, tokArray);
             continue;
         }
 
         // decimal number
         if (isdigit(c)) {
-            add_decimal_number(&lexer, toks);
+            add_decimal_number(&lexer, tokArray);
             continue;
         }
 
         // identifier
         if (is_ident1(c)) {
-            add_identifier_or_keyword(&lexer, toks);
+            add_identifier_or_keyword(&lexer, tokArray);
             continue;
         }
 
         // multi-char punct
-        if (try_add_punct(&lexer, toks)) {
+        if (try_add_punct(&lexer, tokArray)) {
             continue;
         }
 
         // one char punct
         if (strchr("=+-*/%()<>{}.,;&[]#", c) != nullptr) {
-            add_one_char_punct(&lexer, toks);
+            add_one_char_punct(&lexer, tokArray);
             continue;
         }
 
         error_lex(&lexer, "stray '%c' in program", c);
     }
 
-    add_eof(&lexer, toks);
+    add_eof(&lexer, tokArray);
+    check_if_bol(tokArray);
 
-    return toks;
+    fcache_add(sourceInfo->file, tokArray);
+    return tokArray;
 }
 
 static char* read_file(const char* path)
@@ -356,10 +384,10 @@ void lex_file(struct Array* arr, const char* filename);
 /// pass2: preprocess
 /// pass3: cleanup and check if keywords
 
-List* lex(const char* filename)
+Array* lex(const char* filename)
 {
-    SourceInfo* sourceInfo = malloc(sizeof(SourceInfo));
-    sourceInfo->file = filename;
+    SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
+    fcache_abs_path(filename, sourceInfo->file);
     sourceInfo->start = read_file(filename);
     sourceInfo->len = (int)strlen(sourceInfo->start);
     sourceInfo->end = sourceInfo->start + sourceInfo->len;

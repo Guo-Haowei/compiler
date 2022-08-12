@@ -1,4 +1,5 @@
 #include "minic.h"
+
 #ifdef _MSC_VER
 #include <Windows.h>
 #define getcwd(BUF, BUFSIZE) GetCurrentDirectoryA(BUFSIZE, BUF)
@@ -6,15 +7,13 @@
 #include <unistd.h>
 #endif
 
-#define MAX_OSPATH 512
-
 typedef struct {
     char absPath[MAX_OSPATH];
     Array* tokenArray;
 } FileCache;
 
 typedef struct {
-    char* start;
+    const char* start;
     int len;
 } PathPart;
 
@@ -34,7 +33,7 @@ static char* get_cwd_path()
     return s_cwd;
 }
 
-int fcache_resolve_path(char* basePath, char* relPath, char* buf)
+size_t fcache_resolve_path(const char* basePath, const char* relPath, char* buf)
 {
     char tmp[MAX_OSPATH];
 
@@ -101,12 +100,12 @@ int fcache_resolve_path(char* basePath, char* relPath, char* buf)
     return len;
 }
 
-int fcache_abs_path(char* relPath, char* buf)
+size_t fcache_abs_path(const char* relPath, char* buf)
 {
     return fcache_resolve_path(get_cwd_path(), relPath, buf);
 }
 
-Array* fcache_get(char* absPath)
+Array* fcache_get(const char* absPath)
 {
     for (int idx = 0; idx < s_filecaches.len; ++idx) {
         FileCache* fcache = array_at(FileCache, &s_filecaches, idx);
@@ -117,7 +116,7 @@ Array* fcache_get(char* absPath)
     return NULL;
 }
 
-_Bool fcache_add(char* absPath, Array* toks)
+_Bool fcache_add(const char* absPath, Array* toks)
 {
     for (int idx = 0; idx < s_filecaches.len; ++idx) {
         FileCache* fcache = array_at(FileCache, &s_filecaches, idx);

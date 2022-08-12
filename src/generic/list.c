@@ -56,7 +56,7 @@ void* _list_at(struct List* list, int idx)
     return n + 1;
 }
 
-void _list_push_front(struct List* list, void* data, int size)
+void _list_push_front(struct List* list, const void* data, int size)
 {
     assert(list);
     struct ListNode* n = _list_node_new(size);
@@ -73,7 +73,7 @@ void _list_push_front(struct List* list, void* data, int size)
     ++list->len;
 }
 
-void _list_push_back(struct List* list, void* data, int size)
+void _list_push_back(struct List* list, const void* data, int size)
 {
     assert(list);
     struct ListNode* n = _list_node_new(size);

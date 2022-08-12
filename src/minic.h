@@ -31,14 +31,16 @@ typedef unsigned int uint;
 #define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
 #define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
 
+#define MAX_OSPATH 512
+
 /**
  * file_cache.c
  */
-Array* fcache_get(char* absPath);
-_Bool fcache_add(char* absPath, Array* toks);
+Array* fcache_get(const char* absPath);
+_Bool fcache_add(const char* absPath, Array* toks);
 
-int fcache_resolve_path(char* basePath, char* relPath, char* buf);
-int fcache_abs_path(char* relPath, char* buf);
+size_t fcache_resolve_path(const char* basePath, const char* relPath, char* buf);
+size_t fcache_abs_path(const char* relPath, char* buf);
 
 typedef enum token_kind_t {
 #define DEFINE_TOKEN(NAME) NAME,
@@ -55,9 +57,9 @@ typedef enum node_kind_t {
 } NodeKind;
 
 typedef struct source_info_t {
-    char const* file;
-    char const* start;
-    char const* end;
+    char file[MAX_OSPATH];
+    const char* start;
+    const char* end;
     int len;
 } SourceInfo;
 
@@ -215,10 +217,12 @@ Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
 // core functions
-List* lex(const char* filename);
+Array* lex(const char* filename);
 
-List* preproc(List* list);
+List* preproc(Array* toks);
+
 Obj* parse(List* toks);
+
 void gen(Obj* prog, const char* inputName);
 
 void error(const char* const fmt, ...);

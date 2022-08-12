@@ -16,9 +16,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    List* toks = lex(argv[1]);
+    Array* rawToks = lex(argv[1]);
     DEBUG_ONLY(fprintf(stderr, "*** lex ***\n"));
-    toks = preproc(toks);
+    List* toks = preproc(rawToks);
     DEBUG_ONLY(debug_print_tokens(toks));
 
     DEBUG_ONLY(fprintf(stderr, "*** parse ***\n"));

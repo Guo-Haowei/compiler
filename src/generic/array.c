@@ -38,7 +38,8 @@ void array_clear(struct Array* arr)
     arr->eleSize = arr->len = arr->capacity = 0;
 }
 
-void* _array_at(struct Array* arr, int idx) {
+void* _array_at(struct Array* arr, int idx)
+{
     assert(arr->len > idx);
 
     return arr->buffer + idx * arr->eleSize;
@@ -50,7 +51,7 @@ void _array_push_back(struct Array* arr, void* data)
     assert(arr->buffer);
     assert(arr->capacity);
     assert(arr->len <= arr->capacity);
-    
+
     if (arr->len + 1 > arr->capacity) {
         int newCap = arr->capacity * 2;
         array_new_cap(arr, newCap);
