@@ -115,7 +115,11 @@ char const* node_kind_to_string(NodeKind eNodeKind)
 
 void debug_print_token(Token const* tok)
 {
-    fprintf(stderr, "%s:%d:%d:[%s] '%.*s'\n",
+    if (tok->isFirstTok) {
+        fprintf(stderr, "line: %d\n", tok->line);
+    }
+
+    fprintf(stderr, "  %s:%d:%d:[%s] '%.*s'\n",
         tok->sourceInfo->file,
         tok->line,
         tok->col,

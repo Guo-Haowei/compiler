@@ -22,6 +22,7 @@ def build_exe():
         'generic/list.c',
         'main.c',
         'parser.c',
+        'preproc.c',
         'misc.c',
         'string.c',
         'type.c',

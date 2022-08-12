@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if 0
+#if 1
 #define DEBUG_ONLY(x) x
 #else
 #define DEBUG_ONLY(x) ((void)0)
@@ -16,7 +16,12 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    DEBUG_ONLY(fprintf(stderr, "*** raw tokens ***\n"));
     List* toks = lex_file(argv[1]);
+    DEBUG_ONLY(debug_print_tokens(toks));
+
+    DEBUG_ONLY(fprintf(stderr, "*** preprocessed tokens ***\n"));
+    toks = preproc(toks);
     DEBUG_ONLY(debug_print_tokens(toks));
 
     Obj* prog = parse(toks);
