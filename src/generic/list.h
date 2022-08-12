@@ -37,6 +37,4 @@ void _list_push_back(struct List* list, void* data, int size);
 void list_pop_front(struct List* list);
 void list_pop_back(struct List* list);
 
-void list_print(struct List* list, void (*fptr)(void*));
-
 #endif
