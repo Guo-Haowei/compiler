@@ -39,9 +39,6 @@ typedef unsigned int uint;
 Array* fcache_get(const char* absPath);
 _Bool fcache_add(const char* absPath, Array* toks);
 
-size_t fcache_resolve_path(const char* basePath, const char* relPath, char* buf);
-size_t fcache_abs_path(const char* relPath, char* buf);
-
 typedef enum token_kind_t {
 #define DEFINE_TOKEN(NAME) NAME,
 #include "token.inl"
@@ -216,9 +213,13 @@ Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
-// core functions
-Array* lex(const char* filename);
+bool tok_equal(const Token* tok, const char* expect);
 
+/// lexing and preprocessing
+/// pass1: lex source to an array of tokens, cache for reuse
+/// pass2: preprocess, such as #include, #if...
+/// pass3: cleanup and check if keywords
+Array* lex(const char* filename);
 List* preproc(Array* toks);
 
 Obj* parse(List* toks);
@@ -228,6 +229,7 @@ void gen(Obj* prog, const char* inputName);
 void error(const char* const fmt, ...);
 void error_lex(const Lexer* lexer, const char* const fmt, ...);
 void error_tok(const Token* token, const char* const fmt, ...);
+void warn_tok(const Token* token, const char* const fmt, ...);
 
 /**
  * misc
@@ -239,11 +241,12 @@ const char* node_kind_to_string(NodeKind eNodeKind);
 void debug_print_token(Token const* tok);
 void debug_print_tokens(List const* toks);
 
-/**
- * string
- */
+// @TODO: utility.c
+
 bool streq(const char* a, const char* b);
 char* strncopy(const char* src, int n);
 char* format(const char* fmt, ...);
+
+size_t simplify_path(const char* inputPath, char* buf);
 
 #endif

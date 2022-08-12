@@ -10,3 +10,10 @@ void assert_impl(int expected, int actual, const char* code, int line)
         exit(line);
     }
 }
+
+// HACK: tmp
+int assert(int a, int b)
+{
+    assert_impl(a, b, "", 0);
+    return 0;
+}

@@ -9,6 +9,8 @@ struct ListNode {
     // char[N] to store value
 };
 
+#define list_node_get(T, n) ((T*)(n + 1))
+
 struct List {
     struct ListNode* front;
     struct ListNode* back;
