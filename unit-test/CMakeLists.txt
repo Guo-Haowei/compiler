@@ -1,15 +1,7 @@
-add_executable(test-list
+add_executable(unittest
     ../src/generic/list.c
-    list.test.c
-)
-
-add_executable(test-array
     ../src/generic/array.c
-    array.test.c
+    array_test.c
+    list_test.c
+    test_main.c
 )
-
-add_executable(test-string
-    ../src/string.c
-    string.test.c
-)
-

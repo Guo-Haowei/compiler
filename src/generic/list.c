@@ -129,11 +129,3 @@ struct ListNode* _list_node_new(int size)
     node->next = NULL;
     return node;
 }
-
-void list_print(struct List *list, void (*fptr)(void *))
-{
-    for (struct ListNode* n = list->front; n; n = n->next)
-    {
-        (*fptr)(n + 1);
-    }
-}

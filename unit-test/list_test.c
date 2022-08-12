@@ -5,21 +5,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(_MSC_VER)
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#endif
 
-static void printInt(void* n) { printf("%d, ", *(int*)n); }
-
-static void printList(struct List* list)
+static void print_list(struct List* list)
 {
-    printf("[ ");
-    list_print(list, printInt);
+    printf("list(size:%d) [ ", list->len);
+    for (struct ListNode* c = list->front; c; c = c->next) {
+        printf("%d ", *(int*)(c + 1));
+    }
     printf("]\n");
 }
 
-static int listEq(struct List* list, int argc, ...)
+
+static int list_eq(struct List* list, int argc, ...)
 {
     va_list args;
 
@@ -70,17 +67,17 @@ static int listEq(struct List* list, int argc, ...)
 
 #define LIST_EQ(list, len, ...)                                   \
     {                                                             \
-        if (!listEq(list, len, __VA_ARGS__)) {                    \
+        if (!list_eq(list, len, __VA_ARGS__)) {                   \
             printf("test failed on line %d\nexpect: ", __LINE__); \
             printf("[ " #__VA_ARGS__ ", ]\n");                    \
             printf("actual: ");                                   \
-            printList(list);                                      \
             assert(0);                                            \
         }                                                         \
     }
 
-int main()
+int list_test()
 {
+    printf("running list test\n");
     struct List* l = list_new();
 
     assert(ALIGN(1, 16) == 16);
@@ -97,11 +94,13 @@ int main()
     list_push_back(l, arr[2]);
 
     LIST_EQ(l, 3, 0, 1, 2);
+    print_list(l);
 
     list_push_front(l, arr[3]);
     list_push_front(l, arr[4]);
 
     LIST_EQ(l, 5, 4, 3, 0, 1, 2);
+    print_list(l);
 
     int* v = NULL;
     v = list_front(int, l);
@@ -116,6 +115,7 @@ int main()
     list_pop_back(l);
     list_pop_front(l);
     LIST_EQ(l, 3, 3, 0, 1);
+    print_list(l);
 
     v = list_front(int, l);
     assert(*v == 3);
@@ -126,9 +126,14 @@ int main()
     assert(list_is_empty(l));
 
     list_delete(l);
-    printf("Ok\n");
 
-#if defined(_MSC_VER)
-    _CrtDumpMemoryLeaks();
-#endif
+    printf("list test passed\n\n");
+    return 0;
 }
+
+#ifdef TEST_STANDALONE
+int main()
+{
+    return list_test();
+}
+#endif
