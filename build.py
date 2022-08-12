@@ -17,9 +17,11 @@ def build_exe():
     cmd = ['gcc']
 
     src_files = [
+        'generic/array.c',
+        'generic/list.c',
+        'file_cache.c',
         'codegen.c',
         'lexer.c',
-        'generic/list.c',
         'main.c',
         'parser.c',
         'preproc.c',

@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static void print_array(struct Array* arr) {
+static void print_array(struct Array* arr)
+{
     printf("array(size:%d, cap:%d) [ ", arr->len, arr->capacity);
 
     for (int i = 0; i < arr->len; ++i) {
@@ -39,8 +40,9 @@ int array_test()
     return 0;
 }
 
-#ifdef TEST_STANDALONE 
-int main() {
+#ifdef TEST_STANDALONE
+int main()
+{
     return array_test();
 }
 #endif

@@ -1,25 +1,20 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
+#include "generic/array.h"
 #include "generic/list.h"
 
 typedef struct List List;
 typedef struct ListNode ListNode;
+typedef struct Array Array;
 
-typedef int bool;
 typedef unsigned int uint;
-
-#ifndef false
-#define false 0
-#endif
-
-#ifndef true
-#define true 1
-#endif
 
 #ifndef nullptr
 #define nullptr ((void*)0)
@@ -35,6 +30,15 @@ typedef unsigned int uint;
 
 #define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
 #define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
+
+/**
+ * file_cache.c
+ */
+Array* fcache_get(char* absPath);
+_Bool fcache_add(char* absPath, Array* toks);
+
+int fcache_resolve_path(char* basePath, char* relPath, char* buf);
+int fcache_abs_path(char* relPath, char* buf);
 
 typedef enum token_kind_t {
 #define DEFINE_TOKEN(NAME) NAME,
@@ -210,7 +214,9 @@ Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
-List* lex_file(const char* filename);
+// core functions
+List* lex(const char* filename);
+
 List* preproc(List* list);
 Obj* parse(List* toks);
 void gen(Obj* prog, const char* inputName);
