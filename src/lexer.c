@@ -63,6 +63,7 @@ static void lexer_fill_tok(Lexer const* lexer, Token* tok)
     tok->col = lexer->col;
     tok->start = lexer->p;
     tok->sourceInfo = lexer->sourceInfo;
+    tok->isFirstTok = false;
 }
 
 static void add_decimal_number(Lexer* lexer, List* list)
@@ -189,12 +190,6 @@ static void add_string(Lexer* lexer, List* list)
 
 static void add_identifier_or_keyword(Lexer* lexer, List* list)
 {
-    static const char* const s_keywords[] = {
-        "auto", "break", "char", "const", "continue", "do", "else", "enum",
-        "extern", "for", "if", "int", "long", "return", "short", "sizeof", "static",
-        "struct", "typedef", "union", "unsigned", "void", "while"
-    };
-
     Token tok;
     tok.eTokenKind = TK_IDENT;
     lexer_fill_tok(lexer, &tok);
@@ -205,14 +200,6 @@ static void add_identifier_or_keyword(Lexer* lexer, List* list)
     }
     tok.end = lexer->p;
     tok.len = (int)(tok.end - tok.start);
-
-    for (size_t i = 0; i < ARRAY_COUNTER(s_keywords); ++i) {
-        const int len = (int)strlen(s_keywords[i]);
-        if (len == tok.len && strncmp(tok.start, s_keywords[i], len) == 0) {
-            tok.eTokenKind = TK_KEYWORD;
-            break;
-        }
-    }
 
     list_push_back(list, tok);
 }
@@ -298,12 +285,6 @@ static List* lex(const SourceInfo* sourceInfo)
                 lexer_read(&lexer);
             }
             lexer_shift(&lexer, 2); // skip */
-            continue;
-        }
-
-        // skip '#' for now
-        if (c == '#') {
-            lexer_skipline(&lexer);
             continue;
         }
 

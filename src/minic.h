@@ -2,6 +2,8 @@
 #define __MINIC_H__
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "generic/list.h"
 
@@ -76,6 +78,8 @@ typedef struct Token {
     // string
     Type* type;
     char* str;
+
+    bool isFirstTok; // first token at line
 } Token;
 
 // Variable or function
@@ -207,6 +211,7 @@ Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
 List* lex_file(const char* filename);
+List* preproc(List* list);
 Obj* parse(List* toks);
 void gen(Obj* prog, const char* inputName);
 

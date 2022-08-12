@@ -17,10 +17,13 @@ int main(int argc, char** argv)
     }
 
     List* toks = lex_file(argv[1]);
+    DEBUG_ONLY(fprintf(stderr, "*** lex ***\n"));
+    toks = preproc(toks);
     DEBUG_ONLY(debug_print_tokens(toks));
 
+    DEBUG_ONLY(fprintf(stderr, "*** parse ***\n"));
     Obj* prog = parse(toks);
-    DEBUG_ONLY(fprintf(stderr, "*** gen ***\n"));
+    DEBUG_ONLY(fprintf(stderr, "*** generate code ***\n"));
 
     gen(prog, argv[1]);
 
