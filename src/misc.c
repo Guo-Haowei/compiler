@@ -42,7 +42,7 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     }
 
     char const* lineEnd = lineStart;
-    if ((lineEnd = strchr(lineEnd, '\n')) == nullptr) {
+    if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
         lineEnd = source + sourceLen;
     }
 
@@ -117,7 +117,7 @@ void warn_tok(const Token* tok, const char* const fmt, ...)
 
 char const* token_kind_to_string(TokenKind eTokenKind)
 {
-    assertindex(eTokenKind, TK_COUNT);
+    ASSERT_IDX(eTokenKind, TK_COUNT);
 
     static char const* const s_names[] = {
 #define DEFINE_TOKEN(NAME) #NAME,
@@ -131,7 +131,7 @@ char const* token_kind_to_string(TokenKind eTokenKind)
 
 char const* node_kind_to_string(NodeKind eNodeKind)
 {
-    assertindex(eNodeKind, ND_COUNT);
+    ASSERT_IDX(eNodeKind, ND_COUNT);
 
     static char const* const s_names[] = {
 #define DEFINE_NODE(NAME, BINOP, UNARYOP) #NAME,

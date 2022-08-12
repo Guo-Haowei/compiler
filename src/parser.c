@@ -155,7 +155,7 @@ static Type* find_tag(Token* tok)
             }
         }
     }
-    return nullptr;
+    return NULL;
 }
 
 static Obj* find_var(Token const* tok)
@@ -167,8 +167,7 @@ static Obj* find_var(Token const* tok)
             }
         }
     }
-
-    return nullptr;
+    return NULL;
 }
 
 static Token* as_tok(ListNode* listnode)
@@ -314,7 +313,7 @@ static Node* parse_primary(ListNode** pToks)
     }
 
     error_tok(tok, "expected expression before '%.*s' token", TOKSTR(tok));
-    return nullptr;
+    return NULL;
 }
 
 // unary = ("+" | "-" | "*" | "&") unary
@@ -345,7 +344,7 @@ static Node* parse_unary(ListNode** pToks)
 // struct-members = (declspec declarator (","  declarator)* ";")*
 static void parse_struct_members(ListNode** pToks, Type* ty)
 {
-    Member head = { .next = nullptr };
+    Member head = { .next = NULL };
     Member* cur = &head;
 
     while (!tok_consume(pToks, "}")) {
@@ -369,7 +368,7 @@ static void parse_struct_members(ListNode** pToks, Type* ty)
 static Type* parse_struct_union_decl(ListNode** pToks)
 {
     // Read a struct tag.
-    Token* tag = nullptr;
+    Token* tag = NULL;
     Token* tok = as_tok(*pToks);
     if (tok->eTokenKind == TK_IDENT) {
         tag = tok;
@@ -408,13 +407,13 @@ static Type* parse_struct_decl(ListNode** pToks)
     // Assign offsets within the struct to members.
     int offset = 0;
     for (Member* mem = ty->members; mem; mem = mem->next) {
-        offset = align_to(offset, mem->type->align);
+        offset = ALIGN_TO(offset, mem->type->align);
         mem->offset = offset;
         offset += mem->type->size;
 
         ty->align = MAX(ty->align, mem->type->align);
     }
-    ty->size = align_to(offset, ty->align);
+    ty->size = ALIGN_TO(offset, ty->align);
 
     return ty;
 }
@@ -428,7 +427,7 @@ static Type* parse_union_decl(ListNode** pToks)
         ty->align = MAX(ty->align, mem->type->align);
         ty->size = MAX(ty->size, mem->type->size);
     }
-    ty->size = align_to(ty->size, ty->align);
+    ty->size = ALIGN_TO(ty->size, ty->align);
     return ty;
 }
 
@@ -440,7 +439,7 @@ static Member* get_struct_member(Type* ty, Token* tok)
         }
     }
     error_tok(tok, "no member '%.*s'", TOKSTR(tok));
-    return nullptr;
+    return NULL;
 }
 
 static Node* struct_ref(Node* lhs, Token* tok)
@@ -526,7 +525,7 @@ static Node* parse_binary_internal(ListNode** pToks, char const** symbols, Parse
 // mul = unary ("*" unary | "/" unary)*
 static Node* parse_mul(ListNode** pToks)
 {
-    static char const* s_symbols[] = { "*", "/", "%", nullptr };
+    static char const* s_symbols[] = { "*", "/", "%", NULL };
     return parse_binary_internal(pToks, s_symbols, parse_unary);
 }
 
@@ -583,7 +582,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     }
 
     error_tok(tok, "invalid operands");
-    return nullptr;
+    return NULL;
 }
 
 // add = mul ("+" mul | "-" mul)*
@@ -610,14 +609,14 @@ static Node* parse_add(ListNode** pToks)
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node* parse_relational(ListNode** pToks)
 {
-    static char const* s_symbols[] = { "<", "<=", ">", ">=", nullptr };
+    static char const* s_symbols[] = { "<", "<=", ">", ">=", NULL };
     return parse_binary_internal(pToks, s_symbols, parse_add);
 }
 
 // equality = relational ("==" relational | "!=" relational)*
 static Node* parse_equality(ListNode** pToks)
 {
-    static char const* s_symbols[] = { "==", "!=", nullptr };
+    static char const* s_symbols[] = { "==", "!=", NULL };
     return parse_binary_internal(pToks, s_symbols, parse_relational);
 }
 
@@ -637,7 +636,7 @@ static Node* parse_funccall(ListNode** pToks)
     const Token* funcname = as_tok(*pToks);
     tok_shift(pToks);
     tok_expect(pToks, "(");
-    Node head = { .next = nullptr };
+    Node head = { .next = NULL };
     Node* cur = &head;
     int argc = 0;
     for (; !tok_consume(pToks, ")"); ++argc) {
@@ -764,7 +763,7 @@ static bool is_typename(ListNode* tok)
 static Node* parse_compound_stmt(ListNode** pToks)
 {
     Token* tok = as_tok(pToks[0]->prev);
-    Node head = { .next = nullptr };
+    Node head = { .next = NULL };
     Node* cur = &head;
 
     enter_scope();
@@ -827,7 +826,7 @@ static Type* parse_declspec(ListNode** pToks)
         else if (tok_consume(pToks, "long"))
             counter += LONG;
         else
-            unreachable();
+            UNREACHABLE();
 
         switch (counter) {
         case VOID:
@@ -862,7 +861,7 @@ static Type* parse_declspec(ListNode** pToks)
 // param       = declspec declarator
 static Type* parse_func_params(ListNode** pToks, Type* type)
 {
-    Type head = { .next = nullptr };
+    Type head = { .next = NULL };
     Type* cur = &head;
     while (!tok_consume(pToks, ")")) {
         if (cur != &head) {
@@ -927,7 +926,7 @@ static Type* parse_declarator(ListNode** pToks, Type* type)
 static Node* parse_decl(ListNode** pToks)
 {
     Type* base_type = parse_declspec(pToks);
-    Node head = { .next = nullptr };
+    Node head = { .next = NULL };
     Node* cur = &head;
     int i = 0;
     while (!tok_consume(pToks, ";")) {
@@ -984,7 +983,7 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
         return fn;
     }
 
-    s_locals = nullptr;
+    s_locals = NULL;
 
     enter_scope();
 

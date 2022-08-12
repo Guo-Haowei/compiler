@@ -1,7 +1,6 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,34 +9,17 @@
 #include "generic/array.h"
 #include "generic/list.h"
 
+#include "utility.h"
+
 typedef struct List List;
 typedef struct ListNode ListNode;
 typedef struct Array Array;
-
-typedef unsigned int uint;
-
-#ifndef nullptr
-#define nullptr ((void*)0)
-#endif
-
-#define unreachable() assert(0)
-
-// utilities
-#define ARRAY_COUNTER(arr) (sizeof(arr) / sizeof(*(arr)))
-#define STATIC_ASSERT(COND) typedef char _static_assertion_[(COND) ? 1 : -1]
-#define MAX(a, b) ((a > b) ? a : b)
-#define MIN(a, b) ((a < b) ? a : b)
-
-#define assertindex(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
-#define align_to(x, a) (((x) + (a)-1) & ~((a)-1))
-
-#define MAX_OSPATH 512
 
 /**
  * file_cache.c
  */
 Array* fcache_get(const char* absPath);
-_Bool fcache_add(const char* absPath, Array* toks);
+bool fcache_add(const char* absPath, Array* toks);
 
 typedef enum token_kind_t {
 #define DEFINE_TOKEN(NAME) NAME,
@@ -87,7 +69,7 @@ typedef struct Token {
 
 // Variable or function
 struct Obj {
-    uint id;
+    uint32_t id;
     char* name;
     Obj* next;
     Type* type;
@@ -112,7 +94,7 @@ struct Obj {
 
 // AST node
 struct Node {
-    uint id;
+    uint32_t id;
     NodeKind eNodeKind;
     Node* next;
     Type* type;
@@ -240,13 +222,5 @@ const char* node_kind_to_string(NodeKind eNodeKind);
 // DEBUG
 void debug_print_token(Token const* tok);
 void debug_print_tokens(List const* toks);
-
-// @TODO: utility.c
-
-bool streq(const char* a, const char* b);
-char* strncopy(const char* src, int n);
-char* format(const char* fmt, ...);
-
-size_t simplify_path(const char* inputPath, char* buf);
 
 #endif

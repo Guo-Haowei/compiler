@@ -18,7 +18,7 @@ Array* fcache_get(const char* absPath)
     return NULL;
 }
 
-_Bool fcache_add(const char* absPath, Array* toks)
+bool fcache_add(const char* absPath, Array* toks)
 {
     for (int idx = 0; idx < s_filecaches.len; ++idx) {
         FileCache* fcache = array_at(FileCache, &s_filecaches, idx);

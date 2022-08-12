@@ -64,7 +64,7 @@ static void load(Type* type)
         writeln("  mov (%%rax), %%rax");
         break;
     default:
-        unreachable();
+        UNREACHABLE();
         break;
     }
 }
@@ -87,7 +87,7 @@ static void store(Type* type)
         writeln("  mov %%rax, (%%rdi)");
         break;
     default:
-        unreachable();
+        UNREACHABLE();
         break;
     }
 }
@@ -139,7 +139,7 @@ static void gen_cmp_expr(NodeKind eNodeKind)
     STATIC_ASSERT(ARRAY_COUNTER(s_cmds) == (ND_GE - ND_EQ + 1));
 
     int const index = eNodeKind - ND_EQ;
-    assertindex(index, ARRAY_COUNTER(s_cmds));
+    ASSERT_IDX(index, ARRAY_COUNTER(s_cmds));
 
     writeln("  cmp %%rdi, %%rax");
     writeln("  %s %%al", s_cmds[index]);
@@ -186,7 +186,7 @@ static void gen_expr(Node const* node)
             gen_expr(arg);
             push();
         }
-        assert(arg == nullptr);
+        assert(arg == NULL);
 
         for (int i = node->argc - 1; i >= 0; --i) {
             pop(s_argreg64[i]);
@@ -322,10 +322,10 @@ static void assign_lvar_offsets(Obj* prog)
         int offset = 0;
         for (Obj* var = fn->locals; var; var = var->next) {
             offset += var->type->size;
-            offset = align_to(offset, var->type->align);
+            offset = ALIGN_TO(offset, var->type->align);
             var->offset = -offset;
         }
-        fn->stackSize = align_to(offset, 16);
+        fn->stackSize = ALIGN_TO(offset, 16);
     }
 }
 
@@ -348,7 +348,7 @@ static void emit_data(Obj* prog)
 
         if (var->initData) {
             for (int i = 0; i < var->type->size; i++) {
-                uint c = (unsigned char)(var->initData[i]);
+                uint32_t c = (unsigned char)(var->initData[i]);
                 writeln("  .byte %u", c);
             }
         } else {
@@ -373,7 +373,7 @@ static void store_gp(int r, int offset, int sz)
         writeln("  mov %s, %d(%%rbp)", s_argreg64[r], offset);
         return;
     }
-    unreachable();
+    UNREACHABLE();
 }
 
 static void emit_text(Obj* prog)

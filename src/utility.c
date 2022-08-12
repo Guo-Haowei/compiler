@@ -1,14 +1,11 @@
-#include "minic.h"
+#include "utility.h"
 
+#include "generic/list.h"
+
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-typedef struct {
-    const char* start;
-    int len;
-} StringView;
 
 bool streq(const char* a, const char* b)
 {
@@ -37,7 +34,7 @@ char* format(const char* fmt, ...)
     return buffer;
 }
 
-size_t simplify_path(const char* inputPath, char* buf)
+size_t path_simplify(const char* inputPath, char* buf)
 {
     char tmp[MAX_OSPATH];
 
@@ -50,7 +47,7 @@ size_t simplify_path(const char* inputPath, char* buf)
     }
 
     // 2. resolve ./ and ../
-    List* parts = list_new();
+    struct List* parts = list_new();
 
     char* l = tmp;
     char* r = tmp;
@@ -64,9 +61,9 @@ size_t simplify_path(const char* inputPath, char* buf)
         list_push_back(parts, part);
     }
 
-    List* newParts = list_new();
+    struct List* newParts = list_new();
 
-    for (ListNode* c = parts->front; c; c = c->next) {
+    for (struct ListNode* c = parts->front; c; c = c->next) {
         StringView* part = (StringView*)(c + 1);
         if (part->len == 1 && part->start[0] == '.') {
             continue;
@@ -85,8 +82,11 @@ size_t simplify_path(const char* inputPath, char* buf)
 
     // @TODO: prevent overflow
     int offset = 0;
-    for (ListNode* c = newParts->front; c; c = c->next) {
+    for (struct ListNode* c = newParts->front; c; c = c->next) {
         StringView* part = list_node_get(StringView, c);
+        if (part->len == 0) {
+            continue;
+        }
         sprintf(buf + offset, "%.*s/", part->len, part->start);
         offset += (1 + part->len);
     }
