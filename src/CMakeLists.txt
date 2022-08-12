@@ -5,6 +5,7 @@ add_executable(minic
     main.c
     misc.c
     parser.c
+    preproc.c
     type.c
     string.c
 )
