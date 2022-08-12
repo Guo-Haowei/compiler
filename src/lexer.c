@@ -241,17 +241,6 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
     return false;
 }
 
-static void add_eof(Lexer* lexer, Array* arr)
-{
-    Token tok;
-    tok.eTokenKind = TK_EOF;
-    lexer_fill_tok(lexer, &tok);
-    tok.end = lexer->p;
-    tok.len = 0;
-
-    array_push_back(Token, arr, tok);
-}
-
 static void check_if_bol(Array* toks)
 {
     int currentLine = 0;
@@ -352,7 +341,6 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         error_lex(&lexer, "stray '%c' in program", c);
     }
 
-    add_eof(&lexer, tokArray);
     check_if_bol(tokArray);
 
     fcache_add(sourceInfo->file, tokArray);
@@ -380,15 +368,12 @@ static char* read_file(const char* path)
 
 void lex_file(struct Array* arr, const char* filename);
 
-/// pass1: array of tokens without preprocessing, cache
-/// pass2: preprocess
-/// pass3: cleanup and check if keywords
-
-Array* lex(const char* filename)
+Array* lex(const char* file)
 {
     SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
-    fcache_abs_path(filename, sourceInfo->file);
-    sourceInfo->start = read_file(filename);
+
+    simplify_path(file, sourceInfo->file);
+    sourceInfo->start = read_file(file);
     sourceInfo->len = (int)strlen(sourceInfo->start);
     sourceInfo->end = sourceInfo->start + sourceInfo->len;
 

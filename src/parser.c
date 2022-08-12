@@ -182,18 +182,23 @@ static void tok_shift(ListNode** pToks)
     *pToks = (*pToks)->next;
 }
 
+bool tok_equal(const Token* tok, const char* expect)
+{
+    int len = (int)strlen(expect);
+    if (len != tok->len) {
+        return false;
+    }
+
+    return strncmp(tok->start, expect, len) == 0;
+}
+
 static bool tok_eq(ListNode* toks, const char* expect)
 {
     // @TODO: handle unexpected EOF
     assert(toks);
 
     const Token* tok = as_tok(toks);
-    const int expectLen = (int)strlen(expect);
-    if (expectLen != tok->len) {
-        return false;
-    }
-
-    return strncmp(tok->start, expect, expectLen) == 0;
+    return tok_equal(tok, expect);
 }
 
 static bool tok_consume(ListNode** pToks, const char* expect)
@@ -794,7 +799,7 @@ static Type* parse_declspec(ListNode** pToks)
     };
 
     Token* tok = as_tok(*pToks);
-    Type *ty = g_int_type;
+    Type* ty = g_int_type;
     int counter = 0;
 
     while (is_typename(*pToks)) {

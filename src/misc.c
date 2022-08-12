@@ -8,7 +8,16 @@
 #define EMPTYLINE "                                                                                "
 #define UNDERLINE "^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-static void verror_at(const char* file, const char* source, int sourceLen, int line, int col, int span, const char* const fmt, va_list args)
+enum {
+    LEVEL_WARN,
+    LEVEL_ERROR,
+};
+
+#define KRESET "\033[0m"
+#define KRED "\033[0;31m"
+#define KYEL "\033[0;33m"
+
+static void verror_at(int level, const char* file, const char* source, int sourceLen, int line, int col, int span, const char* const fmt, va_list args)
 {
     assert(file);
     assert(source);
@@ -18,8 +27,9 @@ static void verror_at(const char* file, const char* source, int sourceLen, int l
     assert(span);
 
     // fprintf(stderr, "debug verror_at(): span: %d\n", span);
+    const char* color = level == LEVEL_ERROR ? KRED : KYEL;
 
-    fprintf(stderr, "%s:%d:%d: error: ", file, line, col);
+    fprintf(stderr, "%s:%d:%d: %serror:%s ", file, line, col, color, KRESET);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 
@@ -39,9 +49,11 @@ static void verror_at(const char* file, const char* source, int sourceLen, int l
     const int lineLen = (int)(lineEnd - lineStart);
     fprintf(stderr, "%5d | %.*s\n", line, lineLen, lineStart);
 
-    fprintf(stderr, "      |%.*s%.*s\n", col, EMPTYLINE, span, UNDERLINE);
+    fprintf(stderr, "      |%s%.*s%.*s%s\n", color, col, EMPTYLINE, span, UNDERLINE, KRESET);
 
-    exit(-1);
+    if (level == LEVEL_ERROR) {
+        exit(-1);
+    }
 }
 
 void error(const char* const fmt, ...)
@@ -63,17 +75,17 @@ void error_lex(const Lexer* lexer, const char* const fmt, ...)
 
     va_list args;
     va_start(args, fmt);
-    verror_at(file, source, sourceLen, line, col, 1, fmt, args);
+    verror_at(LEVEL_ERROR, file, source, sourceLen, line, col, 1, fmt, args);
     va_end(args);
 }
 
 void error_tok(const Token* tok, const char* const fmt, ...)
 {
-    char const* file = tok->sourceInfo->file;
-    char const* source = tok->sourceInfo->start;
-    int const sourceLen = tok->sourceInfo->len;
-    int const line = tok->line;
-    int const col = tok->col;
+    const char* file = tok->sourceInfo->file;
+    const char* source = tok->sourceInfo->start;
+    const int sourceLen = tok->sourceInfo->len;
+    const int line = tok->line;
+    const int col = tok->col;
     int span = tok->len;
     if (tok->eTokenKind == TK_EOF) {
         span = 1;
@@ -81,7 +93,25 @@ void error_tok(const Token* tok, const char* const fmt, ...)
 
     va_list args;
     va_start(args, fmt);
-    verror_at(file, source, sourceLen, line, col, span, fmt, args);
+    verror_at(LEVEL_ERROR, file, source, sourceLen, line, col, span, fmt, args);
+    va_end(args);
+}
+
+void warn_tok(const Token* tok, const char* const fmt, ...)
+{
+    const char* file = tok->sourceInfo->file;
+    const char* source = tok->sourceInfo->start;
+    const int sourceLen = tok->sourceInfo->len;
+    const int line = tok->line;
+    const int col = tok->col;
+    int span = tok->len;
+    if (tok->eTokenKind == TK_EOF) {
+        span = 1;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    verror_at(LEVEL_WARN, file, source, sourceLen, line, col, span, fmt, args);
     va_end(args);
 }
 

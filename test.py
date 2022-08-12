@@ -9,12 +9,14 @@ checkmark = u'\u2713'
 crossmark = u'\u2717'
 stack_bound = '-mpreferred-stack-boundary=3'
 
+
 def safe_subprocess(cmd):
     child = subprocess.Popen(cmd)
     child.communicate()
     if child.poll() != 0:
         print(f'Failed to execute command: {cmd}')
         os._exit(1)
+
 
 def safe_run(cmdList):
     cmd = cmdList
@@ -29,11 +31,11 @@ def safe_run(cmdList):
 def test_file(file):
     print(f'running test {file}.c')
     # preprocess
-    safe_run(f'gcc -E {test_src_folder}{file}.c > tmp.c')
+    # safe_run(f'gcc -E {test_src_folder}{file}.c > tmp.c')
     # generate .s
-    safe_subprocess(f'./{build.exe_name} tmp.c')
+    safe_subprocess(f'./{build.exe_name} ../test/{file}.c')
     # compile
-    safe_run(f'gcc -c tmp.s -o {file}.o {stack_bound}')
+    safe_run(f'gcc -c ../test/{file}.s -o {file}.o {stack_bound}')
     safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')
 
     child = subprocess.Popen('./tmp')
@@ -81,6 +83,7 @@ def test_main(cases):
 
     print('All tests passed')
     return
+
 
 if __name__ == "__main__":
     test_main(sys.argv[1:])
