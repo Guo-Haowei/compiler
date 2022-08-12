@@ -17,9 +17,9 @@ def build_exe():
     cmd = ['gcc']
 
     src_files = [
-        'codegen-x64.c',
+        'codegen.c',
         'lexer.c',
-        'list.c',
+        'generic/list.c',
         'main.c',
         'parser.c',
         'misc.c',

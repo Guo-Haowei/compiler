@@ -1,7 +1,7 @@
-add_executable(minic-x64
-    codegen-x64.c
+add_executable(minic
+    generic/list.c
+    codegen.c
     lexer.c
-    list.c
     main.c
     misc.c
     parser.c

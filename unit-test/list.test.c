@@ -1,4 +1,4 @@
-#include "../src/list.h"
+#include "../src/generic/list.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -19,7 +19,7 @@ static void printList(struct List* list)
     printf("]\n");
 }
 
-static int listEq(List* list, int argc, ...)
+static int listEq(struct List* list, int argc, ...)
 {
     va_list args;
 
@@ -36,7 +36,7 @@ static int listEq(List* list, int argc, ...)
 
     {
         int* p = nums;
-        for (const ListNode* n = list->front; n; n = n->next, ++p) {
+        for (const struct ListNode* n = list->front; n; n = n->next, ++p) {
             if (*(int*)(n + 1) != *p) {
                 free(nums);
                 return 0;
@@ -46,7 +46,7 @@ static int listEq(List* list, int argc, ...)
 
     {
         int* p = nums + argc - 1;
-        for (const ListNode* n = list->back; n; n = n->prev, --p) {
+        for (const struct ListNode* n = list->back; n; n = n->prev, --p) {
             if (*(int*)(n + 1) != *p) {
                 free(nums);
                 return 0;

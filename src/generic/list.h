@@ -1,20 +1,19 @@
 #ifndef __LIST_H__
 #define __LIST_H__
-#include <stddef.h>
 
 #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 
-typedef struct ListNode {
+struct ListNode {
     struct ListNode* prev;
     struct ListNode* next;
     // char[N] to store value
-} ListNode;
+};
 
-typedef struct List {
+struct List {
     struct ListNode* front;
     struct ListNode* back;
     int len;
-} List;
+};
 
 struct List* list_new();
 void list_delete(struct List* plist);
@@ -30,8 +29,8 @@ void* _list_at(struct List* list, int idx);
 #define list_front(T, l) ((T*)_list_front(l))
 #define list_at(T, l, i) ((T*)_list_at(l, i))
 
-void _list_push_front(struct List* list, void* data, size_t size);
-void _list_push_back(struct List* list, void* data, size_t size);
+void _list_push_front(struct List* list, void* data, int size);
+void _list_push_back(struct List* list, void* data, int size);
 #define list_push_front(l, e) _list_push_front(l, ((void*)(&e)), sizeof(e))
 #define list_push_back(l, e) _list_push_back(l, ((void*)(&e)), sizeof(e))
 

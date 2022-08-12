@@ -1,5 +1,5 @@
 add_executable(test-list
-    ../src/list.c
+    ../src/generic/list.c
     list.test.c
 )
 

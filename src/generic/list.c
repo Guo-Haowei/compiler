@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct ListNode* _list_node_new(size_t size);
+struct ListNode* _list_node_new(int size);
 
 struct List* list_new()
 {
@@ -56,7 +56,7 @@ void* _list_at(struct List* list, int idx)
     return n + 1;
 }
 
-void _list_push_front(struct List* list, void* data, size_t size)
+void _list_push_front(struct List* list, void* data, int size)
 {
     assert(list);
     struct ListNode* n = _list_node_new(size);
@@ -73,7 +73,7 @@ void _list_push_front(struct List* list, void* data, size_t size)
     ++list->len;
 }
 
-void _list_push_back(struct List* list, void* data, size_t size)
+void _list_push_back(struct List* list, void* data, int size)
 {
     assert(list);
     struct ListNode* n = _list_node_new(size);
@@ -122,7 +122,7 @@ void list_pop_back(struct List* list)
     free(n);
 }
 
-struct ListNode* _list_node_new(size_t size)
+struct ListNode* _list_node_new(int size)
 {
     struct ListNode* node = malloc(sizeof(struct ListNode) + ALIGN(size, 16));
     node->prev = NULL;

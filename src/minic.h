@@ -3,7 +3,10 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include "list.h"
+#include "generic/list.h"
+
+typedef struct List List;
+typedef struct ListNode ListNode;
 
 typedef int bool;
 typedef unsigned int uint;
