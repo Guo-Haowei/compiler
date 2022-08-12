@@ -224,7 +224,7 @@ List* preproc(Array* toks);
 
 Obj* parse(List* toks);
 
-void gen(Obj* prog, const char* inputName);
+void gen(Obj* prog, const char* srcname, const char* asmname);
 
 void error(const char* const fmt, ...);
 void error_lex(const Lexer* lexer, const char* const fmt, ...);

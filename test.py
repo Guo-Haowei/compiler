@@ -30,12 +30,10 @@ def safe_run(cmdList):
 
 def test_file(file):
     print(f'running test {file}.c')
-    # preprocess
-    # safe_run(f'gcc -E {test_src_folder}{file}.c > tmp.c')
     # generate .s
-    safe_subprocess(f'./{build.exe_name} ../test/{file}.c')
+    safe_subprocess(f'./{build.exe_name} -s ../test/{file}.c -o {file}.s')
     # compile
-    safe_run(f'gcc -c ../test/{file}.s -o {file}.o {stack_bound}')
+    safe_run(f'gcc -c {file}.s -o {file}.o {stack_bound}')
     safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')
 
     child = subprocess.Popen('./tmp')

@@ -7,7 +7,7 @@
 // @TODO: refactor
 static int s_depth = 0;
 static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char *s_argreg16[] = {"%cx", "%dx", "%r8w", "%r9w"};
+static char* s_argreg16[] = { "%cx", "%dx", "%r8w", "%r9w" };
 static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
 static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
 static Obj* s_current_fn;
@@ -420,25 +420,13 @@ static void emit_text(Obj* prog)
     }
 }
 
-void gen(Obj* prog, const char* inputName)
+void gen(Obj* prog, const char* srcname, const char* asmname)
 {
-    char outName[512];
-    const size_t size = strlen(inputName);
-    assert(size + 3 <= sizeof(outName)); // ".c\0"
-
-    strncpy(outName, inputName, sizeof(outName));
-    char* p = strrchr(outName, '.');
-    if (!p) {
-        p = outName + size;
-    }
-    p[1] = 's';
-    p[2] = '\0';
-
-    s_output = fopen(outName, "w");
+    s_output = fopen(asmname, "w");
 
     assign_lvar_offsets(prog);
 
-    writeln("  .file 1 \"%s\"", inputName);
+    writeln("  .file 1 \"%s\"", srcname);
     emit_text(prog);
     emit_data(prog);
 
