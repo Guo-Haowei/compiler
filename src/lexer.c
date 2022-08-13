@@ -304,7 +304,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         }
 
         // whitespace
-        if (strchr(" \n\t\r", c) != nullptr) {
+        if (strchr(" \n\t\r", c) != NULL) {
             lexer_read(&lexer);
             continue;
         }
@@ -333,7 +333,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         }
 
         // one char punct
-        if (strchr("=+-*/%()<>{}.,;&[]#", c) != nullptr) {
+        if (strchr("=+-*/%()<>{}.,;&[]#", c) != NULL) {
             add_one_char_punct(&lexer, tokArray);
             continue;
         }
@@ -372,7 +372,7 @@ Array* lex(const char* file)
 {
     SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
 
-    simplify_path(file, sourceInfo->file);
+    path_simplify(file, sourceInfo->file);
     sourceInfo->start = read_file(file);
     sourceInfo->len = (int)strlen(sourceInfo->start);
     sourceInfo->end = sourceInfo->start + sourceInfo->len;

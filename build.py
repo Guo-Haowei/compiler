@@ -26,8 +26,8 @@ def build_exe():
         'parser.c',
         'preproc.c',
         'misc.c',
-        'string.c',
         'type.c',
+        'utility.c',
     ]
 
     flags = [

@@ -9,5 +9,5 @@ add_executable(minic
     parser.c
     preproc.c
     type.c
-    string.c
+    utility.c
 )
