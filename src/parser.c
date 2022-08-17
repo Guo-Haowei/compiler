@@ -6,6 +6,55 @@
 
 #define TOKSTR(TOK) (TOK)->len, (TOK)->start
 
+typedef struct {
+    Array* tokenArray;
+    int index;
+} ParserState;
+
+/// token stream
+static Token* peekN(ParserState* state, int n)
+{
+    assert(state->index + n < state->tokenArray->len);
+    return array_at(Token, state->tokenArray, state->index + n);
+}
+
+static Token* peek(ParserState* state)
+{
+    return peekN(state, 0);
+}
+
+static Token* read(ParserState* state)
+{
+    Token* tok = peek(state);
+    ++state->index;
+    return tok;
+}
+
+static bool equal(ParserState* state, const char* symbol)
+{
+    return is_token_equal(peek(state), symbol);
+}
+
+static bool consume(ParserState* state, const char* symbol)
+{
+    if (equal(state, symbol)) {
+        ++state->index;
+        return true;
+    }
+    return false;
+}
+
+static void expect(ParserState* state, const char* symbol)
+{
+    const Token* token = peek(state);
+    if (is_token_equal(token, symbol)) {
+        ++state->index;
+        return;
+    }
+
+    error_tok(token, "expected '%s', got '%.*s'", symbol, TOKSTR(token));
+}
+
 // All local variable instances created during parsing are
 // accumulated to this list.
 static Obj* s_locals;
@@ -143,7 +192,7 @@ static Obj* new_gvar(char* name, Type* type)
     return var;
 }
 
-typedef Node* (*ParseBinaryFn)(ListNode**);
+typedef Node* (*ParseBinaryFn)(ParserState*);
 
 // Find a local variable by name.
 static Type* find_tag(Token* tok)
@@ -168,59 +217,6 @@ static Obj* find_var(Token const* tok)
         }
     }
     return NULL;
-}
-
-static Token* as_tok(ListNode* listnode)
-{
-    return (Token*)(listnode + 1);
-}
-
-static void tok_shift(ListNode** pToks)
-{
-    assert(pToks && *pToks && (*pToks)->next);
-    *pToks = (*pToks)->next;
-}
-
-bool tok_equal(const Token* tok, const char* expect)
-{
-    int len = (int)strlen(expect);
-    if (len != tok->len) {
-        return false;
-    }
-
-    return strncmp(tok->start, expect, len) == 0;
-}
-
-static bool tok_eq(ListNode* toks, const char* expect)
-{
-    // @TODO: handle unexpected EOF
-    assert(toks);
-
-    const Token* tok = as_tok(toks);
-    return tok_equal(tok, expect);
-}
-
-static bool tok_consume(ListNode** pToks, const char* expect)
-{
-    // @TODO: handle unexpected EOF
-    const bool equal = tok_eq(*pToks, expect);
-    if (equal) {
-        tok_shift(pToks);
-        return true;
-    }
-    return false;
-}
-
-static void tok_expect(ListNode** pToks, char const* expect)
-{
-    assert(pToks && *pToks);
-    Token const* token = as_tok(*pToks);
-    const int expectLen = (int)strlen(expect);
-    if (expectLen != token->len || (strncmp(token->start, expect, token->len) != 0)) {
-        error_tok(token, "expected '%s'", expect);
-    }
-
-    *pToks = (*pToks)->next;
 }
 
 static char* new_unique_name()
@@ -250,65 +246,64 @@ static char* get_ident(const Token* tok)
     return strncopy(tok->start, tok->len);
 }
 
-static Node* parse_primary(ListNode** pToks);
-static Node* parse_postfix(ListNode** pToks);
-static Node* parse_unary(ListNode** pToks);
-static Node* parse_mul(ListNode** pToks);
-static Node* parse_add(ListNode** pToks);
-static Node* parse_relational(ListNode** pToks);
-static Node* parse_equality(ListNode** pToks);
-static Node* parse_assign(ListNode** pToks);
-static Node* parse_funccall(ListNode** pToks);
-static Node* parse_expr(ListNode** pToks);
-static Node* parse_expr_stmt(ListNode** pToks);
-static Node* parse_compound_stmt(ListNode** pToks);
-static Node* parse_decl(ListNode** pToks);
-static Type* parse_declspec(ListNode** pToks);
-static Type* parse_declarator(ListNode** pToks, Type* type);
+static Node* parse_primary(ParserState* state);
+static Node* parse_postfix(ParserState* state);
+static Node* parse_unary(ParserState* state);
+static Node* parse_mul(ParserState* state);
+static Node* parse_add(ParserState* state);
+static Node* parse_relational(ParserState* state);
+static Node* parse_equality(ParserState* state);
+static Node* parse_assign(ParserState* state);
+static Node* parse_funccall(ParserState* state);
+static Node* parse_expr(ParserState* state);
+static Node* parse_expr_stmt(ParserState* state);
+static Node* parse_compound_stmt(ParserState* state);
+static Node* parse_decl(ParserState* state);
+static Type* parse_declspec(ParserState* state);
+static Type* parse_declarator(ParserState* state, Type* type);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 
 // primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
-static Node* parse_primary(ListNode** pToks)
+static Node* parse_primary(ParserState* state)
 {
-    if (tok_consume(pToks, "(")) {
-        Node* node = parse_expr(pToks);
-        tok_expect(pToks, ")"); // consume ')'
+    if (consume(state, "(")) {
+        Node* node = parse_expr(state);
+        expect(state, ")"); // consume ')'
         return node;
     }
 
-    Token* tok = as_tok(*pToks);
-    if (tok_consume(pToks, "sizeof")) {
-        Node* node = parse_unary(pToks);
+    Token* tok = peek(state);
+    if (consume(state, "sizeof")) {
+        Node* node = parse_unary(state);
         add_type(node);
         return new_num(node->type->size, tok);
     }
 
     if (tok->eTokenKind == TK_NUM) {
         Node* node = new_num(tok->val, tok);
-        tok_shift(pToks);
+        read(state);
         return node;
     }
 
     if (tok->eTokenKind == TK_STR) {
         Obj* var = new_string_literal(tok->str, tok->type, tok);
-        tok_shift(pToks);
+        read(state);
         return new_var(var, tok);
     }
 
     if (tok->eTokenKind == TK_IDENT) {
-        if (tok_eq((*pToks)->next, "(")) {
-            return parse_funccall(pToks);
+        if (is_token_equal(peekN(state, 1), "(")) {
+            return parse_funccall(state);
         }
 
         Obj* var = find_var(tok);
         if (!var) {
-            // if not found, create
             error_tok(tok, "undefined variable '%.*s'", TOKSTR(tok));
         }
 
-        tok_shift(pToks);
+        read(state);
         return new_var(var, tok);
     }
 
@@ -318,45 +313,44 @@ static Node* parse_primary(ListNode** pToks)
 
 // unary = ("+" | "-" | "*" | "&") unary
 //       | postfix
-static Node* parse_unary(ListNode** pToks)
+static Node* parse_unary(ParserState* state)
 {
-    if (tok_consume(pToks, "+")) {
-        return parse_unary(pToks);
+    if (consume(state, "+")) {
+        return parse_unary(state);
     }
 
-    Token* tok = as_tok(*pToks);
-
-    if (tok_consume(pToks, "-")) {
-        return new_unary(ND_NEG, parse_unary(pToks), tok);
+    Token* tok = peek(state);
+    if (consume(state, "-")) {
+        return new_unary(ND_NEG, parse_unary(state), tok);
     }
 
-    if (tok_consume(pToks, "*")) {
-        return new_unary(ND_DEREF, parse_unary(pToks), tok);
+    if (consume(state, "*")) {
+        return new_unary(ND_DEREF, parse_unary(state), tok);
     }
 
-    if (tok_consume(pToks, "&")) {
-        return new_unary(ND_ADDR, parse_unary(pToks), tok);
+    if (consume(state, "&")) {
+        return new_unary(ND_ADDR, parse_unary(state), tok);
     }
 
-    return parse_postfix(pToks);
+    return parse_postfix(state);
 }
 
 // struct-members = (declspec declarator (","  declarator)* ";")*
-static void parse_struct_members(ListNode** pToks, Type* ty)
+static void parse_struct_members(ParserState* state, Type* ty)
 {
     Member head = { .next = NULL };
     Member* cur = &head;
 
-    while (!tok_consume(pToks, "}")) {
-        Type* basety = parse_declspec(pToks);
+    while (!consume(state, "}")) {
+        Type* basety = parse_declspec(state);
         int i = 0;
-        while (!tok_consume(pToks, ";")) {
+        while (!consume(state, ";")) {
             if (i++) {
-                tok_expect(pToks, ",");
+                expect(state, ",");
             }
 
             Member* member = calloc(1, sizeof(Member));
-            member->type = parse_declarator(pToks, basety);
+            member->type = parse_declarator(state, basety);
             member->name = member->type->name;
             cur = cur->next = member;
         }
@@ -365,17 +359,17 @@ static void parse_struct_members(ListNode** pToks, Type* ty)
 }
 
 // struct-union-decl = ident? ("{" struct-members)?
-static Type* parse_struct_union_decl(ListNode** pToks)
+static Type* parse_struct_union_decl(ParserState* state)
 {
     // Read a struct tag.
     Token* tag = NULL;
-    Token* tok = as_tok(*pToks);
+    Token* tok = peek(state);
     if (tok->eTokenKind == TK_IDENT) {
         tag = tok;
-        tok_shift(pToks);
+        read(state);
     }
 
-    if (tag && !tok_eq(*pToks, "{")) {
+    if (tag && !equal(state, "{")) {
         Type* ty = find_tag(tag);
         if (!ty) {
             error_tok(tag, "unknown struct %.*s", TOKSTR(tag));
@@ -384,12 +378,12 @@ static Type* parse_struct_union_decl(ListNode** pToks)
     }
 
     // Construct a struct object.
-    tok_expect(pToks, "{");
+    expect(state, "{");
 
     Type* ty = calloc(1, sizeof(Type));
     ty->eTypeKind = TY_INVALID;
     ty->align = 1;
-    parse_struct_members(pToks, ty);
+    parse_struct_members(state, ty);
 
     if (tag) {
         push_tag_scope(tag, ty);
@@ -399,9 +393,9 @@ static Type* parse_struct_union_decl(ListNode** pToks)
 }
 
 // struct-decl = ident? "{" struct-members
-static Type* parse_struct_decl(ListNode** pToks)
+static Type* parse_struct_decl(ParserState* state)
 {
-    Type* ty = parse_struct_union_decl(pToks);
+    Type* ty = parse_struct_union_decl(state);
     ty->eTypeKind = TY_STRUCT;
 
     // Assign offsets within the struct to members.
@@ -419,9 +413,9 @@ static Type* parse_struct_decl(ListNode** pToks)
 }
 
 // union-decl = struct-union-decl
-static Type* parse_union_decl(ListNode** pToks)
+static Type* parse_union_decl(ParserState* state)
 {
-    Type* ty = parse_struct_union_decl(pToks);
+    Type* ty = parse_struct_union_decl(state);
     ty->eTypeKind = TY_UNION;
     for (Member* mem = ty->members; mem; mem = mem->next) {
         ty->align = MAX(ty->align, mem->type->align);
@@ -456,31 +450,31 @@ static Node* struct_ref(Node* lhs, Token* tok)
 }
 
 // postfix = primary ("[" expr "]" | "." ident | "->" ident)*
-static Node* parse_postfix(ListNode** pToks)
+static Node* parse_postfix(ParserState* state)
 {
-    Node* node = parse_primary(pToks);
+    Node* node = parse_primary(state);
 
     for (;;) {
-        Token* tok = as_tok(*pToks);
-        if (tok_consume(pToks, "[")) {
+        Token* tok = peek(state);
+        if (consume(state, "[")) {
             // x[y] is short for *(x+y)
-            Node* idx = parse_expr(pToks);
-            tok_expect(pToks, "]");
+            Node* idx = parse_expr(state);
+            expect(state, "]");
             node = new_unary(ND_DEREF, new_add(node, idx, tok), tok);
             continue;
         }
 
-        if (tok_consume(pToks, ".")) {
-            node = struct_ref(node, as_tok(*pToks));
-            tok_shift(pToks);
+        if (consume(state, ".")) {
+            node = struct_ref(node, peek(state));
+            read(state);
             continue;
         }
 
-        if (tok_consume(pToks, "->")) {
+        if (consume(state, "->")) {
             // x->y is short for (*x).y
             node = new_unary(ND_DEREF, node, tok);
-            node = struct_ref(node, as_tok(*pToks));
-            tok_shift(pToks);
+            node = struct_ref(node, peek(state));
+            read(state);
             continue;
         }
 
@@ -498,17 +492,19 @@ static NodeKind to_binary_node_kind(char const* symbol)
     return ND_INVALID;
 }
 
-static Node* parse_binary_internal(ListNode** pToks, char const** symbols, ParseBinaryFn fp)
+static Node* parse_binary_internal(ParserState* state, char const** symbols, ParseBinaryFn fp)
 {
-    Node* node = fp(pToks);
+    Node* node = fp(state);
 
     for (;;) {
         bool found = false;
-        for (char const** p = symbols; *p; ++p) {
-            if (tok_consume(pToks, *p)) {
+        for (const char** p = symbols; *p; ++p) {
+            const Token* tok = peek(state);
+            if (is_token_equal(tok, *p)) {
+                read(state);
                 NodeKind kind = to_binary_node_kind(*p);
                 assert(kind != ND_INVALID);
-                node = new_binary(kind, node, fp(pToks), as_tok(pToks[0]->prev));
+                node = new_binary(kind, node, fp(state), tok);
                 found = true;
                 break;
             }
@@ -523,10 +519,10 @@ static Node* parse_binary_internal(ListNode** pToks, char const** symbols, Parse
 }
 
 // mul = unary ("*" unary | "/" unary)*
-static Node* parse_mul(ListNode** pToks)
+static Node* parse_mul(ParserState* state)
 {
     static char const* s_symbols[] = { "*", "/", "%", NULL };
-    return parse_binary_internal(pToks, s_symbols, parse_unary);
+    return parse_binary_internal(state, s_symbols, parse_unary);
 }
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok)
@@ -586,19 +582,19 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
 }
 
 // add = mul ("+" mul | "-" mul)*
-static Node* parse_add(ListNode** pToks)
+static Node* parse_add(ParserState* state)
 {
-    Node* node = parse_mul(pToks);
-    Token* start = as_tok(*pToks);
+    Node* node = parse_mul(state);
+    Token* start = peek(state);
 
     for (;;) {
-        if (tok_consume(pToks, "+")) {
-            node = new_add(node, parse_mul(pToks), start);
+        if (consume(state, "+")) {
+            node = new_add(node, parse_mul(state), start);
             continue;
         }
 
-        if (tok_consume(pToks, "-")) {
-            node = new_sub(node, parse_mul(pToks), start);
+        if (consume(state, "-")) {
+            node = new_sub(node, parse_mul(state), start);
             continue;
         }
 
@@ -607,43 +603,44 @@ static Node* parse_add(ListNode** pToks)
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-static Node* parse_relational(ListNode** pToks)
+static Node* parse_relational(ParserState* state)
 {
     static char const* s_symbols[] = { "<", "<=", ">", ">=", NULL };
-    return parse_binary_internal(pToks, s_symbols, parse_add);
+    return parse_binary_internal(state, s_symbols, parse_add);
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-static Node* parse_equality(ListNode** pToks)
+static Node* parse_equality(ParserState* state)
 {
     static char const* s_symbols[] = { "==", "!=", NULL };
-    return parse_binary_internal(pToks, s_symbols, parse_relational);
+    return parse_binary_internal(state, s_symbols, parse_relational);
 }
 
 // assign = equality ("=" assign)?
-static Node* parse_assign(ListNode** pToks)
+static Node* parse_assign(ParserState* state)
 {
-    Node* node = parse_equality(pToks);
-    if (tok_consume(pToks, "=")) {
-        node = new_binary(ND_ASSIGN, node, parse_assign(pToks), as_tok(pToks[0]->prev));
+    Node* node = parse_equality(state);
+    Token* tok = peek(state);
+    if (is_token_equal(tok, "=")) {
+        read(state);
+        node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
     }
     return node;
 }
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
-static Node* parse_funccall(ListNode** pToks)
+static Node* parse_funccall(ParserState* state)
 {
-    const Token* funcname = as_tok(*pToks);
-    tok_shift(pToks);
-    tok_expect(pToks, "(");
+    const Token* funcname = read(state);
+    expect(state, "(");
     Node head = { .next = NULL };
     Node* cur = &head;
     int argc = 0;
-    for (; !tok_consume(pToks, ")"); ++argc) {
+    for (; !consume(state, ")"); ++argc) {
         if (argc) {
-            tok_expect(pToks, ",");
+            expect(state, ",");
         }
-        cur = cur->next = parse_assign(pToks);
+        cur = cur->next = parse_assign(state);
     }
     Node* node = new_node(ND_FUNCCALL, funcname);
     node->funcname = strncopy(funcname->start, funcname->len);
@@ -653,28 +650,27 @@ static Node* parse_funccall(ListNode** pToks)
 }
 
 // expr = assign ("," expr)?
-static Node* parse_expr(ListNode** pToks)
+static Node* parse_expr(ParserState* state)
 {
-    Node* node = parse_assign(pToks);
+    Node* node = parse_assign(state);
 
-    Token* tok = as_tok(*pToks);
-    if (tok_consume(pToks, ",")) {
-        return new_binary(ND_COMMA, node, parse_expr(pToks), tok);
+    Token* tok = peek(state);
+    if (consume(state, ",")) {
+        return new_binary(ND_COMMA, node, parse_expr(state), tok);
     }
 
     return node;
 }
 
 // expr-stmt = expr? ";"
-static Node* parse_expr_stmt(ListNode** pToks)
+static Node* parse_expr_stmt(ParserState* state)
 {
-    Token const* tok = as_tok(*pToks);
-
-    if (tok_consume(pToks, ";")) {
+    Token* tok = peek(state);
+    if (consume(state, ";")) {
         return new_node(ND_BLOCK, tok);
     }
-    Node* node = new_unary(ND_EXPR_STMT, parse_expr(pToks), tok);
-    tok_expect(pToks, ";");
+    Node* node = new_unary(ND_EXPR_STMT, parse_expr(state), tok);
+    expect(state, ";");
     return node;
 }
 
@@ -684,63 +680,63 @@ static Node* parse_expr_stmt(ListNode** pToks)
 //      | "while" "(" expr ")" stmt
 //      | "{" compound-stmt "}"
 //      | expr-stmt
-static Node* parse_stmt(ListNode** pToks)
+static Node* parse_stmt(ParserState* state)
 {
-    Token const* tok = as_tok(*pToks);
+    Token* tok = peek(state);
 
-    if (tok_consume(pToks, "return")) {
-        Node* node = new_unary(ND_RETURN, parse_expr(pToks), tok);
-        tok_expect(pToks, ";");
+    if (consume(state, "return")) {
+        Node* node = new_unary(ND_RETURN, parse_expr(state), tok);
+        expect(state, ";");
         return node;
     }
 
-    if (tok_consume(pToks, "if")) {
+    if (consume(state, "if")) {
         Node* node = new_node(ND_IF, tok);
-        tok_expect(pToks, "(");
-        node->cond = parse_expr(pToks);
-        tok_expect(pToks, ")");
-        node->then = parse_stmt(pToks);
-        if (tok_consume(pToks, "else")) {
-            node->els = parse_stmt(pToks);
+        expect(state, "(");
+        node->cond = parse_expr(state);
+        expect(state, ")");
+        node->then = parse_stmt(state);
+        if (consume(state, "else")) {
+            node->els = parse_stmt(state);
         }
         return node;
     }
 
-    if (tok_consume(pToks, "for")) {
+    if (consume(state, "for")) {
         Node* node = new_node(ND_FOR, tok);
 
-        tok_expect(pToks, "(");
-        node->init = parse_expr_stmt(pToks);
-        if (!tok_consume(pToks, ";")) {
-            node->cond = parse_expr(pToks);
-            tok_expect(pToks, ";");
+        expect(state, "(");
+        node->init = parse_expr_stmt(state);
+        if (!consume(state, ";")) {
+            node->cond = parse_expr(state);
+            expect(state, ";");
         }
-        if (!tok_consume(pToks, ")")) {
-            node->inc = parse_expr(pToks);
-            tok_expect(pToks, ")");
+        if (!consume(state, ")")) {
+            node->inc = parse_expr(state);
+            expect(state, ")");
         }
 
-        node->then = parse_stmt(pToks);
+        node->then = parse_stmt(state);
         return node;
     }
 
-    if (tok_consume(pToks, "while")) {
+    if (consume(state, "while")) {
         Node* node = new_node(ND_FOR, tok);
-        tok_expect(pToks, "(");
-        node->cond = parse_expr(pToks);
-        tok_expect(pToks, ")");
-        node->then = parse_stmt(pToks);
+        expect(state, "(");
+        node->cond = parse_expr(state);
+        expect(state, ")");
+        node->then = parse_stmt(state);
         return node;
     }
 
-    if (tok_consume(pToks, "{")) {
-        return parse_compound_stmt(pToks);
+    if (consume(state, "{")) {
+        return parse_compound_stmt(state);
     }
 
-    return parse_expr_stmt(pToks);
+    return parse_expr_stmt(state);
 }
 
-static bool is_typename(ListNode* tok)
+static bool is_typename(Token* tok)
 {
     static const char* s_types[] = {
 #define DEFINE_BASE_TYPE(name, enum, sz, al) #name,
@@ -751,7 +747,7 @@ static bool is_typename(ListNode* tok)
     };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
-        if (tok_eq(tok, s_types[i])) {
+        if (is_token_equal(tok, s_types[i])) {
             return true;
         }
     }
@@ -760,19 +756,19 @@ static bool is_typename(ListNode* tok)
 }
 
 // compound-stmt = (declaration | stmt)* "}"
-static Node* parse_compound_stmt(ListNode** pToks)
+static Node* parse_compound_stmt(ParserState* state)
 {
-    Token* tok = as_tok(pToks[0]->prev);
+    Token* tok = peek(state); // TODO: fix token
     Node head = { .next = NULL };
     Node* cur = &head;
 
     enter_scope();
 
-    while (!tok_consume(pToks, "}")) {
-        if (is_typename(*pToks)) {
-            cur = cur->next = parse_decl(pToks);
+    while (!consume(state, "}")) {
+        if (is_typename(peek(state))) {
+            cur = cur->next = parse_decl(state);
         } else {
-            cur = cur->next = parse_stmt(pToks);
+            cur = cur->next = parse_stmt(state);
         }
         add_type(cur);
     }
@@ -786,7 +782,7 @@ static Node* parse_compound_stmt(ListNode** pToks)
 
 // declspec = "void" | "char" | "short" | "int" | "long"
 //          | struct-decl | union-decl
-static Type* parse_declspec(ListNode** pToks)
+static Type* parse_declspec(ParserState* state)
 {
     enum {
         VOID = 1 << 0,
@@ -797,33 +793,33 @@ static Type* parse_declspec(ListNode** pToks)
         OTHER = 1 << 10,
     };
 
-    Token* tok = as_tok(*pToks);
+    Token* tok = peek(state);
     Type* ty = g_int_type;
     int counter = 0;
 
-    while (is_typename(*pToks)) {
+    while (is_typename(peek(state))) {
         // Handle user-defined types.
-        if (tok_consume(pToks, "struct")) {
-            ty = parse_struct_decl(pToks);
+        if (consume(state, "struct")) {
+            ty = parse_struct_decl(state);
             counter += OTHER;
             continue;
         }
 
-        if (tok_consume(pToks, "union")) {
-            ty = parse_union_decl(pToks);
+        if (consume(state, "union")) {
+            ty = parse_union_decl(state);
             counter += OTHER;
             continue;
         }
 
-        if (tok_consume(pToks, "void"))
+        if (consume(state, "void"))
             counter += VOID;
-        else if (tok_consume(pToks, "char"))
+        else if (consume(state, "char"))
             counter += CHAR;
-        else if (tok_consume(pToks, "short"))
+        else if (consume(state, "short"))
             counter += SHORT;
-        else if (tok_consume(pToks, "int"))
+        else if (consume(state, "int"))
             counter += INT;
-        else if (tok_consume(pToks, "long"))
+        else if (consume(state, "long"))
             counter += LONG;
         else
             UNREACHABLE();
@@ -859,16 +855,16 @@ static Type* parse_declspec(ListNode** pToks)
 // type-suffix = ("(" func-params? ")")?
 // func-params = param ("," param)*
 // param       = declspec declarator
-static Type* parse_func_params(ListNode** pToks, Type* type)
+static Type* parse_func_params(ParserState* state, Type* type)
 {
     Type head = { .next = NULL };
     Type* cur = &head;
-    while (!tok_consume(pToks, ")")) {
+    while (!consume(state, ")")) {
         if (cur != &head) {
-            tok_expect(pToks, ",");
+            expect(state, ",");
         }
-        Type* basety = parse_declspec(pToks);
-        Type* ty = parse_declarator(pToks, basety);
+        Type* basety = parse_declspec(state);
+        Type* ty = parse_declarator(state, basety);
         cur = cur->next = copy_type(ty);
     }
     type = func_type(type);
@@ -887,17 +883,17 @@ static int64_t get_number(Token* tok)
 // type-suffix = "(" func-params
 //             | "[" num "]" type-suffix
 //             | ε
-static Type* parse_type_suffix(ListNode** pToks, Type* type)
+static Type* parse_type_suffix(ParserState* state, Type* type)
 {
-    if (tok_consume(pToks, "(")) {
-        return parse_func_params(pToks, type);
+    if (consume(state, "(")) {
+        return parse_func_params(state, type);
     }
 
-    if (tok_consume(pToks, "[")) {
-        int arrayLen = (int)get_number(as_tok(*pToks));
-        tok_shift(pToks);
-        tok_expect(pToks, "]");
-        type = parse_type_suffix(pToks, type);
+    if (consume(state, "[")) {
+        int arrayLen = (int)get_number(peek(state));
+        read(state);
+        expect(state, "]");
+        type = parse_type_suffix(state, type);
         return array_of(type, arrayLen);
     }
 
@@ -905,48 +901,49 @@ static Type* parse_type_suffix(ListNode** pToks, Type* type)
 }
 
 // declarator = "*"* ident type-suffix
-static Type* parse_declarator(ListNode** pToks, Type* type)
+static Type* parse_declarator(ParserState* state, Type* type)
 {
-    while (tok_consume(pToks, "*")) {
+    while (consume(state, "*")) {
         type = pointer_to(type);
     }
 
-    Token* tok = as_tok(*pToks);
+    Token* tok = peek(state);
     if (tok->eTokenKind != TK_IDENT) {
         error_tok(tok, "expected a variable name");
     }
 
-    tok_shift(pToks);
-    type = parse_type_suffix(pToks, type);
+    read(state);
+    type = parse_type_suffix(state, type);
     type->name = tok;
     return type;
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-static Node* parse_decl(ListNode** pToks)
+static Node* parse_decl(ParserState* state)
 {
-    Type* base_type = parse_declspec(pToks);
+    Type* base_type = parse_declspec(state);
     Node head = { .next = NULL };
     Node* cur = &head;
     int i = 0;
-    while (!tok_consume(pToks, ";")) {
+    while (!consume(state, ";")) {
         if (i++ > 0) {
-            tok_expect(pToks, ",");
+            expect(state, ",");
         }
 
-        Type* type = parse_declarator(pToks, base_type);
+        Type* type = parse_declarator(state, base_type);
         Obj* var = new_lvar(get_ident(type->name), type);
 
-        if (tok_consume(pToks, "=")) {
-            const Token* eqTok = as_tok(pToks[0]->prev);
+        const Token* tok = peek(state);
+        if (is_token_equal(tok, "=")) {
+            read(state);
             Node* lhs = new_var(var, type->name);
-            Node* rhs = parse_assign(pToks);
-            Node* node = new_binary(ND_ASSIGN, lhs, rhs, eqTok);
+            Node* rhs = parse_assign(state);
+            Node* node = new_binary(ND_ASSIGN, lhs, rhs, tok);
             cur = cur->next = new_unary(ND_EXPR_STMT, node, lhs->tok);
         }
     }
 
-    Node* node = new_node(ND_BLOCK, as_tok(*pToks));
+    Node* node = new_node(ND_BLOCK, peek(state));
     node->body = head.next;
     return node;
 }
@@ -959,26 +956,26 @@ static void create_param_lvars(Type* param)
     }
 }
 
-static void parse_global_variable(ListNode** pToks, Type* basety)
+static void parse_global_variable(ParserState* state, Type* basety)
 {
-    int cnt = 0;
-    while (!tok_consume(pToks, ";")) {
-        if (cnt) {
-            tok_expect(pToks, ",");
+    int i = 0;
+    while (!consume(state, ";")) {
+        if (i) {
+            expect(state, ",");
         }
+        ++i;
 
-        Type* type = parse_declarator(pToks, basety);
+        Type* type = parse_declarator(state, basety);
         new_gvar(get_ident(type->name), type);
-        ++cnt;
     }
 }
 
-static Obj* parse_function(ListNode** pToks, Type* basetpye)
+static Obj* parse_function(ParserState* state, Type* basetpye)
 {
-    Type* type = parse_declarator(pToks, basetpye);
+    Type* type = parse_declarator(state, basetpye);
     Obj* fn = new_gvar(get_ident(type->name), type);
     fn->isFunc = true;
-    fn->isDefinition = !tok_consume(pToks, ";");
+    fn->isDefinition = !consume(state, ";");
     if (!fn->isDefinition) {
         return fn;
     }
@@ -989,8 +986,8 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
 
     create_param_lvars(type->params);
     fn->params = s_locals;
-    tok_expect(pToks, "{");
-    fn->body = parse_compound_stmt(pToks);
+    expect(state, "{");
+    fn->body = parse_compound_stmt(state);
     fn->locals = s_locals;
 
     leave_scope();
@@ -1000,34 +997,38 @@ static Obj* parse_function(ListNode** pToks, Type* basetpye)
 
 // Lookahead tokens and returns true if a given token is a start
 // of a function definition or declaration.
-static bool is_function(ListNode** pToks)
+static bool is_function(ParserState* state)
 {
-    if (tok_eq(*pToks, ";")) {
+    if (equal(state, ";")) {
         return false;
     }
 
     Type dummy;
-    Type* type = parse_declarator(pToks, &dummy);
+    Type* type = parse_declarator(state, &dummy);
     return type->eTypeKind == TY_FUNC;
 }
 
 // program = (function-definition | global-variable)*
-Obj* parse(List* toks)
+Obj* parse(Array* tokens)
 {
+    ParserState state;
+    state.tokenArray = tokens;
+    state.index = 0;
+
     s_globals = NULL;
-    ListNode* iter = toks->front;
-    while (as_tok(iter)->eTokenKind != TK_EOF) {
-        Type* basetype = parse_declspec(&iter);
+    while (peek(&state)->eTokenKind != TK_EOF) {
+        Type* basetype = parse_declspec(&state);
 
-        ListNode* dummy = iter;
-        // do not pass the actual iter
+        // restore index
         // because we only need to peek ahead to find out if object is a function or not
-        if (is_function(&dummy)) {
-            parse_function(&iter, basetype);
-            continue;
+        int oldIndex = state.index;
+        bool isFunc = is_function(&state);
+        state.index = oldIndex;
+        if (isFunc) {
+            parse_function(&state, basetype);
+        } else {
+            parse_global_variable(&state, basetype);
         }
-
-        parse_global_variable(&iter, basetype);
     }
     return s_globals;
 }

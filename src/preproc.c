@@ -1,6 +1,6 @@
 #include "minic.h"
 
-static void preproc2(Array* inToks, List* outToks);
+static void preproc2(Array* inToks, Array* outToks);
 
 static bool is_hash(const Token* tok)
 {
@@ -34,7 +34,7 @@ const Token* get_tok_line(Array* toks, int line, int idx)
     return tok;
 }
 
-static int handle_directive(Array* toks, const Token* hash, int idx, List* outToks)
+static int handle_directive(Array* toks, const Token* hash, int idx, Array* outToks)
 {
     const int line = hash->line;
     for (;;) {
@@ -43,7 +43,7 @@ static int handle_directive(Array* toks, const Token* hash, int idx, List* outTo
             break;
         }
 
-        if (tok_equal(tok, "include")) {
+        if (is_token_equal(tok, "include")) {
             const Token* tok2 = get_tok_line(toks, line, idx + 1);
             if (tok2 && tok2->eTokenKind == TK_STR) {
                 char file[MAX_OSPATH];
@@ -71,12 +71,12 @@ static int handle_directive(Array* toks, const Token* hash, int idx, List* outTo
     return idx;
 }
 
-static void preproc2(Array* inToks, List* outToks)
+static void preproc2(Array* inToks, Array* outToks)
 {
     for (int idx = 0; idx < inToks->len;) {
         const Token* tok = array_at(const Token, inToks, idx);
         if (!is_hash(tok)) {
-            _list_push_back(outToks, tok, sizeof(Token));
+            _array_push_back(outToks, tok);
             ++idx;
             continue;
         }
@@ -90,7 +90,7 @@ static void preproc2(Array* inToks, List* outToks)
     }
 }
 
-static void convert_kw(const List* toks)
+static void convert_kw(Array* toks)
 {
     static const char* const s_keywords[] = {
         "auto", "break", "char", "const", "continue", "do", "else", "enum",
@@ -98,9 +98,8 @@ static void convert_kw(const List* toks)
         "struct", "typedef", "union", "unsigned", "void", "while"
     };
 
-    for (ListNode* c = toks->front; c; c = c->next) {
-        Token* tok = (Token*)(c + 1);
-
+    for (int i = 0; i < toks->len; ++i) {
+        Token* tok = array_at(Token, toks, i);
         for (size_t i = 0; i < ARRAY_COUNTER(s_keywords); ++i) {
             const int len = (int)strlen(s_keywords[i]);
             if (len == tok->len && strncmp(tok->start, s_keywords[i], len) == 0) {
@@ -113,16 +112,17 @@ static void convert_kw(const List* toks)
     return;
 }
 
-List* preproc(Array* rawtoks)
+Array* preproc(Array* rawtoks)
 {
-    List* toks = list_new();
+    Array* toks = array_new(sizeof(Token), 128);
     preproc2(rawtoks, toks);
 
     // convert keywords
     convert_kw(toks);
 
     // add eof
-    const Token* last = list_back(const Token, toks);
+    // @TODO: array_back()
+    const Token* last = array_at(Token, toks, toks->len - 1);
     Token eof;
     memset(&eof, 0, sizeof(Token));
     eof.eTokenKind = TK_EOF;
@@ -130,7 +130,7 @@ List* preproc(Array* rawtoks)
     eof.col = last->col + last->len;
     eof.start = eof.end = (last->end);
     eof.sourceInfo = last->sourceInfo;
-    list_push_back(toks, eof);
+    array_push_back(Token, toks, eof);
 
     return toks;
 }

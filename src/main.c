@@ -80,14 +80,16 @@ int main(int argc, const char** argv)
 
     Array* rawToks = lex(s_input);
     DEBUG_ONLY(fprintf(stderr, "*** lex ***\n"));
-    List* toks = preproc(rawToks);
+    Array* toks = preproc(rawToks);
     DEBUG_ONLY(debug_print_tokens(toks));
 
     DEBUG_ONLY(fprintf(stderr, "*** parse ***\n"));
+
     Obj* prog = parse(toks);
     DEBUG_ONLY(fprintf(stderr, "*** generate code ***\n"));
     gen(prog, s_input, s_output);
 
-    list_delete(toks);
+    array_clear(toks);
+    free(toks);
     return 0;
 }

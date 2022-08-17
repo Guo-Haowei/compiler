@@ -143,7 +143,7 @@ char const* node_kind_to_string(NodeKind eNodeKind)
     return s_names[eNodeKind];
 }
 
-void debug_print_token(Token const* tok)
+void debug_print_token(const Token* tok)
 {
     if (tok->isFirstTok) {
         fprintf(stderr, "line: %d\n", tok->line);
@@ -158,10 +158,10 @@ void debug_print_token(Token const* tok)
         tok->start);
 }
 
-void debug_print_tokens(List const* toks)
+void debug_print_tokens(Array* toks)
 {
     fprintf(stderr, "*** tokens ***\n");
-    for (ListNode const* n = toks->front; n; n = n->next) {
-        debug_print_token((Token const*)(n + 1));
+    for (int i = 0; i < toks->len; ++i) {
+        debug_print_token(array_at(Token, toks, i));
     }
 }

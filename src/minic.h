@@ -195,16 +195,16 @@ Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
 void add_type(Node* node);
 
-bool tok_equal(const Token* tok, const char* expect);
+bool is_token_equal(const Token* token, const char* symbol);
 
 /// lexing and preprocessing
 /// pass1: lex source to an array of tokens, cache for reuse
 /// pass2: preprocess, such as #include, #if...
 /// pass3: cleanup and check if keywords
 Array* lex(const char* filename);
-List* preproc(Array* toks);
+Array* preproc(Array* toks);
 
-Obj* parse(List* toks);
+Obj* parse(Array* toks);
 
 void gen(Obj* prog, const char* srcname, const char* asmname);
 
@@ -220,7 +220,7 @@ const char* token_kind_to_string(TokenKind eTokenKind);
 const char* node_kind_to_string(NodeKind eNodeKind);
 
 // DEBUG
-void debug_print_token(Token const* tok);
-void debug_print_tokens(List const* toks);
+void debug_print_token(const Token* tok);
+void debug_print_tokens(Array* toks);
 
 #endif

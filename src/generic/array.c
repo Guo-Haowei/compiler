@@ -31,6 +31,13 @@ void array_init(struct Array* arr, int eleSize, int cap)
     array_new_cap(arr, cap);
 }
 
+struct Array* array_new(int eleSize, int cap)
+{
+    struct Array* arr = calloc(1, sizeof(struct Array));
+    array_init(arr, eleSize, cap);
+    return arr;
+}
+
 void array_clear(struct Array* arr)
 {
     free(arr->buffer);
@@ -45,7 +52,7 @@ void* _array_at(struct Array* arr, int idx)
     return arr->buffer + idx * arr->eleSize;
 }
 
-void _array_push_back(struct Array* arr, void* data)
+void _array_push_back(struct Array* arr, const void* data)
 {
     assert(arr->eleSize);
     assert(arr->buffer);

@@ -5,6 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+bool is_token_equal(const Token* token, const char* symbol)
+{
+    const int len = (int)strlen(symbol);
+    if (token->len != len) {
+        return false;
+    }
+
+    return strncmp(token->start, symbol, len) == 0;
+}
+
 static bool is_ident1(char const c)
 {
     return isalpha(c) || c == '_';
