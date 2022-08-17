@@ -87,7 +87,7 @@ void error_tok(const Token* tok, const char* const fmt, ...)
     const int line = tok->line;
     const int col = tok->col;
     int span = tok->len;
-    if (tok->eTokenKind == TK_EOF) {
+    if (tok->kind == TK_EOF) {
         span = 1;
     }
 
@@ -105,7 +105,7 @@ void warn_tok(const Token* tok, const char* const fmt, ...)
     const int line = tok->line;
     const int col = tok->col;
     int span = tok->len;
-    if (tok->eTokenKind == TK_EOF) {
+    if (tok->kind == TK_EOF) {
         span = 1;
     }
 
@@ -153,15 +153,16 @@ void debug_print_token(const Token* tok)
         tok->sourceInfo->file,
         tok->line,
         tok->col,
-        token_kind_to_string(tok->eTokenKind),
+        token_kind_to_string(tok->kind),
         tok->len,
         tok->start);
 }
 
-void debug_print_tokens(Array* toks)
+void debug_print_tokens(List* toks)
 {
     fprintf(stderr, "*** tokens ***\n");
-    for (int i = 0; i < toks->len; ++i) {
-        debug_print_token(array_at(Token, toks, i));
+    for (ListNode* c = toks->front; c; c = c->next) {
+        Token* tok = (Token*)(c + 1);
+        debug_print_token(tok);
     }
 }

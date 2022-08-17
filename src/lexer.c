@@ -5,16 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool is_token_equal(const Token* token, const char* symbol)
-{
-    const int len = (int)strlen(symbol);
-    if (token->len != len) {
-        return false;
-    }
-
-    return strncmp(token->start, symbol, len) == 0;
-}
-
 static bool is_ident1(char const c)
 {
     return isalpha(c) || c == '_';
@@ -74,20 +64,20 @@ static void lexer_fill_tok(Lexer const* lexer, Token* tok)
     tok->start = lexer->p;
     tok->sourceInfo = lexer->sourceInfo;
     tok->isFirstTok = false;
+    tok->raw = NULL;
 }
 
 static void add_decimal_number(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.eTokenKind = TK_NUM;
+    tok.kind = TK_NUM;
     lexer_fill_tok(lexer, &tok);
 
     while (isdigit(lexer_peek(lexer))) {
         lexer_read(lexer);
     }
 
-    tok.end = lexer->p;
-    tok.len = (int)(tok.end - tok.start);
+    tok.len = (int)(lexer->p - tok.start);
 
     tok.val = atoll(tok.start);
     array_push_back(Token, arr, tok);
@@ -184,10 +174,9 @@ static void add_string(Lexer* lexer, Array* arr)
     ++len;
 
     Token tok;
-    tok.eTokenKind = TK_STR;
+    tok.kind = TK_STR;
     lexer_fill_tok(lexer, &tok);
-    tok.end = end;
-    tok.len = (int)(tok.end - tok.start);
+    tok.len = (int)(end - tok.start);
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -202,15 +191,14 @@ static void add_string(Lexer* lexer, Array* arr)
 static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.eTokenKind = TK_IDENT;
+    tok.kind = TK_IDENT;
     lexer_fill_tok(lexer, &tok);
 
     lexer_read(lexer);
     while (is_ident2(lexer_peek(lexer))) {
         lexer_read(lexer);
     }
-    tok.end = lexer->p;
-    tok.len = (int)(tok.end - tok.start);
+    tok.len = (int)(lexer->p - tok.start);
 
     array_push_back(Token, arr, tok);
 }
@@ -218,11 +206,10 @@ static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
 static void add_one_char_punct(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.eTokenKind = TK_PUNCT;
+    tok.kind = TK_PUNCT;
     lexer_fill_tok(lexer, &tok);
 
     lexer_read(lexer);
-    tok.end = lexer->p;
     tok.len = 1;
 
     array_push_back(Token, arr, tok);
@@ -238,10 +225,9 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
     for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
         if (begin_with(lexer->p, s_multi_char_puncts[i])) {
             Token tok;
-            tok.eTokenKind = TK_PUNCT;
+            tok.kind = TK_PUNCT;
             lexer_fill_tok(lexer, &tok);
             tok.len = (int)strlen(s_multi_char_puncts[i]);
-            tok.end = tok.start + tok.len;
             lexer_shift(lexer, tok.len);
             array_push_back(Token, arr, tok);
             return true;
@@ -257,7 +243,7 @@ static void check_if_bol(Array* toks)
 
     for (int idx = 0; idx < toks->len; ++idx) {
         Token* tok = array_at(Token, toks, idx);
-        if (tok->eTokenKind == TK_EOF) {
+        if (tok->kind == TK_EOF) {
             break;
         }
 
@@ -272,7 +258,6 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
 {
     Array* cached = fcache_get(sourceInfo->file);
     if (cached) {
-        assert(0 && "It's not possible to have cache without implementing #include");
         return cached;
     }
 

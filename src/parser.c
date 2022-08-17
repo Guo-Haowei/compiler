@@ -4,18 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TOKSTR(TOK) (TOK)->len, (TOK)->start
-
 typedef struct {
-    Array* tokenArray;
-    int index;
+    List* tokens;
+    ListNode* cursor;
 } ParserState;
 
 /// token stream
 static Token* peekN(ParserState* state, int n)
 {
-    assert(state->index + n < state->tokenArray->len);
-    return array_at(Token, state->tokenArray, state->index + n);
+    ListNode* c = state->cursor;
+    for (int i = 0; i < n; ++i) {
+        assert(c);
+        c = c->next;
+    }
+
+    return (Token*)(c + 1);
 }
 
 static Token* peek(ParserState* state)
@@ -26,7 +29,7 @@ static Token* peek(ParserState* state)
 static Token* read(ParserState* state)
 {
     Token* tok = peek(state);
-    ++state->index;
+    state->cursor = state->cursor->next;
     return tok;
 }
 
@@ -38,7 +41,7 @@ static bool equal(ParserState* state, const char* symbol)
 static bool consume(ParserState* state, const char* symbol)
 {
     if (equal(state, symbol)) {
-        ++state->index;
+        state->cursor = state->cursor->next;
         return true;
     }
     return false;
@@ -48,11 +51,11 @@ static void expect(ParserState* state, const char* symbol)
 {
     const Token* token = peek(state);
     if (is_token_equal(token, symbol)) {
-        ++state->index;
+        state->cursor = state->cursor->next;
         return;
     }
 
-    error_tok(token, "expected '%s', got '%.*s'", symbol, TOKSTR(token));
+    error_tok(token, "expected '%s', got '%s'", symbol, token->raw);
 }
 
 // All local variable instances created during parsing are
@@ -199,7 +202,7 @@ static Type* find_tag(Token* tok)
 {
     for (Scope* sc = s_scope; sc; sc = sc->next) {
         for (TagScope* sc2 = sc->tags; sc2; sc2 = sc2->next) {
-            if (strncmp(tok->start, sc2->name, tok->len) == 0) {
+            if (strcmp(tok->raw, sc2->name) == 0) {
                 return sc2->ty;
             }
         }
@@ -211,7 +214,7 @@ static Obj* find_var(Token const* tok)
 {
     for (Scope* sc1 = s_scope; sc1; sc1 = sc1->next) {
         for (VarScope* sc2 = sc1->vars; sc2; sc2 = sc2->next) {
-            if (strncmp(tok->start, sc2->name, tok->len) == 0) {
+            if (strcmp(tok->raw, sc2->name) == 0) {
                 return sc2->var;
             }
         }
@@ -240,7 +243,7 @@ static Obj* new_string_literal(char* p, Type* type, Token* tok)
 
 static char* get_ident(const Token* tok)
 {
-    if (tok->eTokenKind != TK_IDENT) {
+    if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
     }
     return strncopy(tok->start, tok->len);
@@ -281,33 +284,33 @@ static Node* parse_primary(ParserState* state)
         return new_num(node->type->size, tok);
     }
 
-    if (tok->eTokenKind == TK_NUM) {
+    if (tok->kind == TK_NUM) {
         Node* node = new_num(tok->val, tok);
         read(state);
         return node;
     }
 
-    if (tok->eTokenKind == TK_STR) {
+    if (tok->kind == TK_STR) {
         Obj* var = new_string_literal(tok->str, tok->type, tok);
         read(state);
         return new_var(var, tok);
     }
 
-    if (tok->eTokenKind == TK_IDENT) {
+    if (tok->kind == TK_IDENT) {
         if (is_token_equal(peekN(state, 1), "(")) {
             return parse_funccall(state);
         }
 
         Obj* var = find_var(tok);
         if (!var) {
-            error_tok(tok, "undefined variable '%.*s'", TOKSTR(tok));
+            error_tok(tok, "undefined variable '%s'", tok->raw);
         }
 
         read(state);
         return new_var(var, tok);
     }
 
-    error_tok(tok, "expected expression before '%.*s' token", TOKSTR(tok));
+    error_tok(tok, "expected expression before '%s' token", tok->raw);
     return NULL;
 }
 
@@ -364,7 +367,7 @@ static Type* parse_struct_union_decl(ParserState* state)
     // Read a struct tag.
     Token* tag = NULL;
     Token* tok = peek(state);
-    if (tok->eTokenKind == TK_IDENT) {
+    if (tok->kind == TK_IDENT) {
         tag = tok;
         read(state);
     }
@@ -372,7 +375,7 @@ static Type* parse_struct_union_decl(ParserState* state)
     if (tag && !equal(state, "{")) {
         Type* ty = find_tag(tag);
         if (!ty) {
-            error_tok(tag, "unknown struct %.*s", TOKSTR(tag));
+            error_tok(tag, "unknown struct %s", tag->raw);
         }
         return ty;
     }
@@ -428,11 +431,11 @@ static Type* parse_union_decl(ParserState* state)
 static Member* get_struct_member(Type* ty, Token* tok)
 {
     for (Member* mem = ty->members; mem; mem = mem->next) {
-        if (mem->name->len == tok->len && !strncmp(mem->name->start, tok->start, tok->len)) {
+        if (mem->name->len == tok->len && !strcmp(mem->name->raw, tok->raw)) {
             return mem;
         }
     }
-    error_tok(tok, "no member '%.*s'", TOKSTR(tok));
+    error_tok(tok, "no member '%s'", tok->raw);
     return NULL;
 }
 
@@ -643,7 +646,7 @@ static Node* parse_funccall(ParserState* state)
         cur = cur->next = parse_assign(state);
     }
     Node* node = new_node(ND_FUNCCALL, funcname);
-    node->funcname = strncopy(funcname->start, funcname->len);
+    node->funcname = strncopy(funcname->raw, funcname->len);
     node->args = head.next;
     node->argc = argc;
     return node;
@@ -874,7 +877,7 @@ static Type* parse_func_params(ParserState* state, Type* type)
 
 static int64_t get_number(Token* tok)
 {
-    if (tok->eTokenKind != TK_NUM) {
+    if (tok->kind != TK_NUM) {
         error_tok(tok, "expected a number");
     }
     return tok->val;
@@ -908,7 +911,7 @@ static Type* parse_declarator(ParserState* state, Type* type)
     }
 
     Token* tok = peek(state);
-    if (tok->eTokenKind != TK_IDENT) {
+    if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected a variable name");
     }
 
@@ -1009,21 +1012,21 @@ static bool is_function(ParserState* state)
 }
 
 // program = (function-definition | global-variable)*
-Obj* parse(Array* tokens)
+Obj* parse(List* tokens)
 {
     ParserState state;
-    state.tokenArray = tokens;
-    state.index = 0;
+    state.tokens = tokens;
+    state.cursor = tokens->front;
 
     s_globals = NULL;
-    while (peek(&state)->eTokenKind != TK_EOF) {
+    while (peek(&state)->kind != TK_EOF) {
         Type* basetype = parse_declspec(&state);
 
         // restore index
         // because we only need to peek ahead to find out if object is a function or not
-        int oldIndex = state.index;
+        ListNode* oldCursor = state.cursor;
         bool isFunc = is_function(&state);
-        state.index = oldIndex;
+        state.cursor = oldCursor;
         if (isFunc) {
             parse_function(&state, basetype);
         } else {

@@ -148,8 +148,6 @@ static void gen_cmp_expr(NodeKind eNodeKind)
 
 static void gen_expr(Node const* node)
 {
-    writeln(".loc 1 %d", node->tok->line);
-
     switch (node->eNodeKind) {
     case ND_NUM:
         writeln("  mov $%ld, %%rax", node->val);
@@ -342,7 +340,7 @@ static void emit_data(Obj* prog)
         writeln("  .globl %s", var->name);
         Token* tok = var->tok;
         if (tok) {
-            writeln("# %.*s", tok->len, tok->start);
+            writeln("# %s", tok->raw);
         }
         writeln("%s:", var->name);
 

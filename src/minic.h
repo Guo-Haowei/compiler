@@ -47,25 +47,26 @@ typedef struct Type Type;
 typedef struct Obj Obj;
 typedef struct Member Member;
 
-typedef struct Token {
-    TokenKind eTokenKind;
+typedef struct Token Token;
+struct Token {
+    TokenKind kind;
     int line;
     int col;
-    char const* start;
-    char const* end;
+    const char* start;
     int len;
 
     const SourceInfo* sourceInfo;
 
     // int
     int64_t val;
-
     // string
     Type* type;
     char* str;
 
-    bool isFirstTok; // first token at line
-} Token;
+    char* raw;
+
+    bool isFirstTok;
+};
 
 // Variable or function
 struct Obj {
@@ -202,9 +203,9 @@ bool is_token_equal(const Token* token, const char* symbol);
 /// pass2: preprocess, such as #include, #if...
 /// pass3: cleanup and check if keywords
 Array* lex(const char* filename);
-Array* preproc(Array* toks);
+List* preproc(Array* toks);
 
-Obj* parse(Array* toks);
+Obj* parse(List* toks);
 
 void gen(Obj* prog, const char* srcname, const char* asmname);
 
@@ -221,6 +222,6 @@ const char* node_kind_to_string(NodeKind eNodeKind);
 
 // DEBUG
 void debug_print_token(const Token* tok);
-void debug_print_tokens(Array* toks);
+void debug_print_tokens(List* toks);
 
 #endif

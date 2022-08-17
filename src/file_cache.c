@@ -1,34 +1,48 @@
 #include "minic.h"
 
 typedef struct {
-    char absPath[MAX_OSPATH];
+    char path[MAX_OSPATH];
     Array* tokenArray;
 } FileCache;
 
-static Array s_filecaches;
+static Array* s_filecaches;
 
-Array* fcache_get(const char* absPath)
+static void fcache_init()
 {
-    for (int idx = 0; idx < s_filecaches.len; ++idx) {
-        FileCache* fcache = array_at(FileCache, &s_filecaches, idx);
-        if (strcmp(fcache->absPath, absPath) == 0) {
+    s_filecaches = array_new(sizeof(FileCache), 4);
+}
+
+Array* fcache_get(const char* path)
+{
+    if (!s_filecaches) {
+        fcache_init();
+    }
+
+    for (int idx = 0; idx < s_filecaches->len; ++idx) {
+        FileCache* fcache = array_at(FileCache, s_filecaches, idx);
+        if (strcmp(fcache->path, path) == 0) {
             return fcache->tokenArray;
         }
     }
     return NULL;
 }
 
-bool fcache_add(const char* absPath, Array* toks)
+bool fcache_add(const char* path, Array* toks)
 {
-    for (int idx = 0; idx < s_filecaches.len; ++idx) {
-        FileCache* fcache = array_at(FileCache, &s_filecaches, idx);
-        if (strcmp(fcache->absPath, absPath) == 0) {
+    if (!s_filecaches) {
+        fcache_init();
+    }
+
+    for (int idx = 0; idx < s_filecaches->len; ++idx) {
+        FileCache* fcache = array_at(FileCache, s_filecaches, idx);
+        if (strcmp(fcache->path, path) == 0) {
             return false;
         }
     }
 
     FileCache fcache;
-    strncpy(fcache.absPath, absPath, MAX_OSPATH);
+    strncpy(fcache.path, path, MAX_OSPATH);
     fcache.tokenArray = toks;
+    _array_push_back(s_filecaches, &fcache);
     return true;
 }
