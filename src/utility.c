@@ -1,6 +1,5 @@
-#include "utility.h"
-
 #include "generic/list.h"
+#include "minic.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -100,4 +99,56 @@ size_t path_simplify(const char* inputPath, char* buf)
     free(parts);
 
     return len;
+}
+
+Token* tr_peek_n(TokenReader* reader, int n)
+{
+    ListNode* c = reader->cursor;
+    for (int i = 0; i < n; ++i) {
+        if (!c) {
+            return NULL;
+        }
+        c = c->next;
+    }
+    return c ? (Token*)(c + 1) : NULL;
+}
+
+Token* tr_peek(TokenReader* reader)
+{
+    return tr_peek_n(reader, 0);
+}
+
+Token* tr_read(TokenReader* reader)
+{
+    Token* ret = tr_peek(reader);
+    assert(ret);
+    reader->cursor = reader->cursor->next;
+    return ret;
+}
+
+bool tr_equal(TokenReader* reader, const char* symbol)
+{
+    return is_token_equal(tr_peek(reader), symbol);
+}
+
+bool tr_consume(TokenReader* reader, const char* symbol)
+{
+    if (tr_equal(reader, symbol)) {
+        assert(reader->cursor);
+        reader->cursor = reader->cursor->next;
+        return true;
+    }
+
+    return false;
+}
+
+void tr_expect(TokenReader* reader, const char* symbol)
+{
+    Token* token = tr_peek(reader);
+    if (is_token_equal(token, symbol)) {
+        reader->cursor = reader->cursor->next;
+        return;
+    }
+
+    error_tok(token, "expected '%s', got '%s'", symbol, token->raw);
 }

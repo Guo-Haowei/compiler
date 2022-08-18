@@ -61,10 +61,11 @@ static void lexer_fill_tok(Lexer const* lexer, Token* tok)
 {
     tok->line = lexer->line;
     tok->col = lexer->col;
-    tok->start = lexer->p;
+    tok->p = lexer->p;
     tok->sourceInfo = lexer->sourceInfo;
     tok->isFirstTok = false;
     tok->raw = NULL;
+    tok->expandedFrom = NULL;
 }
 
 static void add_decimal_number(Lexer* lexer, Array* arr)
@@ -77,9 +78,9 @@ static void add_decimal_number(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    tok.len = (int)(lexer->p - tok.start);
+    tok.len = (int)(lexer->p - tok.p);
 
-    tok.val = atoll(tok.start);
+    tok.val = atoll(tok.p);
     array_push_back(Token, arr, tok);
 }
 
@@ -176,7 +177,7 @@ static void add_string(Lexer* lexer, Array* arr)
     Token tok;
     tok.kind = TK_STR;
     lexer_fill_tok(lexer, &tok);
-    tok.len = (int)(end - tok.start);
+    tok.len = (int)(end - tok.p);
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -198,7 +199,7 @@ static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
     while (is_ident2(lexer_peek(lexer))) {
         lexer_read(lexer);
     }
-    tok.len = (int)(lexer->p - tok.start);
+    tok.len = (int)(lexer->p - tok.p);
 
     array_push_back(Token, arr, tok);
 }

@@ -5,57 +5,38 @@
 #include <string.h>
 
 typedef struct {
-    List* tokens;
-    ListNode* cursor;
+    TokenReader reader;
 } ParserState;
 
 /// token stream
-static Token* peekN(ParserState* state, int n)
+static Token* peek_n(ParserState* state, int n)
 {
-    ListNode* c = state->cursor;
-    for (int i = 0; i < n; ++i) {
-        assert(c);
-        c = c->next;
-    }
-
-    return (Token*)(c + 1);
+    return tr_peek_n(&(state->reader), n);
 }
 
 static Token* peek(ParserState* state)
 {
-    return peekN(state, 0);
+    return peek_n(state, 0);
 }
 
 static Token* read(ParserState* state)
 {
-    Token* tok = peek(state);
-    state->cursor = state->cursor->next;
-    return tok;
+    return tr_read(&(state->reader));
 }
 
 static bool equal(ParserState* state, const char* symbol)
 {
-    return is_token_equal(peek(state), symbol);
+    return tr_equal(&(state->reader), symbol);
 }
 
 static bool consume(ParserState* state, const char* symbol)
 {
-    if (equal(state, symbol)) {
-        state->cursor = state->cursor->next;
-        return true;
-    }
-    return false;
+    return tr_consume(&(state->reader), symbol);
 }
 
 static void expect(ParserState* state, const char* symbol)
 {
-    const Token* token = peek(state);
-    if (is_token_equal(token, symbol)) {
-        state->cursor = state->cursor->next;
-        return;
-    }
-
-    error_tok(token, "expected '%s', got '%s'", symbol, token->raw);
+    tr_expect(&(state->reader), symbol);
 }
 
 // All local variable instances created during parsing are
@@ -115,7 +96,7 @@ static VarScope* push_var_scope(char* name, Obj* var)
 static TagScope* push_tag_scope(Token* tok, Type* ty)
 {
     TagScope* sc = calloc(1, sizeof(TagScope));
-    sc->name = strncopy(tok->start, tok->len);
+    sc->name = strncopy(tok->p, tok->len);
     sc->ty = ty;
     sc->next = s_scope->tags;
     s_scope->tags = sc;
@@ -246,7 +227,7 @@ static char* get_ident(const Token* tok)
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
     }
-    return strncopy(tok->start, tok->len);
+    return strncopy(tok->p, tok->len);
 }
 
 static Node* parse_primary(ParserState* state);
@@ -297,7 +278,7 @@ static Node* parse_primary(ParserState* state)
     }
 
     if (tok->kind == TK_IDENT) {
-        if (is_token_equal(peekN(state, 1), "(")) {
+        if (is_token_equal(peek_n(state, 1), "(")) {
             return parse_funccall(state);
         }
 
@@ -431,7 +412,8 @@ static Type* parse_union_decl(ParserState* state)
 static Member* get_struct_member(Type* ty, Token* tok)
 {
     for (Member* mem = ty->members; mem; mem = mem->next) {
-        if (mem->name->len == tok->len && !strcmp(mem->name->raw, tok->raw)) {
+        assert(tok->raw && mem->name->raw);
+        if (streq(tok->raw, mem->name->raw)) {
             return mem;
         }
     }
@@ -646,7 +628,8 @@ static Node* parse_funccall(ParserState* state)
         cur = cur->next = parse_assign(state);
     }
     Node* node = new_node(ND_FUNCCALL, funcname);
-    node->funcname = strncopy(funcname->raw, funcname->len);
+    assert(funcname->raw);
+    node->funcname = strdup(funcname->raw);
     node->args = head.next;
     node->argc = argc;
     return node;
@@ -1015,8 +998,8 @@ static bool is_function(ParserState* state)
 Obj* parse(List* tokens)
 {
     ParserState state;
-    state.tokens = tokens;
-    state.cursor = tokens->front;
+    state.reader.tokens = tokens;
+    state.reader.cursor = tokens->front;
 
     s_globals = NULL;
     while (peek(&state)->kind != TK_EOF) {
@@ -1024,9 +1007,9 @@ Obj* parse(List* tokens)
 
         // restore index
         // because we only need to peek ahead to find out if object is a function or not
-        ListNode* oldCursor = state.cursor;
+        ListNode* oldCursor = state.reader.cursor;
         bool isFunc = is_function(&state);
-        state.cursor = oldCursor;
+        state.reader.cursor = oldCursor;
         if (isFunc) {
             parse_function(&state, basetype);
         } else {

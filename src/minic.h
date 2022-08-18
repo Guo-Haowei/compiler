@@ -52,7 +52,7 @@ struct Token {
     TokenKind kind;
     int line;
     int col;
-    const char* start;
+    const char* p;
     int len;
 
     const SourceInfo* sourceInfo;
@@ -66,6 +66,7 @@ struct Token {
     char* raw;
 
     bool isFirstTok;
+    Token* expandedFrom;
 };
 
 // Variable or function
@@ -212,7 +213,22 @@ void gen(Obj* prog, const char* srcname, const char* asmname);
 void error(const char* const fmt, ...);
 void error_lex(const Lexer* lexer, const char* const fmt, ...);
 void error_tok(const Token* token, const char* const fmt, ...);
-void warn_tok(const Token* token, const char* const fmt, ...);
+
+/**
+ *  utility
+ */
+
+typedef struct {
+    List* tokens;
+    ListNode* cursor;
+} TokenReader;
+
+Token* tr_peek_n(TokenReader* reader, int n);
+Token* tr_peek(TokenReader* reader);
+Token* tr_read(TokenReader* reader);
+bool tr_equal(TokenReader* reader, const char* symbol);
+bool tr_consume(TokenReader* reader, const char* symbol);
+void tr_expect(TokenReader* reader, const char* symbol);
 
 /**
  * misc

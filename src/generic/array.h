@@ -13,9 +13,10 @@ struct Array* array_new(int eleSize, int cap);
 void array_init(struct Array* arr, int eleSize, int cap);
 void array_clear(struct Array* arr);
 
-#define array_at(T, arr, idx) ((T*)_array_at(arr, idx))
-#define array_back(T, arr) ((T*)_array_at((arr), ((arr)->len - 1)))
+#define array_at(T, arr, idx) ((T*)_array_at((arr), (idx)))
 void* _array_at(struct Array* arr, int idx);
+
+void* array_back(struct Array* arr);
 
 #define array_push_back(T, arr, ele)       \
     {                                      \

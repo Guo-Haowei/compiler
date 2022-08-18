@@ -4,16 +4,9 @@
 void assert_impl(int expected, int actual, const char* code, int line)
 {
     if (expected == actual) {
-        // printf("%s => %d\n", code, actual);
+        printf("  line %d: %s => %d\n", line, code, actual);
     } else {
-        printf("%s => %d expected but got %d\n", code, expected, actual);
+        printf("  line %d: %s => %d expected but got %d\n", line, code, expected, actual);
         exit(line);
     }
-}
-
-// HACK: tmp
-int assert(int a, int b)
-{
-    assert_impl(a, b, "", 0);
-    return 0;
 }

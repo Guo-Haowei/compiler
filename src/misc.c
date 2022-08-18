@@ -9,6 +9,7 @@
 #define UNDERLINE "^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 enum {
+    LEVEL_NOTE,
     LEVEL_WARN,
     LEVEL_ERROR,
 };
@@ -16,8 +17,9 @@ enum {
 #define KRESET "\033[0m"
 #define KRED "\033[0;31m"
 #define KYEL "\033[0;33m"
+#define KBLU "\033[0;34m"
 
-static void verror_at(int level, const char* file, const char* source, int sourceLen, int line, int col, int span, const char* const fmt, va_list args)
+static void verror_at(int level, const char* file, const char* source, int sourceLen, int line, int col, int span, const char* fmt, va_list args)
 {
     assert(file);
     assert(source);
@@ -28,8 +30,26 @@ static void verror_at(int level, const char* file, const char* source, int sourc
 
     // fprintf(stderr, "debug verror_at(): span: %d\n", span);
     const char* color = level == LEVEL_ERROR ? KRED : KYEL;
+    const char* label = "";
+    switch (level) {
+    case LEVEL_NOTE:
+        color = KBLU;
+        label = "not:";
+        break;
+    case LEVEL_WARN:
+        color = KYEL;
+        label = "warn:";
+        break;
+    case LEVEL_ERROR:
+        color = KRED;
+        label = "error:";
+        break;
+    default:
+        assert(0);
+        break;
+    }
 
-    fprintf(stderr, "%s:%d:%d: %serror:%s ", file, line, col, color, KRESET);
+    fprintf(stderr, "%s:%d:%d: %s%s%s ", file, line, col, color, label, KRESET);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 
@@ -50,10 +70,6 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     fprintf(stderr, "%5d | %.*s\n", line, lineLen, lineStart);
 
     fprintf(stderr, "      |%s%.*s%.*s%s\n", color, col, EMPTYLINE, span, UNDERLINE, KRESET);
-
-    if (level == LEVEL_ERROR) {
-        exit(-1);
-    }
 }
 
 void error(const char* const fmt, ...)
@@ -79,7 +95,7 @@ void error_lex(const Lexer* lexer, const char* const fmt, ...)
     va_end(args);
 }
 
-void error_tok(const Token* tok, const char* const fmt, ...)
+static void verror_tok_internal(int level, const Token* tok, const char* fmt, va_list args)
 {
     const char* file = tok->sourceInfo->file;
     const char* source = tok->sourceInfo->start;
@@ -91,28 +107,25 @@ void error_tok(const Token* tok, const char* const fmt, ...)
         span = 1;
     }
 
-    va_list args;
-    va_start(args, fmt);
-    verror_at(LEVEL_ERROR, file, source, sourceLen, line, col, span, fmt, args);
-    va_end(args);
+    verror_at(level, file, source, sourceLen, line, col, span, fmt, args);
 }
 
-void warn_tok(const Token* tok, const char* const fmt, ...)
+void error_tok(const Token* tok, const char* const fmt, ...)
 {
-    const char* file = tok->sourceInfo->file;
-    const char* source = tok->sourceInfo->start;
-    const int sourceLen = tok->sourceInfo->len;
-    const int line = tok->line;
-    const int col = tok->col;
-    int span = tok->len;
-    if (tok->kind == TK_EOF) {
-        span = 1;
-    }
-
     va_list args;
     va_start(args, fmt);
-    verror_at(LEVEL_WARN, file, source, sourceLen, line, col, span, fmt, args);
+    verror_tok_internal(LEVEL_ERROR, tok, fmt, args);
     va_end(args);
+
+    const Token* macro = tok->expandedFrom;
+    if (macro) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), "in expansion of macro '%.*s'", macro->len, macro->p);
+        verror_tok_internal(LEVEL_NOTE, tok->expandedFrom, buffer, NULL);
+    }
+
+    // @TODO: exit with error code
+    exit(-1);
 }
 
 char const* token_kind_to_string(TokenKind eTokenKind)
@@ -149,13 +162,21 @@ void debug_print_token(const Token* tok)
         fprintf(stderr, "line: %d\n", tok->line);
     }
 
-    fprintf(stderr, "  %s:%d:%d:[%s] '%.*s'\n",
+    fprintf(stderr, "  %s:%d:%d:[%s]",
         tok->sourceInfo->file,
         tok->line,
         tok->col,
-        token_kind_to_string(tok->kind),
-        tok->len,
-        tok->start);
+        token_kind_to_string(tok->kind));
+    if (tok->raw) {
+        fprintf(stderr, " '%s'", tok->raw);
+    } else {
+        fprintf(stderr, " '%.*s'", tok->len, tok->p);
+    }
+    const Token* macro = tok->expandedFrom;
+    if (macro) {
+        fprintf(stderr, "expanded from macro (%.*s:%d:%d)", tok->len, tok->p, macro->line, macro->col);
+    }
+    fprintf(stderr, "\n");
 }
 
 void debug_print_tokens(List* toks)
