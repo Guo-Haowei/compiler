@@ -495,3 +495,17 @@ List* preproc(Array* rawTokens)
     _list_push_back(state.processed, eof, sizeof(Token));
     return state.processed;
 }
+
+void dump_preproc(List* tokens)
+{
+    int curLine = 1;
+    for (ListNode* n = tokens->front; n; n = n->next) {
+        Token* tok = list_node_get(Token, n);
+        if (tok->line != curLine) {
+            printf("%.*s", tok->line - curLine, "\n\n\n\n\n\n");
+            curLine = tok->line;
+        }
+        printf(" %s", tok->raw);
+    }
+    printf("\n");
+}

@@ -12,6 +12,7 @@
 static const char* s_exename;
 static const char* s_input;
 static char s_output[MAX_OSPATH];
+static bool s_preproc;
 
 static void process_args(int argc, const char** argv)
 {
@@ -29,7 +30,7 @@ static void process_args(int argc, const char** argv)
     bool hasError = false;
     for (int i = 1; i < argc;) {
         const char* arg = argv[i];
-        if (strcmp(arg, "-o") == 0) {
+        if (stricmp(arg, "-o") == 0) {
             if (i + 1 >= argc) {
                 hasError = true;
                 break;
@@ -40,7 +41,7 @@ static void process_args(int argc, const char** argv)
             continue;
         }
 
-        if (strcmp(arg, "-s") == 0) {
+        if (stricmp(arg, "-s") == 0) {
             if (i + 1 >= argc) {
                 hasError = true;
                 break;
@@ -51,7 +52,20 @@ static void process_args(int argc, const char** argv)
             continue;
         }
 
+        if (stricmp(arg, "-e") == 0) {
+            if (i + 1 >= argc) {
+                hasError = true;
+                break;
+            }
+
+            s_preproc = true;
+            s_input = argv[++i];
+            ++i;
+            break;
+        }
+
         hasError = true;
+        break;
     }
 
     if (hasError) {
@@ -81,8 +95,13 @@ int main(int argc, const char** argv)
     Array* rawToks = lex(s_input);
     DEBUG_ONLY(fprintf(stderr, "*** lex ***\n"));
     List* toks = preproc(rawToks);
-    DEBUG_ONLY(debug_print_tokens(toks));
 
+    if (s_preproc) {
+        dump_preproc(toks);
+        return 0;
+    }
+
+    DEBUG_ONLY(debug_print_tokens(toks));
     DEBUG_ONLY(fprintf(stderr, "*** parse ***\n"));
 
     Obj* prog = parse(toks);

@@ -206,6 +206,7 @@ bool is_token_equal(const Token* token, const char* symbol);
 Array* lex(const char* filename);
 List* preproc(Array* toks);
 
+void dump_preproc(List* toks);
 Obj* parse(List* toks);
 
 void gen(Obj* prog, const char* srcname, const char* asmname);

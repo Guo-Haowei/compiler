@@ -77,8 +77,8 @@ void error(const char* const fmt, ...)
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
-    exit(-1);
     va_end(args);
+    exit(-1);
 }
 
 void error_lex(const Lexer* lexer, const char* const fmt, ...)
@@ -93,6 +93,7 @@ void error_lex(const Lexer* lexer, const char* const fmt, ...)
     va_start(args, fmt);
     verror_at(LEVEL_ERROR, file, source, sourceLen, line, col, 1, fmt, args);
     va_end(args);
+    exit(-1);
 }
 
 static void verror_tok_internal(int level, const Token* tok, const char* fmt, va_list args)
