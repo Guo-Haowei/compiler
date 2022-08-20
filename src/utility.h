@@ -14,6 +14,11 @@
 #define MAX(a, b) ((a > b) ? a : b)
 #define MIN(a, b) ((a < b) ? a : b)
 
+#ifdef ZERO_MEMORY
+#undef ZERO_MEMORY
+#endif
+#define ZERO_MEMORY(obj) memset(&obj, 0, sizeof(obj))
+
 typedef struct {
     const char* start;
     int len;

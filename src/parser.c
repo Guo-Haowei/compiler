@@ -5,7 +5,31 @@
 #include <string.h>
 
 typedef struct {
+    bool isTypedef;
+} VarAttrib;
+
+// Scope for struct or union tags
+typedef struct {
+    char* name;
+    Type* ty;
+} TagScope;
+
+// Scope for local or global variables.
+typedef struct {
+    char* name;
+    Obj* var;
+    Type* typeDef;
+} VarScope;
+
+// Represents a block scope.
+typedef struct Scope {
+    List vars;
+    List tags;
+} Scope;
+
+typedef struct {
     TokenReader reader;
+    List scopes;
 } ParserState;
 
 /// token stream
@@ -44,63 +68,38 @@ static void expect(ParserState* state, const char* symbol)
 static Obj* s_locals;
 static Obj* s_globals;
 
-// Scope for struct or union tags
-typedef struct TagScope TagScope;
-struct TagScope {
-    TagScope* next;
-    char* name;
-    Type* ty;
-};
-
-// Scope for local or global variables.
-typedef struct VarScope VarScope;
-struct VarScope {
-    VarScope* next;
-    char* name;
-    Obj* var;
-};
-
-// Represents a block scope.
-typedef struct Scope Scope;
-struct Scope {
-    Scope* next;
-    VarScope* vars;
-    TagScope* tags;
-};
-
-static Scope _s_scope;
-static Scope* s_scope = &_s_scope;
-
-static void enter_scope(void)
+static void enter_scope(ParserState* state)
 {
-    Scope* scope = calloc(1, sizeof(Scope));
-    scope->next = s_scope;
-    s_scope = scope;
+    Scope scope;
+    memset(&scope, 0, sizeof(Scope));
+    _list_push_back(&(state->scopes), &scope, sizeof(Scope));
 }
 
-static void leave_scope(void)
+static void leave_scope(ParserState* state)
 {
-    s_scope = s_scope->next;
+    assert(state->scopes.len);
+    list_pop_back(&(state->scopes));
 }
 
-static VarScope* push_var_scope(char* name, Obj* var)
+static VarScope* push_var_scope(ParserState* state, char* name)
 {
-    VarScope* sc = calloc(1, sizeof(VarScope));
-    sc->name = name;
-    sc->var = var;
-    sc->next = s_scope->vars;
-    s_scope->vars = sc;
-    return sc;
+    Scope* scope = list_back(Scope, &(state->scopes));
+    VarScope sc;
+    ZERO_MEMORY(sc);
+    sc.name = name;
+    list_push_back(&(scope->vars), sc);
+    return _list_back(&(scope->vars));
 }
 
-static TagScope* push_tag_scope(Token* tok, Type* ty)
+static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
 {
-    TagScope* sc = calloc(1, sizeof(TagScope));
-    sc->name = strncopy(tok->p, tok->len);
-    sc->ty = ty;
-    sc->next = s_scope->tags;
-    s_scope->tags = sc;
-    return sc;
+    Scope* scope = list_back(Scope, &(state->scopes));
+    TagScope sc;
+    ZERO_MEMORY(sc);
+    sc.name = strncopy(tok->p, tok->len);
+    sc.ty = ty;
+    list_push_back(&(scope->tags), sc);
+    return _list_back(&(scope->tags));
 }
 
 /**
@@ -148,29 +147,29 @@ static Node* new_unary(NodeKind eNodeKind, Node* expr, Token const* tok)
     return node;
 }
 
-static Obj* new_variable(char* name, Type* type)
+static Obj* new_variable(ParserState* state, char* name, Type* type)
 {
     static int s_id = 0;
     Obj* var = calloc(1, sizeof(Obj));
     var->id = s_id++;
     var->name = name;
     var->type = type;
-    push_var_scope(name, var);
+    push_var_scope(state, name)->var = var;
     return var;
 }
 
-static Obj* new_lvar(char* name, Type* type)
+static Obj* new_lvar(ParserState* state, char* name, Type* type)
 {
-    Obj* var = new_variable(name, type);
+    Obj* var = new_variable(state, name, type);
     var->isLocal = true;
     var->next = s_locals;
     s_locals = var;
     return var;
 }
 
-static Obj* new_gvar(char* name, Type* type)
+static Obj* new_gvar(ParserState* state, char* name, Type* type)
 {
-    Obj* var = new_variable(name, type);
+    Obj* var = new_variable(state, name, type);
     var->next = s_globals;
     s_globals = var;
     return var;
@@ -179,24 +178,28 @@ static Obj* new_gvar(char* name, Type* type)
 typedef Node* (*ParseBinaryFn)(ParserState*);
 
 // Find a local variable by name.
-static Type* find_tag(Token* tok)
+static Type* find_tag(ParserState* state, const Token* tok)
 {
-    for (Scope* sc = s_scope; sc; sc = sc->next) {
-        for (TagScope* sc2 = sc->tags; sc2; sc2 = sc2->next) {
-            if (strcmp(tok->raw, sc2->name) == 0) {
-                return sc2->ty;
+    for (ListNode* s = state->scopes.back; s; s = s->prev) {
+        Scope* scope = list_node_get(Scope, s);
+        for (ListNode* t = scope->tags.back; t; t = t->prev) {
+            TagScope* tag = list_node_get(TagScope, t);
+            if (streq(tok->raw, tag->name)) {
+                return tag->ty;
             }
         }
     }
     return NULL;
 }
 
-static Obj* find_var(Token const* tok)
+static VarScope* find_var(ParserState* state, const Token* tok)
 {
-    for (Scope* sc1 = s_scope; sc1; sc1 = sc1->next) {
-        for (VarScope* sc2 = sc1->vars; sc2; sc2 = sc2->next) {
-            if (strcmp(tok->raw, sc2->name) == 0) {
-                return sc2->var;
+    for (ListNode* s = state->scopes.back; s; s = s->prev) {
+        Scope* scope = list_node_get(Scope, s);
+        for (ListNode* t = scope->vars.back; t; t = t->prev) {
+            VarScope* var = list_node_get(VarScope, t);
+            if (streq(tok->raw, var->name)) {
+                return var;
             }
         }
     }
@@ -209,14 +212,14 @@ static char* new_unique_name()
     return format(".L.anon.%d", s_id++);
 }
 
-static Obj* new_anon_gvar(Type* ty)
+static Obj* new_anon_gvar(ParserState* state, Type* ty)
 {
-    return new_gvar(new_unique_name(), ty);
+    return new_gvar(state, new_unique_name(), ty);
 }
 
-static Obj* new_string_literal(char* p, Type* type, Token* tok)
+static Obj* new_string_literal(ParserState* state, char* p, Type* type, Token* tok)
 {
-    Obj* var = new_anon_gvar(type);
+    Obj* var = new_anon_gvar(state, type);
     var->initData = p;
     var->tok = tok;
     return var;
@@ -242,9 +245,10 @@ static Node* parse_funccall(ParserState* state);
 static Node* parse_expr(ParserState* state);
 static Node* parse_expr_stmt(ParserState* state);
 static Node* parse_compound_stmt(ParserState* state);
-static Node* parse_decl(ParserState* state);
-static Type* parse_declspec(ParserState* state);
+static Node* parse_decl(ParserState* state, Type* baseType);
+static Type* parse_declspec(ParserState* state, VarAttrib* attrib);
 static Type* parse_declarator(ParserState* state, Type* type);
+static void parse_typedef(ParserState* state, Type* baseType);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
@@ -272,7 +276,7 @@ static Node* parse_primary(ParserState* state)
     }
 
     if (tok->kind == TK_STR) {
-        Obj* var = new_string_literal(tok->str, tok->type, tok);
+        Obj* var = new_string_literal(state, tok->str, tok->type, tok);
         read(state);
         return new_var(var, tok);
     }
@@ -282,13 +286,13 @@ static Node* parse_primary(ParserState* state)
             return parse_funccall(state);
         }
 
-        Obj* var = find_var(tok);
-        if (!var) {
+        VarScope* sc = find_var(state, tok);
+        if (!sc || !sc->var) {
             error_tok(tok, "undefined variable '%s'", tok->raw);
         }
 
         read(state);
-        return new_var(var, tok);
+        return new_var(sc->var, tok);
     }
 
     error_tok(tok, "expected expression before '%s' token", tok->raw);
@@ -326,7 +330,7 @@ static void parse_struct_members(ParserState* state, Type* ty)
     Member* cur = &head;
 
     while (!consume(state, "}")) {
-        Type* basety = parse_declspec(state);
+        Type* basety = parse_declspec(state, NULL);
         int i = 0;
         while (!consume(state, ";")) {
             if (i++) {
@@ -354,7 +358,7 @@ static Type* parse_struct_union_decl(ParserState* state)
     }
 
     if (tag && !equal(state, "{")) {
-        Type* ty = find_tag(tag);
+        Type* ty = find_tag(state, tag);
         if (!ty) {
             error_tok(tag, "unknown struct %s", tag->raw);
         }
@@ -370,7 +374,7 @@ static Type* parse_struct_union_decl(ParserState* state)
     parse_struct_members(state, ty);
 
     if (tag) {
-        push_tag_scope(tag, ty);
+        push_tag_scope(state, tag, ty);
     }
 
     return ty;
@@ -722,53 +726,90 @@ static Node* parse_stmt(ParserState* state)
     return parse_expr_stmt(state);
 }
 
-static bool is_typename(Token* tok)
+static Type* find_typedef(ParserState* state, Token* tok)
 {
-    static const char* s_types[] = {
-#define DEFINE_BASE_TYPE(name, enum, sz, al) #name,
-#include "base_type.inl"
-#undef DEFINE_BASE_TYPE
-        "struct",
-        "union",
-    };
+    if (tok->kind == TK_IDENT) {
+        VarScope* sc = find_var(state, tok);
+        if (sc) {
+            return sc->typeDef;
+        }
+    }
+    return NULL;
+}
 
-    for (size_t i = 0; i < ARRAY_COUNTER(s_types); ++i) {
-        if (is_token_equal(tok, s_types[i])) {
+static bool is_typename(ParserState* state, Token* tok)
+{
+    // clang-format off
+    static const char* kw[] = {
+        "char", "int", "long", "short", "struct", "typedef", "union", "void", NULL,
+    };
+    // clang-format on
+
+    for (const char** p = kw; *p; ++p) {
+        if (is_token_equal(tok, *p)) {
             return true;
         }
     }
 
-    return false;
+    return find_typedef(state, tok);
 }
 
-// compound-stmt = (declaration | stmt)* "}"
+// compound-stmt = (typedef | declaration | stmt)* "}"
 static Node* parse_compound_stmt(ParserState* state)
 {
-    Token* tok = peek(state); // TODO: fix token
+    Token* compoundTok = peek_n(state, -1);
     Node head = { .next = NULL };
     Node* cur = &head;
 
-    enter_scope();
+    enter_scope(state);
 
-    while (!consume(state, "}")) {
-        if (is_typename(peek(state))) {
-            cur = cur->next = parse_decl(state);
+    for (;;) { 
+        Token* tok = peek(state);
+
+        if (is_token_equal(tok, "}")) {
+            read(state);
+            break;
+        }
+
+        if (is_typename(state, tok)) {
+            VarAttrib attrib;
+            ZERO_MEMORY(attrib);
+            Type* baseType = parse_declspec(state, &attrib);
+
+            if (attrib.isTypedef) {
+                parse_typedef(state, baseType);
+                continue;
+            }
+            cur = cur->next = parse_decl(state, baseType);
         } else {
             cur = cur->next = parse_stmt(state);
         }
         add_type(cur);
     }
 
-    leave_scope();
+    leave_scope(state);
 
-    Node* node = new_node(ND_BLOCK, tok);
+    Node* node = new_node(ND_BLOCK, compoundTok);
     node->body = head.next;
     return node;
 }
 
-// declspec = "void" | "char" | "short" | "int" | "long"
-//          | struct-decl | union-decl
-static Type* parse_declspec(ParserState* state)
+// declspec = ("void" | "char" | "short" | "int" | "long"
+//             | "typedef"
+//             | struct-decl | union-decl | typedef-name)+
+//
+// The order of typenames in a type-specifier doesn't matter. For
+// example, `int long static` means the same as `static long int`.
+// That can also be written as `static long` because you can omit
+// `int` if `long` or `short` are specified. However, something like
+// `char int` is not a valid type specifier. We have to accept only a
+// limited combinations of the typenames.
+//
+// In this function, we count the number of occurrences of each typename
+// while keeping the "current" type object that the typenames up
+// until that point represent. When we reach a non-typename token,
+// we returns the current type object.
+static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 {
     enum {
         VOID = 1 << 0,
@@ -779,24 +820,48 @@ static Type* parse_declspec(ParserState* state)
         OTHER = 1 << 10,
     };
 
-    Token* tok = peek(state);
+    Token* tok = NULL;
     Type* ty = g_int_type;
     int counter = 0;
 
-    while (is_typename(peek(state))) {
-        // Handle user-defined types.
-        if (consume(state, "struct")) {
-            ty = parse_struct_decl(state);
+    for (;;) {
+        tok = peek(state);
+        if (!is_typename(state, tok)) {
+            break;
+        }
+
+        // "typedef"
+        if (consume(state, "typedef")) {
+            if (!attrib) {
+                error_tok(tok, "storage class specifier is not allowed in this context");
+            }
+            attrib->isTypedef = true;
+            continue;
+        }
+
+        // user defined types
+        Type* ty2 = find_typedef(state, tok);
+        const bool isStruct = is_token_equal(tok, "struct");
+        const bool isUnion = is_token_equal(tok, "union");
+        if (isStruct || isUnion || ty2) {
+            if (counter) {
+                break;
+            }
+
+            read(state);
+            if (isStruct) {
+                ty = parse_struct_decl(state);
+            } else if (isUnion) {
+                ty = parse_union_decl(state);
+            } else {
+                ty = ty2;
+            }
+
             counter += OTHER;
             continue;
         }
 
-        if (consume(state, "union")) {
-            ty = parse_union_decl(state);
-            counter += OTHER;
-            continue;
-        }
-
+        // @TODO: refactor
         if (consume(state, "void"))
             counter += VOID;
         else if (consume(state, "char"))
@@ -849,7 +914,7 @@ static Type* parse_func_params(ParserState* state, Type* type)
         if (cur != &head) {
             expect(state, ",");
         }
-        Type* basety = parse_declspec(state);
+        Type* basety = parse_declspec(state, NULL);
         Type* ty = parse_declarator(state, basety);
         cur = cur->next = copy_type(ty);
     }
@@ -905,9 +970,8 @@ static Type* parse_declarator(ParserState* state, Type* type)
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-static Node* parse_decl(ParserState* state)
+static Node* parse_decl(ParserState* state, Type* baseType)
 {
-    Type* base_type = parse_declspec(state);
     Node head = { .next = NULL };
     Node* cur = &head;
     int i = 0;
@@ -916,8 +980,8 @@ static Node* parse_decl(ParserState* state)
             expect(state, ",");
         }
 
-        Type* type = parse_declarator(state, base_type);
-        Obj* var = new_lvar(get_ident(type->name), type);
+        Type* type = parse_declarator(state, baseType);
+        Obj* var = new_lvar(state, get_ident(type->name), type);
 
         const Token* tok = peek(state);
         if (is_token_equal(tok, "=")) {
@@ -934,11 +998,25 @@ static Node* parse_decl(ParserState* state)
     return node;
 }
 
-static void create_param_lvars(Type* param)
+static void parse_typedef(ParserState* state, Type* baseType)
+{
+    bool first = true;
+    while (!consume(state, ";")) {
+        if (!first) {
+            expect(state, ",");
+        }
+        first = false;
+        Type* ty = parse_declarator(state, baseType);
+        push_var_scope(state, get_ident(ty->name))->typeDef = ty;
+    }
+}
+
+// @TODO: refactor to use list
+static void create_param_lvars(ParserState* state, Type* param)
 {
     if (param) {
-        create_param_lvars(param->next);
-        new_lvar(get_ident(param->name), param);
+        create_param_lvars(state, param->next);
+        new_lvar(state, get_ident(param->name), param);
     }
 }
 
@@ -952,14 +1030,14 @@ static void parse_global_variable(ParserState* state, Type* basety)
         ++i;
 
         Type* type = parse_declarator(state, basety);
-        new_gvar(get_ident(type->name), type);
+        new_gvar(state, get_ident(type->name), type);
     }
 }
 
 static Obj* parse_function(ParserState* state, Type* basetpye)
 {
     Type* type = parse_declarator(state, basetpye);
-    Obj* fn = new_gvar(get_ident(type->name), type);
+    Obj* fn = new_gvar(state, get_ident(type->name), type);
     fn->isFunc = true;
     fn->isDefinition = !consume(state, ";");
     if (!fn->isDefinition) {
@@ -968,15 +1046,15 @@ static Obj* parse_function(ParserState* state, Type* basetpye)
 
     s_locals = NULL;
 
-    enter_scope();
+    enter_scope(state);
 
-    create_param_lvars(type->params);
+    create_param_lvars(state, type->params);
     fn->params = s_locals;
     expect(state, "{");
     fn->body = parse_compound_stmt(state);
     fn->locals = s_locals;
 
-    leave_scope();
+    leave_scope(state);
 
     return fn;
 }
@@ -994,16 +1072,26 @@ static bool is_function(ParserState* state)
     return type->eTypeKind == TY_FUNC;
 }
 
-// program = (function-definition | global-variable)*
+// program = (typedef | function-definition | global-variable)*
 Obj* parse(List* tokens)
 {
     ParserState state;
+    memset(&state, 0, sizeof(ParserState));
     state.reader.tokens = tokens;
     state.reader.cursor = tokens->front;
 
+    enter_scope(&state);
+
     s_globals = NULL;
     while (peek(&state)->kind != TK_EOF) {
-        Type* basetype = parse_declspec(&state);
+        VarAttrib attrib;
+        ZERO_MEMORY(attrib);
+
+        Type* baseType = parse_declspec(&state, &attrib);
+        if (attrib.isTypedef) {
+            parse_typedef(&state, baseType);
+            continue;
+        }
 
         // restore index
         // because we only need to peek ahead to find out if object is a function or not
@@ -1011,10 +1099,14 @@ Obj* parse(List* tokens)
         bool isFunc = is_function(&state);
         state.reader.cursor = oldCursor;
         if (isFunc) {
-            parse_function(&state, basetype);
+            parse_function(&state, baseType);
         } else {
-            parse_global_variable(&state, basetype);
+            parse_global_variable(&state, baseType);
         }
     }
+
+    leave_scope(&state);
+    assert(state.scopes.len == 0);
+
     return s_globals;
 }

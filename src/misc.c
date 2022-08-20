@@ -57,8 +57,11 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     char const* lineStart = source;
     for (int curLine = 1; curLine < line; ++curLine) {
         lineStart = strchr(lineStart, '\n');
-        assert(lineStart);
-        ++lineStart;
+        if (lineStart) {
+            ++lineStart;
+        } else {
+            lineStart = source;
+        }
     }
 
     char const* lineEnd = lineStart;

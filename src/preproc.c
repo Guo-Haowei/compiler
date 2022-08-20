@@ -108,6 +108,7 @@ static void expand_token(Token* input, Token* original, Token* macroToken)
     input->len = original->len;
     input->line = original->line;
     input->col = original->col;
+    input->sourceInfo = original->sourceInfo;
     input->expandedFrom = macroToken;
 }
 

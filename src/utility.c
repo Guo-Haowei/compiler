@@ -104,11 +104,20 @@ size_t path_simplify(const char* inputPath, char* buf)
 Token* tr_peek_n(TokenReader* reader, int n)
 {
     ListNode* c = reader->cursor;
-    for (int i = 0; i < n; ++i) {
-        if (!c) {
-            return NULL;
+    if (n >= 0) {
+        for (int i = 0; i < n; ++i) {
+            if (!c) {
+                return NULL;
+            }
+            c = c->next;
         }
-        c = c->next;
+    } else {
+        for (int i = 0; i < -n; ++i) {
+            if (!c) {
+                return NULL;
+            }
+            c = c->prev;
+        }
     }
     return c ? (Token*)(c + 1) : NULL;
 }
