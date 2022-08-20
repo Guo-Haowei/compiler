@@ -39,4 +39,6 @@ void _list_push_back(struct List* list, const void* data, int size);
 void list_pop_front(struct List* list);
 void list_pop_back(struct List* list);
 
+struct List* list_append(struct List* a, struct List* b);
+
 #endif

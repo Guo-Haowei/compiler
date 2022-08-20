@@ -4,7 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct ListNode* _list_node_new(int size);
+static struct ListNode* _list_node_new(int size)
+{
+    struct ListNode* node = malloc(sizeof(struct ListNode) + ALIGN(size, 16));
+    node->prev = NULL;
+    node->next = NULL;
+    return node;
+}
 
 struct List* list_new()
 {
@@ -122,10 +128,13 @@ void list_pop_back(struct List* list)
     free(n);
 }
 
-struct ListNode* _list_node_new(int size)
+struct List* list_append(struct List* a, struct List* b)
 {
-    struct ListNode* node = malloc(sizeof(struct ListNode) + ALIGN(size, 16));
-    node->prev = NULL;
-    node->next = NULL;
-    return node;
+    a->back->next = b->front;
+    b->front->prev = a->back;
+    b->front = a->front;
+    a->len += b->len;
+
+    memset(b, 0, sizeof(struct List));
+    return a;
 }

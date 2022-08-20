@@ -8,21 +8,21 @@ int return_a_plus_one()
 
 int main()
 {
-    assert(11, __LINE__);
+    ASSERT(11, __LINE__);
 #define MYLINE __LINE__
-    assert(13, MYLINE);
+    ASSERT(13, MYLINE);
 
 #define FOO 1
-    assert(1, FOO);
+    ASSERT(1, FOO);
 #define ONE_MINUS_THREE 1 - 3
-    assert(-2, ONE_MINUS_THREE);
+    ASSERT(-2, ONE_MINUS_THREE);
 #define int64 long
     int64 num = 0;
-    assert(8, sizeof(num));
+    ASSERT(8, sizeof(num));
 
 #include "include1.h"
-    assert(19, a);
-    assert(20, return_a_plus_one());
+    ASSERT(19, a);
+    ASSERT(20, return_a_plus_one());
 
 #define ABC
     ABC;

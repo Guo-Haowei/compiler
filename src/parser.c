@@ -763,7 +763,7 @@ static Node* parse_compound_stmt(ParserState* state)
 
     enter_scope(state);
 
-    for (;;) { 
+    for (;;) {
         Token* tok = peek(state);
 
         if (is_token_equal(tok, "}")) {
@@ -861,7 +861,6 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
             continue;
         }
 
-        // @TODO: refactor
         if (consume(state, "void"))
             counter += VOID;
         else if (consume(state, "char"))

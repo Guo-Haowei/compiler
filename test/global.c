@@ -5,23 +5,23 @@ int arr[4];
 
 int main()
 {
-    assert(0, x);
+    ASSERT(0, x);
     x = 3;
     {
         int x = 100;
-        assert(100, x);
+        ASSERT(100, x);
     }
-    assert(3, x);
+    ASSERT(3, x);
     arr[0] = 0;
     arr[1] = 1;
     arr[2] = 2;
     arr[3] = 3;
-    assert(0, arr[0]);
-    assert(1, arr[1]);
-    assert(2, arr[2]);
-    assert(3, arr[3]);
-    assert(4, sizeof(x));
-    assert(16, sizeof(arr));
+    ASSERT(0, arr[0]);
+    ASSERT(1, arr[1]);
+    ASSERT(2, arr[2]);
+    ASSERT(3, arr[3]);
+    ASSERT(4, sizeof(x));
+    ASSERT(16, sizeof(arr));
 
     printf("OK\n");
     return 0;

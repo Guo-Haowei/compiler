@@ -171,9 +171,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
         list_pop_front(state->unprocessed);
     }
 
-    List tmp;
-    tmp.back = tmp.front = NULL;
-    tmp.len = 0;
+    List* tmp = list_new();
     for (ListNode* n = macro->expandTo->front; n;) {
         Token token = *list_node_get(Token, n);
         if (is_token_equal(&token, "##")) {
@@ -208,7 +206,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             stringToken.len = len + 2;                         // include quotes
             stringToken.type = array_of(g_char_type, len + 1); // include '\0'
 
-            list_push_back(&tmp, stringToken);
+            list_push_back(tmp, stringToken);
             n = n->next;
             continue;
         }
@@ -216,26 +214,23 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
         int idx = is_node_arg(macro, &token);
         if (idx == -1) {
             expand_token(&token, macroName, &macro->token);
-            list_push_back(&tmp, token);
+            list_push_back(tmp, token);
         } else {
             List* argList = array_at(List, args, idx);
             assert(argList);
             for (ListNode* argNode = argList->front; argNode; argNode = argNode->next) {
                 Token token = *list_node_get(Token, argNode);
                 expand_token(&token, macroName, &macro->token);
-                list_push_back(&tmp, token);
+                list_push_back(tmp, token);
             }
         }
 
         n = n->next;
     }
 
-    // append expanded tokens
-    // @TODO: list merge
-    tmp.back->next = state->unprocessed->front;
-    state->unprocessed->front->prev = tmp.back;
-    state->unprocessed->front = tmp.front;
-    state->unprocessed->len += tmp.len;
+    List* newList = list_append(tmp, state->unprocessed);
+    free(state->unprocessed);
+    state->unprocessed = newList;
 }
 
 static void handle_macro(PreprocState* state, const Token* macroName_)

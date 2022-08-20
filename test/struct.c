@@ -7,8 +7,8 @@ int main()
         struct { int a; int b; } x;
         x.a = 10;
         x.b = 20;
-        assert(10, x.a);
-        assert(20, x.b);
+        ASSERT(10, x.a);
+        ASSERT(20, x.b);
     }
     // {
     //     struct { char a; int b; char c; } x;
