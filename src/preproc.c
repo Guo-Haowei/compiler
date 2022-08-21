@@ -137,12 +137,10 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             }
         } else if (is_token_equal(tok, "{")) {
             ++numBraces;
-            assert(0 && "{ not supported");
         } else if (is_token_equal(tok, "}")) {
             --numBraces;
-            assert(0 && "} not supported");
         } else if (is_token_equal(tok, ",")) {
-            if (numBrackets == 1) {
+            if (numBrackets == 1 && numBraces == 0) {
                 _array_push_back(args, list_new());
                 continue;
             }

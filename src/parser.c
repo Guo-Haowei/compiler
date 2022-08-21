@@ -249,11 +249,19 @@ static Node* parse_decl(ParserState* state, Type* baseType);
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib);
 static Type* parse_declarator(ParserState* state, Type* type);
 static void parse_typedef(ParserState* state, Type* baseType);
+static bool is_type_name(ParserState* state, Token* tok);
+static Type* parse_type_name(ParserState* state);
+static Type* parse_type_suffix(ParserState* state, Type* type);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 
-// primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
+// primary = "(" expr ")"
+//         | "sizeof" "(" type-name ")"
+//         | "sizeof" unary
+//         | ident func-args?
+//         | str
+//         | num
 static Node* parse_primary(ParserState* state)
 {
     if (consume(state, "(")) {
@@ -264,6 +272,14 @@ static Node* parse_primary(ParserState* state)
 
     Token* tok = peek(state);
     if (consume(state, "sizeof")) {
+        Token* name = peek_n(state, 1);
+        if (equal(state, "(") && is_type_name(state, name)) {
+            expect(state, "(");
+            Type* type = parse_type_name(state);
+            expect(state, ")");
+            return new_num(type->size, tok);
+        }
+
         Node* node = parse_unary(state);
         add_type(node);
         return new_num(node->type->size, tok);
@@ -737,7 +753,7 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
-static bool is_typename(ParserState* state, Token* tok)
+static bool is_type_name(ParserState* state, Token* tok)
 {
     // clang-format off
     static const char* kw[] = {
@@ -771,7 +787,7 @@ static Node* parse_compound_stmt(ParserState* state)
             break;
         }
 
-        if (is_typename(state, tok)) {
+        if (is_type_name(state, tok)) {
             VarAttrib attrib;
             ZERO_MEMORY(attrib);
             Type* baseType = parse_declspec(state, &attrib);
@@ -826,7 +842,7 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 
     for (;;) {
         tok = peek(state);
-        if (!is_typename(state, tok)) {
+        if (!is_type_name(state, tok)) {
             break;
         }
 
@@ -900,6 +916,27 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
     }
 
     return ty;
+}
+
+// abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
+static Type* parse_abstract_declarator(ParserState* state, Type* ty)
+{
+    while (consume(state, "*")) {
+        ty = pointer_to(ty);
+    }
+
+    if (equal(state, "(")) {
+        assert(0 && "This is not supported!");
+    }
+
+    return parse_type_suffix(state, ty);
+}
+
+// type-name = declspec abstract-declarator
+static Type* parse_type_name(ParserState* state)
+{
+    Type* type = parse_declspec(state, NULL);
+    return parse_abstract_declarator(state, type);
 }
 
 // type-suffix = ("(" func-params? ")")?
