@@ -125,7 +125,7 @@ static void gen_addr(Node const* node)
     error_tok(node->tok, "not an lvalue");
 }
 
-static void gen_cmp_expr(NodeKind eNodeKind)
+static void gen_cmp_expr(NodeKind eNodeKind, const char* di, const char* ax)
 {
     static char const* const s_cmds[] = {
         "sete",
@@ -141,7 +141,7 @@ static void gen_cmp_expr(NodeKind eNodeKind)
     int const index = eNodeKind - ND_EQ;
     ASSERT_IDX(index, ARRAY_COUNTER(s_cmds));
 
-    writeln("  cmp %%rdi, %%rax");
+    writeln("  cmp %s, %s", di, ax);
     writeln("  %s %%al", s_cmds[index]);
     writeln("  movzb %%al, %%rax");
 }
@@ -202,19 +202,32 @@ static void gen_expr(Node const* node)
     gen_expr(node->lhs);
     pop("%rdi");
 
+    const char *ax = NULL, *di = NULL;
+    if (node->lhs->type->eTypeKind == TY_LONG || node->lhs->type->base) {
+        ax = "%rax";
+        di = "%rdi";
+    } else {
+        ax = "%eax";
+        di = "%edi";
+    }
+
     switch (node->eNodeKind) {
     case ND_ADD:
-        writeln("  add %%rdi, %%rax");
+        writeln("  add %s, %s", di, ax);
         return;
     case ND_SUB:
-        writeln("  sub %%rdi, %%rax");
+        writeln("  sub %s, %s", di, ax);
         return;
     case ND_MUL:
-        writeln("  imul %%rdi, %%rax");
+        writeln("  imul %s, %s", di, ax);
         return;
     case ND_DIV:
-        writeln("  cqo");
-        writeln("  idiv %%rdi");
+        if (node->lhs->type->size == 8) {
+            writeln("  cqo");
+        } else {
+            writeln("  cdq");
+        }
+        writeln("  idiv %s", di);
         return;
     case ND_EQ:
     case ND_NE:
@@ -222,7 +235,7 @@ static void gen_expr(Node const* node)
     case ND_LE:
     case ND_GT:
     case ND_GE:
-        gen_cmp_expr(node->eNodeKind);
+        gen_cmp_expr(node->eNodeKind, di, ax);
         return;
     default:
         break;
