@@ -57,22 +57,20 @@ static void lexer_skipline(Lexer* lexer)
     }
 }
 
-static void lexer_fill_tok(Lexer const* lexer, Token* tok)
+static void lexer_fill_tok(Lexer* lexer, Token* tok)
 {
+    memset(tok, 0, sizeof(Token));
     tok->line = lexer->line;
     tok->col = lexer->col;
     tok->p = lexer->p;
     tok->sourceInfo = lexer->sourceInfo;
-    tok->isFirstTok = false;
-    tok->raw = NULL;
-    tok->expandedFrom = NULL;
 }
 
 static void add_decimal_number(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.kind = TK_NUM;
     lexer_fill_tok(lexer, &tok);
+    tok.kind = TK_NUM;
 
     while (isdigit(lexer_peek(lexer))) {
         lexer_read(lexer);
@@ -156,6 +154,40 @@ static int read_escaped_char(Lexer* lexer, const char** new_pos, const char* p)
     return *p;
 }
 
+static void add_char(Lexer* lexer, Array* arr)
+{
+    Lexer dummy = *lexer;
+    const char* start = lexer->p;
+    lexer_read(lexer);
+    const char* p = lexer->p;
+    if (start[1] == '\0') {
+        error_lex(&dummy, "unclosed char literal");
+    }
+
+    char c = (*p == '\\') ? read_escaped_char(lexer, &p, p + 1) : *p;
+    char* end = strchr(start + 1, '\'');
+    if (end == NULL) {
+        error_lex(&dummy, "unclosed char literal");
+    }
+    end = end + 1;
+
+    Token tok;
+    ZERO_MEMORY(tok);
+    tok.kind = TK_NUM;
+    tok.line = lexer->line;
+    tok.col = lexer->col;
+    tok.p = start;
+    tok.len = end - start;
+    tok.sourceInfo = lexer->sourceInfo;
+    tok.val = c;
+
+    while (lexer->p != end) {
+        lexer_read(lexer);
+    }
+
+    array_push_back(Token, arr, tok);
+}
+
 static void add_string(Lexer* lexer, Array* arr)
 {
     const char* start = lexer->p;
@@ -175,8 +207,8 @@ static void add_string(Lexer* lexer, Array* arr)
     ++len;
 
     Token tok;
-    tok.kind = TK_STR;
     lexer_fill_tok(lexer, &tok);
+    tok.kind = TK_STR;
     tok.len = (int)(end - tok.p);
 
     while (lexer->p != end) {
@@ -192,8 +224,8 @@ static void add_string(Lexer* lexer, Array* arr)
 static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.kind = TK_IDENT;
     lexer_fill_tok(lexer, &tok);
+    tok.kind = TK_IDENT;
 
     lexer_read(lexer);
     while (is_ident2(lexer_peek(lexer))) {
@@ -207,8 +239,8 @@ static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
 static void add_one_char_punct(Lexer* lexer, Array* arr)
 {
     Token tok;
-    tok.kind = TK_PUNCT;
     lexer_fill_tok(lexer, &tok);
+    tok.kind = TK_PUNCT;
 
     lexer_read(lexer);
     tok.len = 1;
@@ -226,8 +258,8 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
     for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
         if (begin_with(lexer->p, s_multi_char_puncts[i])) {
             Token tok;
-            tok.kind = TK_PUNCT;
             lexer_fill_tok(lexer, &tok);
+            tok.kind = TK_PUNCT;
             tok.len = (int)strlen(s_multi_char_puncts[i]);
             lexer_shift(lexer, tok.len);
             array_push_back(Token, arr, tok);
@@ -302,6 +334,12 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         // whitespace
         if (strchr(" \n\t\r", c) != NULL) {
             lexer_read(&lexer);
+            continue;
+        }
+
+        // char literal
+        if (c == '\'') {
+            add_char(&lexer, tokArray);
             continue;
         }
 

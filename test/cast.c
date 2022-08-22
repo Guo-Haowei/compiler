@@ -1,13 +1,14 @@
 #include "test.h"
 
-int main() {
+int main()
+{
     (void)1;
 
     ASSERT(131585, (int)8590066177);
     ASSERT(513, (short)8590066177);
     ASSERT(1, (char)8590066177);
     ASSERT(1, (long)1);
-    ASSERT(0, (long)&*(int *)0);
+    ASSERT(0, (long)&*(int*)0);
     {
         int x = 512;
         *(char*)&x = 1;
@@ -37,7 +38,7 @@ int main() {
         A* p = (A*)&b;
         ASSERT(1145258561, p->a);
         ASSERT(1280002633, p->b);
-        ASSERT(81, p->c); // @TODO: change to 'Q'
+        ASSERT('Q', p->c);
     }
 
     printf("OK\n");
