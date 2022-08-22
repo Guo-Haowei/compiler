@@ -148,6 +148,7 @@ typedef enum {
     TY_ARRAY,
     TY_STRUCT,
     TY_UNION,
+    TY_ENUM,
 } TypeKind;
 
 struct Type {
@@ -196,6 +197,7 @@ Type* pointer_to(Type* base);
 Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
 void add_type(Node* node);
+Type* enum_type();
 
 bool is_token_equal(const Token* token, const char* symbol);
 

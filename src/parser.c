@@ -21,10 +21,14 @@ typedef struct {
     char* name;
     Obj* var;
     Type* typeDef;
+    Type* enumType;
+    int enumVal;
 } VarScope;
 
 // Represents a block scope.
 typedef struct Scope {
+    // C has two block scopes; one is for variables/typedefs and
+    // the other is for struct/union/enum tags.
     List vars;
     List tags;
 } Scope;
@@ -245,6 +249,7 @@ static char* get_ident(const Token* tok)
     return strncopy(tok->p, tok->len);
 }
 
+static Type* parse_enum_specifier(ParserState* state);
 static Node* parse_primary(ParserState* state);
 static Node* parse_postfix(ParserState* state);
 static Node* parse_unary(ParserState* state);
@@ -316,12 +321,12 @@ static Node* parse_primary(ParserState* state)
         }
 
         VarScope* sc = find_var(state, tok);
-        if (!sc || !sc->var) {
+        if (!sc || !(sc->var || sc->enumType)) {
             error_tok(tok, "undefined variable '%s'", tok->raw);
         }
 
         read(state);
-        return new_var(sc->var, tok);
+        return sc->var ? new_var(sc->var, tok) : new_num(sc->enumVal, tok);
     }
 
     error_tok(tok, "expected expression before '%s' token", tok->raw);
@@ -802,7 +807,7 @@ static bool is_type_name(ParserState* state, Token* tok)
 {
     // clang-format off
     static const char* kw[] = {
-        "char", "int", "long", "short", "struct", "typedef", "union", "void", NULL,
+        "char", "enum", "int", "long", "short", "struct", "typedef", "union", "void", NULL,
     };
     // clang-format on
 
@@ -855,21 +860,18 @@ static Node* parse_compound_stmt(ParserState* state)
     return node;
 }
 
-// declspec = ("void" | "char" | "short" | "int" | "long"
+static int64_t get_number(Token* tok)
+{
+    if (tok->kind != TK_NUM) {
+        error_tok(tok, "expected a number");
+    }
+    return tok->val;
+}
+
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef"
-//             | struct-decl | union-decl | typedef-name)+
-//
-// The order of typenames in a type-specifier doesn't matter. For
-// example, `int long static` means the same as `static long int`.
-// That can also be written as `static long` because you can omit
-// `int` if `long` or `short` are specified. However, something like
-// `char int` is not a valid type specifier. We have to accept only a
-// limited combinations of the typenames.
-//
-// In this function, we count the number of occurrences of each typename
-// while keeping the "current" type object that the typenames up
-// until that point represent. When we reach a non-typename token,
-// we returns the current type object.
+//             | struct-decl | union-decl | typedef-name
+//             | enum-specifier)+
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 {
     enum {
@@ -904,7 +906,8 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
         Type* ty2 = find_typedef(state, tok);
         const bool isStruct = is_token_equal(tok, "struct");
         const bool isUnion = is_token_equal(tok, "union");
-        if (isStruct || isUnion || ty2) {
+        const bool isEnum = is_token_equal(tok, "enum");
+        if (isStruct || isUnion || isEnum || ty2) {
             if (counter) {
                 break;
             }
@@ -914,6 +917,8 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
                 ty = parse_struct_decl(state);
             } else if (isUnion) {
                 ty = parse_union_decl(state);
+            } else if (isEnum) {
+                ty = parse_enum_specifier(state);
             } else {
                 ty = ty2;
             }
@@ -963,6 +968,62 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
     return ty;
 }
 
+// enum-specifier = ident? "{" enum-list? "}"
+//                | ident ("{" enum-list? "}")?
+//
+// enum-list      = ident ("=" num)? ("," ident ("=" num)?)*
+static Type* parse_enum_specifier(ParserState* state)
+{
+    Type* ty = enum_type();
+
+    // Read a struct tag.
+    Token* tag = NULL;
+    Token* start = peek(state);
+    if (start->kind == TK_IDENT) {
+        tag = start;
+        read(state);
+    }
+
+    if (tag && !equal(state, "{")) {
+        Type* ty = find_tag(state, tag);
+        if (!ty) {
+            error_tok(tag, "'%s' is not enum", tag->raw);
+        }
+        if (ty->eTypeKind != TY_ENUM) {
+            error_tok(tag, "'%s' defined as wrong kind of tag", tag->raw);
+        }
+        return ty;
+    }
+
+    expect(state, "{");
+
+    // Read an enum-list.
+    int i = 0;
+    int val = 0;
+    while (!consume(state, "}")) {
+        if (i++ > 0) {
+            expect(state, ",");
+            if (consume(state, "}")) {
+                break;
+            }
+        }
+
+        char* name = get_ident(read(state));
+        if (consume(state, "=")) {
+            val = get_number(read(state));
+        }
+
+        VarScope* sc = push_var_scope(state, name);
+        sc->enumType = ty;
+        sc->enumVal = val++;
+    }
+
+    if (tag) {
+        push_tag_scope(state, tag, ty);
+    }
+    return ty;
+}
+
 // abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
 static Type* parse_abstract_declarator(ParserState* state, Type* ty)
 {
@@ -1002,14 +1063,6 @@ static Type* parse_func_params(ParserState* state, Type* type)
     type = func_type(type);
     type->params = head.next;
     return type;
-}
-
-static int64_t get_number(Token* tok)
-{
-    if (tok->kind != TK_NUM) {
-        error_tok(tok, "expected a number");
-    }
-    return tok->val;
 }
 
 // type-suffix = "(" func-params

@@ -25,6 +25,7 @@ bool is_integer(Type* type)
     case TY_INT:
     case TY_SHORT:
     case TY_LONG:
+    case TY_ENUM:
         return true;
     default:
         return false;
@@ -56,6 +57,11 @@ Type* func_type(Type* retType)
     type->eTypeKind = TY_FUNC;
     type->retType = retType;
     return type;
+}
+
+Type* enum_type()
+{
+    return new_type(TY_ENUM, 4, 4);
 }
 
 Type* copy_type(Type* type)
