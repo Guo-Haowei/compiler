@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static Obj* s_current_func;
+
 typedef struct {
     bool isTypedef;
 } VarAttrib;
@@ -660,7 +662,16 @@ static Node* parse_assign(ParserState* state)
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node* parse_funccall(ParserState* state)
 {
-    Token* funcname = read(state);
+    Token* start = read(state);
+    VarScope* sc = find_var(state, start);
+    if (!sc) {
+        error_tok(start, "implicit declaration of function '%s'", start->raw);
+    }
+    if (!sc->var || sc->var->type->eTypeKind != TY_FUNC) {
+        error_tok(start, "called object '%s' is not a function", start->raw);
+    }
+    Type* type = sc->var->type->retType;
+
     expect(state, "(");
     Node head = { .next = NULL };
     Node* cur = &head;
@@ -669,13 +680,19 @@ static Node* parse_funccall(ParserState* state)
         if (argc) {
             expect(state, ",");
         }
-        cur = cur->next = parse_assign(state);
+        Node* arg = parse_assign(state);
+        add_type(arg);
+        if (arg->type->eTypeKind == TY_STRUCT) {
+            error_tok(arg->tok, "passing struct to function call is not supported");
+        }
+        cur = cur->next = arg;
     }
-    Node* node = new_node(ND_FUNCCALL, funcname);
-    assert(funcname->raw);
-    node->funcname = strdup(funcname->raw);
+    Node* node = new_node(ND_FUNCCALL, start);
+    assert(start->raw);
+    node->funcname = strdup(start->raw);
     node->args = head.next;
     node->argc = argc;
+    node->type = type;
     return node;
 }
 
@@ -712,16 +729,20 @@ static Node* parse_expr_stmt(ParserState* state)
 //      | expr-stmt
 static Node* parse_stmt(ParserState* state)
 {
-    Token* tok = peek(state);
+    Token* start = peek(state);
 
     if (consume(state, "return")) {
-        Node* node = new_unary(ND_RETURN, parse_expr(state), tok);
+        Node* node = new_node(ND_RETURN, start);
+        Node* expr = parse_expr(state);
         expect(state, ";");
+
+        add_type(expr);
+        node->lhs = new_cast(expr, s_current_func->type->retType, start);
         return node;
     }
 
     if (consume(state, "if")) {
-        Node* node = new_node(ND_IF, tok);
+        Node* node = new_node(ND_IF, start);
         expect(state, "(");
         node->cond = parse_expr(state);
         expect(state, ")");
@@ -733,7 +754,7 @@ static Node* parse_stmt(ParserState* state)
     }
 
     if (consume(state, "for")) {
-        Node* node = new_node(ND_FOR, tok);
+        Node* node = new_node(ND_FOR, start);
 
         expect(state, "(");
         node->init = parse_expr_stmt(state);
@@ -751,7 +772,7 @@ static Node* parse_stmt(ParserState* state)
     }
 
     if (consume(state, "while")) {
-        Node* node = new_node(ND_FOR, tok);
+        Node* node = new_node(ND_FOR, start);
         expect(state, "(");
         node->cond = parse_expr(state);
         expect(state, ")");
@@ -1105,6 +1126,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye)
     }
 
     s_locals = NULL;
+    s_current_func = fn;
 
     enter_scope(state);
 

@@ -210,6 +210,7 @@ static void gen_expr(Node const* node)
         writeln("  mov $%ld, %%rax", node->val);
         return;
     case ND_NEG:
+        // @TODO: fix
         gen_expr(node->lhs);
         // if (node->type->size == 8) {
         writeln("  neg %%rax");

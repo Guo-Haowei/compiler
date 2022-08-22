@@ -125,6 +125,7 @@ void add_type(Node* node)
         return;
     case ND_NEG: {
         Type* ty = get_common_type(g_long_type, node->lhs->type);
+        // @TODO: fix this
         // Type* ty = get_common_type(g_int_type, node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
         node->type = ty;
