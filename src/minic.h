@@ -207,6 +207,7 @@ Array* lex(const char* filename);
 List* preproc(Array* toks);
 
 void dump_preproc(List* toks);
+Node* new_cast(Node* expr, Type* type, Token* tok);
 Obj* parse(List* toks);
 
 void gen(Obj* prog, const char* srcname, const char* asmname);

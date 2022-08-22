@@ -54,12 +54,17 @@ static void load(Type* type)
         return;
     }
 
+    // When we load a char or a short value to a register, we always
+    // extend them to the size of int, so we can assume the lower half of
+    // a register always contains a valid value. The upper half of a
+    // register for char, short and int may contain garbage. When we load
+    // a long value to a register, it simply occupies the entire register.
     switch (type->size) {
     case 1:
-        writeln("  movsbq (%%rax), %%rax");
+        writeln("  movsbl (%%rax), %%eax");
         break;
     case 2:
-        writeln("  movswq (%%rax), %%rax");
+        writeln("  movswl (%%rax), %%eax");
         break;
     case 4:
         writeln("  movsxd (%%rax), %%rax");
@@ -197,7 +202,11 @@ static void gen_expr(Node const* node)
         return;
     case ND_NEG:
         gen_expr(node->lhs);
+        // if (node->type->size == 8) {
         writeln("  neg %%rax");
+        // } else {
+        //     writeln("  neg %%eax");
+        // }
         return;
     case ND_VAR:
     case ND_MEMBER:

@@ -65,6 +65,33 @@ Type* copy_type(Type* type)
     return ret;
 }
 
+static Type* get_common_type(Type* ty1, Type* ty2)
+{
+    if (ty1->base) {
+        return pointer_to(ty1->base);
+    }
+
+    if (ty1->size == 8 || ty2->size == 8) {
+        return g_long_type;
+    }
+
+    return g_int_type;
+}
+
+// For many binary operators, we implicitly promote operands so that
+// both operands have the same type. Any integral type smaller than
+// int is always promoted to int. If the type of one operand is larger
+// than the other's (e.g. "long" vs. "int"), the smaller operand will
+// be promoted to match with the other.
+//
+// This operation is called the "usual arithmetic conversion".
+static void usual_arith_conv(Node** lhs, Node** rhs)
+{
+    Type* type = get_common_type((*lhs)->type, (*rhs)->type);
+    *lhs = new_cast(*lhs, type, NULL);
+    *rhs = new_cast(*rhs, type, NULL);
+}
+
 void add_type(Node* node)
 {
     if (!node || node->type) {
@@ -84,27 +111,45 @@ void add_type(Node* node)
     for (Node* n = node->args; n; n = n->next) {
         add_type(n);
     }
+
     switch (node->eNodeKind) {
+    case ND_NUM:
+        node->type = (node->val == (int)node->val) ? g_int_type : g_long_type;
+        return;
     case ND_ADD:
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
-    case ND_NEG:
+        usual_arith_conv(&node->lhs, &node->rhs);
         node->type = node->lhs->type;
         return;
-    case ND_ASSIGN:
-        if (node->lhs->type->eTypeKind == TY_ARRAY) {
+    case ND_NEG: {
+        Type* ty = get_common_type(g_long_type, node->lhs->type);
+        // Type* ty = get_common_type(g_int_type, node->lhs->type);
+        node->lhs = new_cast(node->lhs, ty, NULL);
+        node->type = ty;
+        return;
+    }
+    case ND_ASSIGN: {
+        TypeKind kind = node->lhs->type->eTypeKind;
+        if (kind == TY_ARRAY || kind == TY_STRUCT) {
             error_tok(node->lhs->tok, "not an lvalue");
+        }
+        if (kind == TY_STRUCT) {
+            node->rhs = new_cast(node->rhs, node->lhs->type, NULL);
         }
         node->type = node->lhs->type;
         return;
+    }
     case ND_EQ:
     case ND_NE:
     case ND_LT:
     case ND_LE:
     case ND_GT:
     case ND_GE:
-    case ND_NUM:
+        usual_arith_conv(&node->lhs, &node->rhs);
+        node->type = g_int_type;
+        return;
     case ND_FUNCCALL:
         node->type = g_long_type;
         return;

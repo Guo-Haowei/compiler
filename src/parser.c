@@ -147,7 +147,7 @@ static Node* new_unary(NodeKind eNodeKind, Node* expr, Token* tok)
     return node;
 }
 
-static Node* new_cast(Node* expr, Type* type, Token* tok)
+Node* new_cast(Node* expr, Type* type, Token* tok)
 {
     add_type(expr);
     Node* node = new_node(ND_CAST, expr->tok);

@@ -24,11 +24,10 @@ int main() {
             long b;
             char c;
         } A;
-        typedef struct {
+        struct {
             char a[64];
-        } B;
-    
-        B b;
+        } b;
+
         // @TODO: use string copy to set "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         int i;
         for (i = 0; i < 26; i = i + 1) {
