@@ -132,7 +132,7 @@ void add_type(Node* node)
     }
     case ND_ASSIGN: {
         TypeKind kind = node->lhs->type->eTypeKind;
-        if (kind == TY_ARRAY || kind == TY_STRUCT) {
+        if (kind == TY_ARRAY) {
             error_tok(node->lhs->tok, "not an lvalue");
         }
         if (kind == TY_STRUCT) {

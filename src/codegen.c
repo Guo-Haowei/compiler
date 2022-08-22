@@ -44,7 +44,7 @@ static void gen_expr(Node const* node);
 // Load a value from where %rax is pointing to.
 static void load(Type* type)
 {
-    if (type->eTypeKind == TY_ARRAY) {
+    if (type->eTypeKind == TY_ARRAY || type->eTypeKind == TY_STRUCT) {
         // If it is an array, do not attempt to load a value to the
         // register because in general we can't load an entire array to a
         // register. As a result, the result of an evaluation of an array
@@ -82,6 +82,15 @@ static void load(Type* type)
 static void store(Type* type)
 {
     pop("%rdi");
+
+    if (type->eTypeKind == TY_STRUCT) {
+        for (int i = 0; i < type->size; i++) {
+            writeln("  mov %d(%%rax), %%r8b", i);
+            writeln("  mov %%r8b, %d(%%rdi)", i);
+        }
+        return;
+    }
+
     switch (type->size) {
     case 1:
         writeln("  mov %%al, (%%rdi)");

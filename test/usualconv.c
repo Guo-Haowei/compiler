@@ -28,8 +28,8 @@ int main() {
         ASSERT(0, y[-1]);
     }
     {
-        // struct t {char a;} x, y; x.a=5; y=x;
-        // ASSERT(5, y.a);
+        struct t {char a;} x, y; x.a=5; y=x;
+        ASSERT(5, y.a);
     }
 
     printf("OK\n");
