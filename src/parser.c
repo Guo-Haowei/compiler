@@ -105,7 +105,7 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
 /**
  * Create Node API
  */
-static Node* new_node(NodeKind eNodeKind, Token const* tok)
+static Node* new_node(NodeKind eNodeKind, Token* tok)
 {
     static int s_id = 0;
     Node* node = calloc(1, sizeof(Node));
@@ -115,7 +115,7 @@ static Node* new_node(NodeKind eNodeKind, Token const* tok)
     return node;
 }
 
-static Node* new_num(int64_t val, Token const* tok)
+static Node* new_num(int64_t val, Token* tok)
 {
     Node* node = new_node(ND_NUM, tok);
     node->eNodeKind = ND_NUM;
@@ -123,14 +123,14 @@ static Node* new_num(int64_t val, Token const* tok)
     return node;
 }
 
-static Node* new_var(Obj* var, Token const* tok)
+static Node* new_var(Obj* var, Token* tok)
 {
     Node* node = new_node(ND_VAR, tok);
     node->var = var;
     return node;
 }
 
-static Node* new_binary(NodeKind eNodeKind, Node* lhs, Node* rhs, Token const* tok)
+static Node* new_binary(NodeKind eNodeKind, Node* lhs, Node* rhs, Token* tok)
 {
     Node* node = new_node(eNodeKind, tok);
     node->isBinary = true;
@@ -139,11 +139,21 @@ static Node* new_binary(NodeKind eNodeKind, Node* lhs, Node* rhs, Token const* t
     return node;
 }
 
-static Node* new_unary(NodeKind eNodeKind, Node* expr, Token const* tok)
+static Node* new_unary(NodeKind eNodeKind, Node* expr, Token* tok)
 {
     Node* node = new_node(eNodeKind, tok);
     node->isUnary = true;
     node->lhs = expr;
+    return node;
+}
+
+static Node* new_cast(Node* expr, Type* type, Token* tok)
+{
+    add_type(expr);
+    Node* node = new_node(ND_CAST, expr->tok);
+    node->tok = tok;
+    node->lhs = expr;
+    node->type = copy_type(type);
     return node;
 }
 
@@ -236,6 +246,7 @@ static char* get_ident(const Token* tok)
 static Node* parse_primary(ParserState* state);
 static Node* parse_postfix(ParserState* state);
 static Node* parse_unary(ParserState* state);
+static Node* parse_cast(ParserState* state);
 static Node* parse_mul(ParserState* state);
 static Node* parse_add(ParserState* state);
 static Node* parse_relational(ParserState* state);
@@ -315,25 +326,25 @@ static Node* parse_primary(ParserState* state)
     return NULL;
 }
 
-// unary = ("+" | "-" | "*" | "&") unary
+// unary = ("+" | "-" | "*" | "&") cast
 //       | postfix
 static Node* parse_unary(ParserState* state)
 {
     if (consume(state, "+")) {
-        return parse_unary(state);
+        return parse_cast(state);
     }
 
     Token* tok = peek(state);
     if (consume(state, "-")) {
-        return new_unary(ND_NEG, parse_unary(state), tok);
+        return new_unary(ND_NEG, parse_cast(state), tok);
     }
 
     if (consume(state, "*")) {
-        return new_unary(ND_DEREF, parse_unary(state), tok);
+        return new_unary(ND_DEREF, parse_cast(state), tok);
     }
 
     if (consume(state, "&")) {
-        return new_unary(ND_ADDR, parse_unary(state), tok);
+        return new_unary(ND_ADDR, parse_cast(state), tok);
     }
 
     return parse_postfix(state);
@@ -487,6 +498,19 @@ static Node* parse_postfix(ParserState* state)
     }
 }
 
+// cast = "(" type-name ")" cast | unary
+static Node* parse_cast(ParserState* state)
+{
+    if (equal(state, "(") && is_type_name(state, peek_n(state, 1))) {
+        Token* start = read(state);
+        Type* type = parse_type_name(state);
+        expect(state, ")");
+        Node* node = new_cast(parse_cast(state), type, start);
+        return node;
+    }
+    return parse_unary(state);
+}
+
 static NodeKind to_binary_node_kind(char const* symbol)
 {
 #define DEFINE_NODE(NAME, BINOP, UNARYOP) \
@@ -497,14 +521,14 @@ static NodeKind to_binary_node_kind(char const* symbol)
     return ND_INVALID;
 }
 
-static Node* parse_binary_internal(ParserState* state, char const** symbols, ParseBinaryFn fp)
+static Node* parse_binary_internal(ParserState* state, const char** symbols, ParseBinaryFn fp)
 {
     Node* node = fp(state);
 
     for (;;) {
         bool found = false;
         for (const char** p = symbols; *p; ++p) {
-            const Token* tok = peek(state);
+            Token* tok = peek(state);
             if (is_token_equal(tok, *p)) {
                 read(state);
                 NodeKind kind = to_binary_node_kind(*p);
@@ -523,11 +547,11 @@ static Node* parse_binary_internal(ParserState* state, char const** symbols, Par
     }
 }
 
-// mul = unary ("*" unary | "/" unary)*
+// mul = cast ("*" cast | "/" cast)*
 static Node* parse_mul(ParserState* state)
 {
     static char const* s_symbols[] = { "*", "/", "%", NULL };
-    return parse_binary_internal(state, s_symbols, parse_unary);
+    return parse_binary_internal(state, s_symbols, parse_cast);
 }
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok)
@@ -636,7 +660,7 @@ static Node* parse_assign(ParserState* state)
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node* parse_funccall(ParserState* state)
 {
-    const Token* funcname = read(state);
+    Token* funcname = read(state);
     expect(state, "(");
     Node head = { .next = NULL };
     Node* cur = &head;
@@ -1019,7 +1043,7 @@ static Node* parse_decl(ParserState* state, Type* baseType)
         Type* type = parse_declarator(state, baseType);
         Obj* var = new_lvar(state, get_ident(type->name), type);
 
-        const Token* tok = peek(state);
+        Token* tok = peek(state);
         if (is_token_equal(tok, "=")) {
             read(state);
             Node* lhs = new_var(var, type->name);

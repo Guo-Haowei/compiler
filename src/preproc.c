@@ -89,12 +89,11 @@ static int is_node_arg(Macro* macro, Token* token)
     return -1;
 }
 
-static void pop_to(List* tokens, const char* symbol)
+static void pop_to(List* tokens, ListNode* node)
 {
     for (;;) {
-        Token* rest = list_front(Token, tokens);
-        if (is_token_equal(rest, symbol)) {
-            list_pop_front(tokens);
+        ListNode* front = tokens->front;
+        if (front == node) {
             break;
         }
         list_pop_front(tokens);
@@ -151,6 +150,8 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
         _list_push_back(list, tok, sizeof(Token));
     }
 
+    pop_to(state->unprocessed, tr.cursor);
+
     if (args->len != macro->args->len) {
         error_tok(tr_peek(&tr),
             "macro \"%.*s\" passed %d arguments, but takes %d",
@@ -158,15 +159,6 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             macro->token.p,
             args->len,
             macro->args->len);
-    }
-
-    // pop the tokens
-    for (;;) {
-        ListNode* front = state->unprocessed->front;
-        if (front == tr.cursor) {
-            break;
-        }
-        list_pop_front(state->unprocessed);
     }
 
     List* tmp = list_new();
@@ -332,7 +324,7 @@ static void define(PreprocState* state, List* preprocLine)
         _list_push_back(macro.args, arg, sizeof(Token));
     }
 
-    pop_to(preprocLine, ")");
+    pop_to(preprocLine, tr.cursor);
 
     macro.expandTo = preprocLine;
     macro.isFunc = true;

@@ -40,7 +40,7 @@ def test_file(file):
     child.communicate()
     retcode = child.poll()
     if retcode != 0:
-        print(f'    in file {test_src_folder}{file}.c({retcode}:1)')
+        print(f'    in file {test_src_folder}{file}.c(error: {retcode})')
         os._exit(1)
 
     return

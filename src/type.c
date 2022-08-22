@@ -141,8 +141,8 @@ void add_type(Node* node)
     case ND_INVALID:
     case ND_COUNT:
         return;
+    default:
+        error("unhandled node type %s\n", node_kind_to_string(node->eNodeKind));
+        break;
     }
-
-    fprintf(stderr, "unhandled node type %s\n", node_kind_to_string(node->eNodeKind));
-    assert(0);
 }

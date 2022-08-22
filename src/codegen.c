@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
+// clang-format off
+enum { I8, I16, I32, I64 };
+// clang-format on
+
 // @TODO: refactor
 static int s_depth = 0;
 static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
@@ -146,6 +150,45 @@ static void gen_cmp_expr(NodeKind eNodeKind, const char* di, const char* ax)
     writeln("  movzb %%al, %%rax");
 }
 
+static int getTypeId(Type* ty)
+{
+    switch (ty->eTypeKind) {
+    case TY_CHAR:
+        return I8;
+    case TY_SHORT:
+        return I16;
+    case TY_INT:
+        return I32;
+    default:
+        return I64;
+    }
+}
+
+// The table for type casts
+static char s_i32i8[] = "movsbl %al, %eax";
+static char s_i32i16[] = "movswl %ax, %eax";
+static char s_i32i64[] = "movsxd %eax, %rax";
+
+static char* s_cast_table[][10] = {
+    { NULL, NULL, NULL, s_i32i64 },        // i8
+    { s_i32i8, NULL, NULL, s_i32i64 },     // i16
+    { s_i32i8, s_i32i16, NULL, s_i32i64 }, // i32
+    { s_i32i8, s_i32i16, NULL, NULL },     // i64
+};
+
+static void gen_cast(Type* from, Type* to)
+{
+    if (to->eTypeKind == TY_VOID) {
+        return;
+    }
+
+    int t1 = getTypeId(from);
+    int t2 = getTypeId(to);
+    if (s_cast_table[t1][t2]) {
+        writeln("  %s", s_cast_table[t1][t2]);
+    }
+}
+
 static void gen_expr(Node const* node)
 {
     switch (node->eNodeKind) {
@@ -192,6 +235,10 @@ static void gen_expr(Node const* node)
 
         writeln("  mov $0, %%rax");
         writeln("  call %s", node->funcname);
+        return;
+    case ND_CAST:
+        gen_expr(node->lhs);
+        gen_cast(node->lhs->type, node->type);
         return;
     default:
         break;

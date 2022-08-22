@@ -29,4 +29,5 @@ DEFINE_NODE(ND_FUNCCALL     , 0             , 0         ) // function call
 DEFINE_NODE(ND_EXPR_STMT    , 0             , 0         ) // expression statement
 DEFINE_NODE(ND_VAR          , 0             , 0         ) // variable
 DEFINE_NODE(ND_NUM          , 0             , 0         ) // number literal
+DEFINE_NODE(ND_CAST         , 0             , 0         ) // cast
 // clang-format on
