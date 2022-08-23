@@ -37,9 +37,12 @@ typedef struct {
     List scopes;
     Obj* currentFunc;
 
-    // Lists of all goto statements and labels in the curent function.
-    Node *gotos;
-    Node *labels;
+    // lists of all goto statements and labels in the curent function.
+    Node* gotos;
+    Node* labels;
+
+    char* brkLabel;
+    char* cntLabel;
 } ParserState;
 
 /// token stream
@@ -754,9 +757,9 @@ static Node* parse_bitand(ParserState* state)
 // logor = logand ("||" logand)*
 static Node* parse_logor(ParserState* state)
 {
-    Node *node = parse_logand(state);
+    Node* node = parse_logand(state);
     while (equal(state, "||")) {
-        Token *start = read(state);
+        Token* start = read(state);
         node = new_binary(ND_LOGOR, node, parse_logand(state), start);
     }
     return node;
@@ -765,9 +768,9 @@ static Node* parse_logor(ParserState* state)
 // logand = bitor ("&&" bitor)*
 static Node* parse_logand(ParserState* state)
 {
-    Node *node = parse_bitor(state);
+    Node* node = parse_bitor(state);
     while (equal(state, "&&")) {
-        Token *start = read(state);
+        Token* start = read(state);
         node = new_binary(ND_LOGAND, node, parse_bitor(state), start);
     }
     return node;
@@ -875,6 +878,8 @@ static Node* parse_expr_stmt(ParserState* state)
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
+//      | "break" ";"
+//      | "continue" ";"
 //      | "goto" ident ";"
 //      | ident ":" stmt
 //      | "{" compound-stmt "}"
@@ -909,6 +914,12 @@ static Node* parse_stmt(ParserState* state)
         enter_scope(state);
 
         Node* node = new_node(ND_FOR, start);
+
+        char* restoreBrk = state->brkLabel;
+        char* restoreCnt = state->cntLabel;
+        state->brkLabel = node->brkLabel = new_unique_name();
+        state->cntLabel = node->cntLabel = new_unique_name();
+
         expect(state, "(");
 
         if (is_type_name(state, peek(state))) {
@@ -929,16 +940,48 @@ static Node* parse_stmt(ParserState* state)
 
         node->then = parse_stmt(state);
 
+        state->brkLabel = restoreBrk;
+        state->cntLabel = restoreCnt;
+
         leave_scope(state);
         return node;
     }
 
     if (consume(state, "while")) {
         Node* node = new_node(ND_FOR, start);
+
+        char* restoreBrk = state->brkLabel;
+        char* restoreCnt = state->cntLabel;
+        state->brkLabel = node->brkLabel = new_unique_name();
+        state->cntLabel = node->cntLabel = new_unique_name();
+
         expect(state, "(");
         node->cond = parse_expr(state);
         expect(state, ")");
         node->then = parse_stmt(state);
+
+        state->brkLabel = restoreBrk;
+        state->cntLabel = restoreCnt;
+        return node;
+    }
+
+    if (consume(state, "break")) {
+        if (!state->brkLabel) {
+            error_tok(start, "break statement not within loop or switch");
+        }
+        Node* node = new_node(ND_GOTO, start);
+        node->uniqueLabel = state->brkLabel;
+        expect(state, ";");
+        return node;
+    }
+
+    if (consume(state, "continue")) {
+        if (!state->cntLabel) {
+            error_tok(start, "continue statement not within loop");
+        }
+        Node *node = new_node(ND_GOTO, start);
+        node->uniqueLabel = state->cntLabel;
+        expect(state, ";");
         return node;
     }
 
@@ -1373,7 +1416,7 @@ static void resolve_goto_labels(ParserState* state)
             error_tok(x->tok, "label '%s' used but not defined", x->label);
         }
     }
-    
+
     state->gotos = state->labels = NULL;
 }
 

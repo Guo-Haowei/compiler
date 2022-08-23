@@ -410,7 +410,8 @@ static void gen_stmt(Node const* node)
         }
         return;
     case ND_FOR: {
-        int const c = label_counter();
+        assert(node->brkLabel);
+        int c = label_counter();
         if (node->init) {
             gen_stmt(node->init);
         }
@@ -420,16 +421,16 @@ static void gen_stmt(Node const* node)
         if (node->cond) {
             gen_expr(node->cond);
             writeln("  cmp $0, %%rax");
-            writeln("  je  .L.end.%d", c);
+            writeln("  je %s", node->brkLabel);
         }
 
         gen_stmt(node->then);
-
+        writeln("%s:", node->cntLabel);
         if (node->inc) {
             gen_expr(node->inc);
         }
         writeln("  jmp .L.begin.%d", c);
-        writeln(".L.end.%d:", c);
+        writeln("%s:", node->brkLabel);
         return;
     }
     default:

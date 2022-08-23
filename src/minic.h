@@ -130,6 +130,10 @@ struct Node {
     char* uniqueLabel;
     Node* gotoNext;
 
+    // "break" label
+    char* brkLabel;
+    char* cntLabel;
+
     // @TODO: remove flags
     int isBinary;
     int isUnary;

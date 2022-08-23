@@ -26,6 +26,79 @@ int main()
         }
         ASSERT(1, i);
     }
+    {
+        int i=0;
+        for(; i<10; i++) {
+            if (i == 3)
+                break;
+        }
+        ASSERT(3, i);
+    }
+    {
+        int i=0;
+        while (1)
+            if (i++ == 3)
+                break;
+        ASSERT(4, i);
+    }
+    {
+        int i=0;
+        for(; i < 10; i++) {
+            for (;;)
+                break;
+            if (i == 3)
+                break;
+        }
+        ASSERT(3, i);
+    }
+    {
+        int i=0;
+        while (1) {
+            while(1)
+                break;
+            if (i++ == 3)
+                break;
+        }
+        ASSERT(4, i);
+    }
+    {
+        int i = 0, j = 0;
+        for (; i < 10; i++) {
+            if (i > 5)
+                continue;
+            j++;
+        }
+        ASSERT(10, i);
+        ASSERT(6, j);
+    }
+    {
+        int i = 0, j = 0;
+        for(; !i; ) {
+            for (; j != 10; j++)
+                continue;
+            break;
+        }
+        ASSERT(10, j);
+    }
+    {
+        int i = 0, j = 0;
+        while (i++ < 10) {
+            if (i > 5)
+                continue;
+            j++;
+        }
+        ASSERT(11, i);
+        ASSERT(5, j);
+    }
+    {
+        int i = 0, j = 0;
+        while (!i) {
+            while (j++ != 10)
+                continue;
+            break;
+        }
+        ASSERT(11, j);
+    }
 
     ASSERT(1, 0||1);
     ASSERT(1, 0||(2-2)||5);
