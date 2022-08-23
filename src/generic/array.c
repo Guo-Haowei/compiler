@@ -57,7 +57,7 @@ void* array_back(struct Array* arr)
     return _array_at(arr, arr->len - 1);
 }
 
-void _array_push_back(struct Array* arr, const void* data)
+void _array_push_back(struct Array* arr, void* data)
 {
     assert(arr->eleSize);
     assert(arr->buffer);

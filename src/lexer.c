@@ -74,10 +74,10 @@ static void add_int(Lexer* lexer, Array* arr)
 
     const char *p = lexer->p;
     int base = 10;
-    if (!strncasecmp(p, "0x", 2) && isxdigit(p[2])) {
+    if (startswithcase(p, "0x") && isxdigit(p[2])) {
         p += 2;
         base = 16;
-    } else if (!strncasecmp(p, "0b", 2) && (p[2] == '0' || p[2] == '1')) {
+    } else if (startswithcase(p, "0b") && (p[2] == '0' || p[2] == '1')) {
         p += 2;
         base = 2;
     } else if (*p == '0') {
@@ -93,7 +93,7 @@ static void add_int(Lexer* lexer, Array* arr)
     if (startswithcase(end, "llu") || startswithcase(end, "ull")) {
         end += 3;
         l = u = true;
-    } else if (!strncasecmp(end, "lu", 2) || !strncasecmp(end, "ul", 2)) {
+    } else if (startswithcase(end, "lu") || startswithcase(end, "ul")) {
         end += 2;
         l = u = true;
     } else if (startswithcase(end, "ll")) {
@@ -443,7 +443,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         }
 
         // one char punct
-        if (strchr("=+-*/%()<>{}.,;&[]#!~&|^:?", c) != NULL) {
+        if (strchr("=+-*/%()<>{}.,;&[]#!~&|^:?\\", c) != NULL) {
             add_one_char_punct(&lexer, tokArray);
             continue;
         }
