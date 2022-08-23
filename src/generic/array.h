@@ -1,6 +1,5 @@
 #ifndef __ARRAY_H__
 #define __ARRAY_H__
-#include <assert.h>
 
 struct Array {
     char* buffer;
@@ -24,6 +23,6 @@ void* array_back(struct Array* arr);
         _array_push_back(arr, &ele);       \
     }                                      \
     (void)0
-void _array_push_back(struct Array* arr, const void* data);
+void _array_push_back(struct Array* arr, void* data);
 
 #endif // ifndef __ARRAY_H__

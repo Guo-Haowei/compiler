@@ -254,7 +254,9 @@ static void handle_macro(PreprocState* state, const Token* macroName_)
     }
 
     if (macro->isFunc) {
-        handle_macro_func(state, macro, &macroName);
+        if (list_len(macro->expandTo)) {
+            handle_macro_func(state, macro, &macroName);
+        }
         return;
     }
 
@@ -300,7 +302,10 @@ static void define(PreprocState* state, List* preprocLine)
         return;
     }
 
-    if (!is_token_equal(tok, "(")) {
+    // check if there's a space, if so
+    bool isBracket = is_token_equal(tok, "(");
+    bool noSpace = macro.token.p + macro.token.len == tok->p;
+    if (!(isBracket && noSpace)) {
         macro.expandTo = preprocLine;
         array_push_back(Macro, state->macros, macro);
         return;
@@ -333,34 +338,53 @@ static void define(PreprocState* state, List* preprocLine)
 
 static void include(PreprocState* state, List* preprocLine)
 {
-    Token* fileNameToken = NULL;
-    bool ok = false;
-    // @TODO: support <FILENAME>
-    if (list_len(preprocLine) == 2) {
-        fileNameToken = (Token*)(preprocLine->front->next + 1);
-        if (fileNameToken->kind == TK_STR) {
-            ok = true;
+    char file[MAX_OSPATH];
+
+    if (list_len(preprocLine) >= 2) {
+        Token* start = (Token*)(preprocLine->front->next + 1);
+        if (start->kind == TK_STR) {
+            snprintf(file, MAX_OSPATH, "./%s", start->sourceInfo->file);
+            // remove '/'
+            char* p = strrchr(file, '/');
+            assert(p);
+            *(++p) = '\0';
+            strcpy(p, start->str);
+            goto include_ok;
+        }
+
+        if (start->len == 1 && start->p[0] == '<') {
+            const char* end = strchr(start->p, '>');
+            if (end) {
+                bool pathOk = true;
+                for (const char* p = start->p; p != end; ++p) {
+                    if (*p == '\n') {
+                        pathOk = false;
+                        break;
+                    }
+                }
+
+                if (pathOk) {
+                    // @TODO: add include path -I
+#define INCLUDE_PATH "include"
+                    int pathLen = end - start->p - 1;
+                    snprintf(file, MAX_OSPATH, "./%s/%.*s", INCLUDE_PATH, pathLen, start->p + 1);
+                    goto include_ok;
+                }
+            }
         }
     }
 
-    if (!ok) {
-        error_tok(list_front(Token, preprocLine), "#include expects \"FILENAME\" or <FILENAME>");
-    }
+    error_tok(list_front(Token, preprocLine), "#include expects \"FILENAME\" or <FILENAME>");
 
-    char file[MAX_OSPATH];
-    snprintf(file, MAX_OSPATH, "./%s", fileNameToken->sourceInfo->file);
-    // remove '/'
-    char* p = strrchr(file, '/');
-    assert(p);
-    *(++p) = '\0';
-    strcpy(p, fileNameToken->str);
-
+include_ok:
     Array* rawToks = lex(file);
     // append arr2 to unprocessed list
     for (int i = rawToks->len - 1; i >= 0; --i) {
         const Token* rawTok = array_at(Token, rawToks, i);
         _list_push_front(state->unprocessed, rawTok, sizeof(Token));
     }
+
+    return;
 }
 
 static List* getline(PreprocState* state, int line, const char* sourceFile)
@@ -371,9 +395,22 @@ static List* getline(PreprocState* state, int line, const char* sourceFile)
             break;
         }
         Token* token = list_front(Token, state->unprocessed);
-        if (token->line != line || !streq(token->sourceInfo->file, sourceFile)) {
+        if (!streq(token->sourceInfo->file, sourceFile)) {
             break;
         }
+
+        if (token->len == 1 && token->p[0] == '\\') {
+            list_pop_front(state->unprocessed);
+            assert(list_len(state->unprocessed));
+            token = list_front(Token, state->unprocessed);
+            line = token->line;
+            continue;
+        }
+
+        if (token->line != line) {
+            break;
+        }
+
         _list_push_back(preprocLine, token, sizeof(Token));
         list_pop_front(state->unprocessed);
     }
