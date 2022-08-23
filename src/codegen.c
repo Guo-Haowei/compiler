@@ -433,6 +433,24 @@ static void gen_stmt(Node const* node)
         writeln("%s:", node->brkLabel);
         return;
     }
+    case ND_SWITCH:
+        gen_expr(node->cond);
+        for (Node* n = node->caseNext; n; n = n->caseNext) {
+            const char* reg = (node->cond->type->size == 8) ? "%rax" : "%eax";
+            writeln("  cmp $%ld, %s", n->val, reg);
+            writeln("  je %s", n->label);
+        }
+        if (node->caseDefault) {
+            writeln("  jmp %s", node->caseDefault->label);
+        }
+        writeln("  jmp %s", node->brkLabel);
+        gen_stmt(node->then);
+        writeln("%s:", node->brkLabel);
+        return;
+    case ND_CASE:
+        writeln("%s:", node->label);
+        gen_stmt(node->lhs);
+        return;
     default:
         break;
     }

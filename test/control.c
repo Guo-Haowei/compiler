@@ -1,5 +1,29 @@
 #include "test.h"
 
+static int test_switch(int a) {
+    int i = 0;
+    switch (a % 8) {
+    case 7:
+        ++i;
+    case 6:
+        ++i;
+    case 5:
+        ++i;
+    case 4:
+        ++i;
+    case 3:
+        ++i;
+    case 2:
+        ++i;
+    case 1:
+        ++i;
+        break;
+    default:
+        return 0;
+    }
+    return i;
+}
+
 int main()
 {
     {
@@ -137,6 +161,56 @@ label6:
         foo:
             (void)0;
     }
+
+    {
+        int i = 0;
+        switch (i % 3) {
+        case 0:
+            i = 5;
+            break;
+        case 1:
+            i = 6;
+            break;
+        case 2:
+            i = 7;
+            break;
+        }
+        ASSERT(5, i);
+    }
+    {
+        int i = 1;
+        switch (i % 3) {
+        case 0:
+            i = 5;
+            break;
+        case 1:
+            i = 6;
+            break;
+        case 2:
+            i = 7;
+            break;
+        }
+        ASSERT(6, i);
+    }
+    {
+        int i = 0;
+        switch (-1) {
+        case 0xffffffff:
+            i = 3;
+            break;
+        }
+        ASSERT(3, i);
+    }
+
+    ASSERT(0, test_switch(0));
+    ASSERT(1, test_switch(1));
+    ASSERT(2, test_switch(2));
+    ASSERT(3, test_switch(3));
+    ASSERT(4, test_switch(4));
+    ASSERT(5, test_switch(5));
+    ASSERT(6, test_switch(6));
+    ASSERT(7, test_switch(7));
+
     printf("OK\n");
     return 0;
 }

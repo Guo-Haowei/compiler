@@ -64,13 +64,18 @@ static void verror_at(int level, const char* file, const char* source, int sourc
         }
     }
 
-    char const* lineEnd = lineStart;
+    const char* lineEnd = lineStart;
     if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
         lineEnd = source + sourceLen;
     }
 
     const int lineLen = (int)(lineEnd - lineStart);
-    fprintf(stderr, "%5d | %.*s\n", line, lineLen, lineStart);
+    fprintf(stderr, "%5d | ", line);
+    int len1 = col - 1;
+    int len2 = span;
+    fprintf(stderr, "%.*s", len1, lineStart);
+    fprintf(stderr, "%s%.*s%s", color, len2, lineStart + len1, KRESET);
+    fprintf(stderr, "%.*s\n", lineLen - len1 - len2, lineStart + len1 + len2);
 
     fprintf(stderr, "      |%s%.*s%.*s%s\n", color, col, EMPTYLINE, span, UNDERLINE, KRESET);
 }

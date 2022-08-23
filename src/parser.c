@@ -43,6 +43,8 @@ typedef struct {
 
     char* brkLabel;
     char* cntLabel;
+
+    Node *currentSwitch;
 } ParserState;
 
 /// token stream
@@ -874,6 +876,14 @@ static Node* parse_expr_stmt(ParserState* state)
     return node;
 }
 
+static int64_t get_number(Token* tok)
+{
+    if (tok->kind != TK_NUM) {
+        error_tok(tok, "expected a number");
+    }
+    return tok->val;
+}
+
 // stmt = "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
@@ -881,6 +891,9 @@ static Node* parse_expr_stmt(ParserState* state)
 //      | "break" ";"
 //      | "continue" ";"
 //      | "goto" ident ";"
+//      | "switch" "(" expr ")" stmt
+//      | "case" num ":" stmt
+//      | "default" ":" stmt
 //      | ident ":" stmt
 //      | "{" compound-stmt "}"
 //      | expr-stmt
@@ -995,6 +1008,52 @@ static Node* parse_stmt(ParserState* state)
         return node;
     }
 
+    if (consume(state, "switch")) {
+        Node* node = new_node(ND_SWITCH, start);
+        expect(state, "(");
+        node->cond = parse_expr(state);
+        expect(state, ")");
+        Node* restoreSwitch = state->currentSwitch;
+        char* restoreBrk = state->brkLabel;
+
+        state->currentSwitch = node;
+        state->brkLabel = node->brkLabel = new_unique_name();
+        node->then = parse_stmt(state);
+
+        state->currentSwitch = restoreSwitch;
+        state->brkLabel = restoreBrk;
+        return node;
+    }
+
+    if (consume(state, "case")) {
+        if (!state->currentSwitch) {
+            error_tok(start, "case label not within a switch statement");
+        }
+
+        int64_t val = get_number(read(state));
+        Node* node = new_node(ND_CASE, start);
+        expect(state, ":");
+        node->label = new_unique_name();
+        node->lhs = parse_stmt(state);
+        node->val = val;
+        node->caseNext = state->currentSwitch->caseNext;
+        state->currentSwitch->caseNext = node;
+        return node;
+    }
+
+    if (consume(state, "default")) {
+        if (!state->currentSwitch) {
+            error_tok(start, "'default' label not within a switch statement");
+        }
+
+        Node* node = new_node(ND_CASE, start);
+        expect(state, ":");
+        node->label = new_unique_name();
+        node->lhs = parse_stmt(state);
+        state->currentSwitch->caseDefault = node;
+        return node;
+    }
+
     if (start->kind == TK_IDENT && is_token_equal(peek_n(state, 1), ":")) {
         Node* node = new_node(ND_LABEL, start);
         node->label = strdup(start->raw);
@@ -1080,14 +1139,6 @@ static Node* parse_compound_stmt(ParserState* state)
     Node* node = new_node(ND_BLOCK, compoundTok);
     node->body = head.next;
     return node;
-}
-
-static int64_t get_number(Token* tok)
-{
-    if (tok->kind != TK_NUM) {
-        error_tok(tok, "expected a number");
-    }
-    return tok->val;
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"

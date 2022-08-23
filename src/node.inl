@@ -35,6 +35,8 @@ DEFINE_NODE(ND_RETURN       , 0             , 0         ) // "return"
 DEFINE_NODE(ND_BLOCK        , 0             , 0         ) // { ... }
 DEFINE_NODE(ND_GOTO         , 0             , 0         ) // "goto"
 DEFINE_NODE(ND_LABEL        , 0             , 0         ) // label
+DEFINE_NODE(ND_SWITCH       , 0             , 0         ) // "switch"
+DEFINE_NODE(ND_CASE         , 0             , 0         ) // "case"
 DEFINE_NODE(ND_FUNCCALL     , 0             , 0         ) // function call
 DEFINE_NODE(ND_EXPR_STMT    , 0             , 0         ) // expression statement
 DEFINE_NODE(ND_VAR          , 0             , 0         ) // variable

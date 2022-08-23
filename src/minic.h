@@ -130,9 +130,13 @@ struct Node {
     char* uniqueLabel;
     Node* gotoNext;
 
-    // "break" label
+    // "break" or "continue"
     char* brkLabel;
     char* cntLabel;
+
+    // Switch-cases
+    Node *caseNext;
+    Node *caseDefault;
 
     // @TODO: remove flags
     int isBinary;

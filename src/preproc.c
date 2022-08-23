@@ -423,9 +423,9 @@ static void preproc2(PreprocState* state)
 static void postprocess(List* tokens)
 {
     static const char* const s_keywords[] = {
-        "auto", "break", "char", "const", "continue", "do", "else", "enum",
+        "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum",
         "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static",
-        "struct", "typedef", "union", "unsigned", "void", "while"
+        "struct", "switch", "typedef", "union", "unsigned", "void", "while"
     };
 
     for (ListNode* c = tokens->front; c; c = c->next) {
