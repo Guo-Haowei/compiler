@@ -89,7 +89,7 @@ void error(const char* const fmt, ...)
     exit(-1);
 }
 
-void error_lex(const Lexer* lexer, const char* const fmt, ...)
+void error_lex(const Lexer* lexer, const char* fmt, ...)
 {
     char const* file = lexer->sourceInfo->file;
     char const* source = lexer->sourceInfo->start;
@@ -119,7 +119,15 @@ static void verror_tok_internal(int level, const Token* tok, const char* fmt, va
     verror_at(level, file, source, sourceLen, line, col, span, fmt, args);
 }
 
-void error_tok(const Token* tok, const char* const fmt, ...)
+void info_tok(const Token* tok, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    verror_tok_internal(LEVEL_NOTE, tok, fmt, args);
+    va_end(args);
+}
+
+void error_tok(const Token* tok, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

@@ -39,6 +39,9 @@ static Macro* find_macro(PreprocState* state, const Token* token)
     Array* macros = state->macros;
     for (int i = 0; i < macros->len; ++i) {
         Macro* macro = array_at(Macro, macros, i);
+        if (macro->token.len == 0) {
+            continue;
+        }
         const int len = token->raw ? (int)strlen(token->raw) : token->len;
         if (macro->token.len != len) {
             continue;
@@ -276,14 +279,13 @@ static void define(PreprocState* state, List* preprocLine)
     list_pop_front(preprocLine); // pop #define
     const Token* name = list_front(Token, preprocLine);
     if (name->kind != TK_IDENT) {
-        error_tok(name, "macro names must be identifier");
+        error_tok(name, "macro names must be identifiers");
     }
 
-    {
-        Macro* macro = find_macro(state, name);
-        if (macro) {
-            assert(0 && "Handle redefinition");
-        }
+    Macro* found = find_macro(state, name);
+    if (found) {
+        info_tok(&(found->token), "this is the location of the previous definition");
+        error_tok(name, "'%.*s' redefined", name->len, name->p);
     }
 
     ProcLineReader reader;
@@ -334,6 +336,26 @@ static void define(PreprocState* state, List* preprocLine)
     macro.expandTo = preprocLine;
     macro.isFunc = true;
     array_push_back(Macro, state->macros, macro);
+}
+
+static void undef(PreprocState* state, List* preprocLine)
+{
+    if (list_len(preprocLine) < 2) {
+        error_tok(list_front(Token, preprocLine), "no macro name given in #undef directive");
+    }
+
+    list_pop_front(preprocLine); // pop #undef
+    const Token* name = list_front(Token, preprocLine);
+    if (name->kind != TK_IDENT) {
+        error_tok(name, "macro names must be identifiers");
+    }
+
+    Macro* found = find_macro(state, name);
+    if (!found) {
+        return;
+    }
+
+    memset(found, 0, sizeof(Macro));
 }
 
 static void include(PreprocState* state, List* preprocLine)
@@ -454,6 +476,12 @@ static void preproc2(PreprocState* state)
             define(state, preprocLine);
             continue;
         }
+        if (is_token_equal(directive, "undef")) {
+            undef(state, preprocLine);
+            continue;
+        }
+
+        error_tok(directive, "invalid preprocessing directive #%.*s", directive->len, directive->p);
     }
 }
 

@@ -29,6 +29,11 @@ int main()
     ABC;
     ABC;
 
+#undef ABC
+
+#define ABC ("ABC")
+    ASSERT('A', ABC[0]);
+
 #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
     ASSERT(16, ALIGN(1, 16));
     ASSERT(16, ALIGN(8, 16));

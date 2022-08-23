@@ -135,8 +135,8 @@ struct Node {
     char* cntLabel;
 
     // Switch-cases
-    Node *caseNext;
-    Node *caseDefault;
+    Node* caseNext;
+    Node* caseDefault;
 
     // @TODO: remove flags
     int isBinary;
@@ -228,8 +228,9 @@ Obj* parse(List* toks);
 void gen(Obj* prog, const char* srcname, const char* asmname);
 
 void error(const char* const fmt, ...);
-void error_lex(const Lexer* lexer, const char* const fmt, ...);
-void error_tok(const Token* token, const char* const fmt, ...);
+void error_lex(const Lexer* lexer, const char* fmt, ...);
+void error_tok(const Token* token, const char* fmt, ...);
+void info_tok(const Token* tok, const char* fmt, ...);
 
 /**
  *  utility
