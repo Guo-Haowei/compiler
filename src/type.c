@@ -121,6 +121,8 @@ void add_type(Node* node)
     switch (node->eNodeKind) {
     case ND_NUM:
     case ND_NOT:
+    case ND_LOGOR:
+    case ND_LOGAND:
         node->type = g_int_type;
         return;
     case ND_BITNOT:
@@ -130,6 +132,7 @@ void add_type(Node* node)
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
+    case ND_MOD:
     case ND_BITAND:
     case ND_BITOR:
     case ND_BITXOR:

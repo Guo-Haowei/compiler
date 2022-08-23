@@ -9,6 +9,7 @@ DEFINE_NODE(ND_ADD          , "+"           , 0         ) // +
 DEFINE_NODE(ND_SUB          , "-"           , 0         ) // -
 DEFINE_NODE(ND_MUL          , "*"           , 0         ) // *
 DEFINE_NODE(ND_DIV          , "/"           , 0         ) // /
+DEFINE_NODE(ND_MOD          , "%"           , 0         ) // %
 DEFINE_NODE(ND_NEG          , 0             , "-"       ) // unary -
 DEFINE_NODE(ND_ADDR         , 0             , "&"       ) // unary &
 DEFINE_NODE(ND_DEREF        , 0             , "*"       ) // unary *
@@ -23,6 +24,8 @@ DEFINE_NODE(ND_GE           , ">="          , 0         ) // >=
 DEFINE_NODE(ND_BITAND       , "&"           , 0         ) // &
 DEFINE_NODE(ND_BITOR        , "|"           , 0         ) // |
 DEFINE_NODE(ND_BITXOR       , "^"           , 0         ) // |
+DEFINE_NODE(ND_LOGAND       , "&&"          , 0         ) // &&
+DEFINE_NODE(ND_LOGOR        , "||"          , 0         ) // ||
 DEFINE_NODE(ND_ASSIGN       , 0             , 0         ) // =
 DEFINE_NODE(ND_COMMA        , 0             , 0         ) // ,
 DEFINE_NODE(ND_MEMBER       , 0             , 0         ) // . (struct member access)

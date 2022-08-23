@@ -14,9 +14,16 @@ static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
 static char* s_argreg16[] = { "%cx", "%dx", "%r8w", "%r9w" };
 static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
 static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
-static Obj* s_current_fn;
 
+static Obj* s_current_fn;
 static FILE* s_output;
+
+// TODO: refactor
+static int label_counter()
+{
+    static int i = 1;
+    return i++;
+}
 
 static void writeln(const char* fmt, ...)
 {
@@ -164,7 +171,7 @@ static void gen_cmp_expr(NodeKind eNodeKind, const char* di, const char* ax)
     writeln("  movzb %%al, %%rax");
 }
 
-static int getTypeId(Type* ty)
+static int get_type_id(Type* ty)
 {
     switch (ty->eTypeKind) {
     case TY_CHAR:
@@ -196,8 +203,8 @@ static void gen_cast(Type* from, Type* to)
         return;
     }
 
-    int t1 = getTypeId(from);
-    int t2 = getTypeId(to);
+    int t1 = get_type_id(from);
+    int t2 = get_type_id(to);
     if (s_cast_table[t1][t2]) {
         writeln("  %s", s_cast_table[t1][t2]);
     }
@@ -255,22 +262,52 @@ static void gen_expr(Node const* node)
         writeln("  mov $0, %%rax");
         writeln("  call %s", node->funcname);
         return;
-    case ND_CAST:
-        gen_expr(node->lhs);
-        gen_cast(node->lhs->type, node->type);
-        return;
-    case ND_NOT:
-        gen_expr(node->lhs);
-        writeln("  cmp $0, %%rax");
-        writeln("  sete %%al");
-        writeln("  movzx %%al, %%rax");
-        return;
-    case ND_BITNOT:
-        gen_expr(node->lhs);
-        writeln("  not %%rax");
-        return;
-    default:
-        break;
+        case ND_LOGAND: {
+            int c = label_counter();
+            gen_expr(node->lhs);
+            writeln("  cmp $0, %%rax");
+            writeln("  je .L.false.%d", c);
+            gen_expr(node->rhs);
+            writeln("  cmp $0, %%rax");
+            writeln("  je .L.false.%d", c);
+            writeln("  mov $1, %%rax");
+            writeln("  jmp .L.end.%d", c);
+            writeln(".L.false.%d:", c);
+            writeln("  mov $0, %%rax");
+            writeln(".L.end.%d:", c);
+            return;
+        }
+        case ND_LOGOR: {
+            int c = label_counter();
+            gen_expr(node->lhs);
+            writeln("  cmp $0, %%rax");
+            writeln("  jne .L.true.%d", c);
+            gen_expr(node->rhs);
+            writeln("  cmp $0, %%rax");
+            writeln("  jne .L.true.%d", c);
+            writeln("  mov $0, %%rax");
+            writeln("  jmp .L.end.%d", c);
+            writeln(".L.true.%d:", c);
+            writeln("  mov $1, %%rax");
+            writeln(".L.end.%d:", c);
+            return;
+        }
+        case ND_CAST:
+            gen_expr(node->lhs);
+            gen_cast(node->lhs->type, node->type);
+            return;
+        case ND_NOT:
+            gen_expr(node->lhs);
+            writeln("  cmp $0, %%rax");
+            writeln("  sete %%al");
+            writeln("  movzx %%al, %%rax");
+            return;
+        case ND_BITNOT:
+            gen_expr(node->lhs);
+            writeln("  not %%rax");
+            return;
+        default:
+            break;
     }
 
     gen_expr(node->rhs);
@@ -298,12 +335,17 @@ static void gen_expr(Node const* node)
         writeln("  imul %s, %s", di, ax);
         return;
     case ND_DIV:
+    case ND_MOD:
         if (node->lhs->type->size == 8) {
             writeln("  cqo");
         } else {
             writeln("  cdq");
         }
         writeln("  idiv %s", di);
+        if (node->eNodeKind == ND_MOD)
+        {
+            writeln("  mov %%rdx, %%rax");
+        }
         return;
     case ND_BITAND:
         writeln("  and %%rdi, %%rax");
@@ -327,13 +369,6 @@ static void gen_expr(Node const* node)
     }
 
     error_tok(node->tok, "invalid statement");
-}
-
-// TODO: refactor
-static int label_counter()
-{
-    static int i = 1;
-    return i++;
 }
 
 static void gen_stmt(Node const* node)

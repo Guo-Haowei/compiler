@@ -63,6 +63,13 @@ int main()
         ASSERT(2, ++*p1);
     }
 
+    ASSERT(5, 17%6);
+    ASSERT(5, ((long)17)%6);
+    {
+        int i = 10;
+        ASSERT(2, i %= 4);
+    }
+
     ASSERT(0, !1);
     ASSERT(0, !2);
     ASSERT(1, !0);
@@ -96,6 +103,14 @@ int main()
         int i = 15;
         ASSERT(10, i ^= 5);
     }
+
+    ASSERT(1, 0||1);
+    ASSERT(1, 0||(2-2)||5);
+    ASSERT(0, 0||0);
+    ASSERT(0, 0||(2-2));
+    ASSERT(0, 0&&1);
+    ASSERT(0, (2-2)&&5);
+    ASSERT(1, 1&&5);
 
     printf("OK\n");
     return 0;

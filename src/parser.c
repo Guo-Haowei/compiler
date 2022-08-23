@@ -262,6 +262,8 @@ static Node* parse_equality(ParserState* state);
 static Node* parse_bitor(ParserState* state);
 static Node* parse_bitxor(ParserState* state);
 static Node* parse_bitand(ParserState* state);
+static Node* parse_logor(ParserState* state);
+static Node* parse_logand(ParserState* state);
 static Node* parse_assign(ParserState* state);
 static Node* parse_funccall(ParserState* state);
 static Node* parse_expr(ParserState* state);
@@ -562,6 +564,7 @@ static Node* parse_cast(ParserState* state)
     return parse_unary(state);
 }
 
+// @TODO: remove this
 static NodeKind to_binary_node_kind(char const* symbol)
 {
 #define DEFINE_NODE(NAME, BINOP, UNARYOP) \
@@ -572,6 +575,7 @@ static NodeKind to_binary_node_kind(char const* symbol)
     return ND_INVALID;
 }
 
+// @TODO: use macro instead
 static Node* parse_binary_internal(ParserState* state, const char** symbols, ParseBinaryFn fp)
 {
     Node* node = fp(state);
@@ -598,7 +602,7 @@ static Node* parse_binary_internal(ParserState* state, const char** symbols, Par
     }
 }
 
-// mul = cast ("*" cast | "/" cast)*
+// mul = cast ("*" cast | "/" cast | "%" cast)*
 static Node* parse_mul(ParserState* state)
 {
     static char const* s_symbols[] = { "*", "/", "%", NULL };
@@ -744,11 +748,33 @@ static Node* parse_bitand(ParserState* state)
     return node;
 }
 
-// assign    = bitor (assign-op assign)?
+// logor = logand ("||" logand)*
+static Node* parse_logor(ParserState* state)
+{
+    Node *node = parse_logand(state);
+    while (equal(state, "||")) {
+        Token *start = read(state);
+        node = new_binary(ND_LOGOR, node, parse_logand(state), start);
+    }
+    return node;
+}
+
+// logand = bitor ("&&" bitor)*
+static Node* parse_logand(ParserState* state)
+{
+    Node *node = parse_bitor(state);
+    while (equal(state, "&&")) {
+        Token *start = read(state);
+        node = new_binary(ND_LOGAND, node, parse_bitor(state), start);
+    }
+    return node;
+}
+
+// assign    = logor (assign-op assign)?
 // assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
 static Node* parse_assign(ParserState* state)
 {
-    Node* node = parse_bitor(state);
+    Node* node = parse_logor(state);
     Token* tok = peek(state);
     if (consume(state, "=")) {
         node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
@@ -764,6 +790,9 @@ static Node* parse_assign(ParserState* state)
     }
     if (consume(state, "/=")) {
         return to_assign(state, new_binary(ND_DIV, node, parse_assign(state), tok));
+    }
+    if (consume(state, "%=")) {
+        return to_assign(state, new_binary(ND_MOD, node, parse_assign(state), tok));
     }
     if (consume(state, "&=")) {
         return to_assign(state, new_binary(ND_BITAND, node, parse_assign(state), tok));
@@ -878,7 +907,7 @@ static Node* parse_stmt(ParserState* state)
         expect(state, "(");
 
         if (is_type_name(state, peek(state))) {
-            Type *baseType = parse_declspec(state, NULL);
+            Type* baseType = parse_declspec(state, NULL);
             node->init = parse_decl(state, baseType);
         } else {
             node->init = parse_expr_stmt(state);
@@ -894,7 +923,7 @@ static Node* parse_stmt(ParserState* state)
         }
 
         node->then = parse_stmt(state);
-        
+
         leave_scope(state);
         return node;
     }
