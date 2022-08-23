@@ -760,10 +760,18 @@ static Node* parse_stmt(ParserState* state)
     }
 
     if (consume(state, "for")) {
-        Node* node = new_node(ND_FOR, start);
+        enter_scope(state);
 
+        Node* node = new_node(ND_FOR, start);
         expect(state, "(");
-        node->init = parse_expr_stmt(state);
+
+        if (is_type_name(state, peek(state))) {
+            Type *baseType = parse_declspec(state, NULL);
+            node->init = parse_decl(state, baseType);
+        } else {
+            node->init = parse_expr_stmt(state);
+        }
+
         if (!consume(state, ";")) {
             node->cond = parse_expr(state);
             expect(state, ";");
@@ -774,6 +782,8 @@ static Node* parse_stmt(ParserState* state)
         }
 
         node->then = parse_stmt(state);
+        
+        leave_scope(state);
         return node;
     }
 

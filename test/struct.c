@@ -23,8 +23,7 @@ int main()
     {
         struct { char a, b; } x[3];
         char *p = x;
-        int i;
-        for (i = 0; i < 4; i = i + 1) p[i] = i;
+        for (int i = 0; i < 4; i = i + 1) p[i] = i;
         ASSERT(0, x[0].a);
         ASSERT(1, x[0].b);
         ASSERT(2, x[1].a);

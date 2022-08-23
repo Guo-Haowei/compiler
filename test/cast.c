@@ -30,8 +30,7 @@ int main()
         } b;
 
         // @TODO: use string copy to set "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        int i;
-        for (i = 0; i < 26; i = i + 1) {
+        for (int i = 0; i < 26; i = i + 1) {
             b.a[i] = i + 65;
         }
 
