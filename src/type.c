@@ -125,6 +125,8 @@ void add_type(Node* node)
     case ND_LOGAND:
         node->type = g_int_type;
         return;
+    case ND_SHL:
+    case ND_SHR:
     case ND_BITNOT:
         node->type = node->lhs->type;
         return;
@@ -172,6 +174,14 @@ void add_type(Node* node)
         return;
     case ND_VAR:
         node->type = node->var->type;
+        return;
+    case ND_TERNARY:
+        if (node->then->type->eTypeKind == TY_VOID || node->els->type->eTypeKind == TY_VOID) {
+            node->type = g_void_type;
+        } else {
+            usual_arith_conv(&node->then, &node->els);
+            node->type = node->then->type;
+        }
         return;
     case ND_COMMA:
         node->type = node->rhs->type;

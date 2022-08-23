@@ -262,52 +262,64 @@ static void gen_expr(Node const* node)
         writeln("  mov $0, %%rax");
         writeln("  call %s", node->funcname);
         return;
-        case ND_LOGAND: {
-            int c = label_counter();
-            gen_expr(node->lhs);
-            writeln("  cmp $0, %%rax");
-            writeln("  je .L.false.%d", c);
-            gen_expr(node->rhs);
-            writeln("  cmp $0, %%rax");
-            writeln("  je .L.false.%d", c);
-            writeln("  mov $1, %%rax");
-            writeln("  jmp .L.end.%d", c);
-            writeln(".L.false.%d:", c);
-            writeln("  mov $0, %%rax");
-            writeln(".L.end.%d:", c);
-            return;
-        }
-        case ND_LOGOR: {
-            int c = label_counter();
-            gen_expr(node->lhs);
-            writeln("  cmp $0, %%rax");
-            writeln("  jne .L.true.%d", c);
-            gen_expr(node->rhs);
-            writeln("  cmp $0, %%rax");
-            writeln("  jne .L.true.%d", c);
-            writeln("  mov $0, %%rax");
-            writeln("  jmp .L.end.%d", c);
-            writeln(".L.true.%d:", c);
-            writeln("  mov $1, %%rax");
-            writeln(".L.end.%d:", c);
-            return;
-        }
-        case ND_CAST:
-            gen_expr(node->lhs);
-            gen_cast(node->lhs->type, node->type);
-            return;
-        case ND_NOT:
-            gen_expr(node->lhs);
-            writeln("  cmp $0, %%rax");
-            writeln("  sete %%al");
-            writeln("  movzx %%al, %%rax");
-            return;
-        case ND_BITNOT:
-            gen_expr(node->lhs);
-            writeln("  not %%rax");
-            return;
-        default:
-            break;
+    case ND_LOGAND: {
+        int c = label_counter();
+        gen_expr(node->lhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  je .L.false.%d", c);
+        gen_expr(node->rhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  je .L.false.%d", c);
+        writeln("  mov $1, %%rax");
+        writeln("  jmp .L.end.%d", c);
+        writeln(".L.false.%d:", c);
+        writeln("  mov $0, %%rax");
+        writeln(".L.end.%d:", c);
+        return;
+    }
+    case ND_LOGOR: {
+        int c = label_counter();
+        gen_expr(node->lhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  jne .L.true.%d", c);
+        gen_expr(node->rhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  jne .L.true.%d", c);
+        writeln("  mov $0, %%rax");
+        writeln("  jmp .L.end.%d", c);
+        writeln(".L.true.%d:", c);
+        writeln("  mov $1, %%rax");
+        writeln(".L.end.%d:", c);
+        return;
+    }
+    case ND_CAST:
+        gen_expr(node->lhs);
+        gen_cast(node->lhs->type, node->type);
+        return;
+    case ND_NOT:
+        gen_expr(node->lhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  sete %%al");
+        writeln("  movzx %%al, %%rax");
+        return;
+    case ND_TERNARY: {
+        int c = label_counter();
+        gen_expr(node->cond);
+        writeln("  cmp $0, %%rax");
+        writeln("  je .L.else.%d", c);
+        gen_expr(node->then);
+        writeln("  jmp .L.end.%d", c);
+        writeln(".L.else.%d:", c);
+        gen_expr(node->els);
+        writeln(".L.end.%d:", c);
+        return;
+    }
+    case ND_BITNOT:
+        gen_expr(node->lhs);
+        writeln("  not %%rax");
+        return;
+    default:
+        break;
     }
 
     gen_expr(node->rhs);
@@ -342,8 +354,7 @@ static void gen_expr(Node const* node)
             writeln("  cdq");
         }
         writeln("  idiv %s", di);
-        if (node->eNodeKind == ND_MOD)
-        {
+        if (node->eNodeKind == ND_MOD) {
             writeln("  mov %%rdx, %%rax");
         }
         return;
@@ -363,6 +374,18 @@ static void gen_expr(Node const* node)
     case ND_GT:
     case ND_GE:
         gen_cmp_expr(node->eNodeKind, di, ax);
+        return;
+    case ND_SHL:
+        writeln("  mov %%rdi, %%rcx");
+        writeln("  shl %%cl, %s", ax);
+        return;
+    case ND_SHR:
+        writeln("  mov %%rdi, %%rcx");
+        if (node->type->size == 8) {
+            writeln("  sar %%cl, %s", ax);
+        } else {
+            writeln("  sar %%cl, %s", ax);
+        }
         return;
     default:
         break;

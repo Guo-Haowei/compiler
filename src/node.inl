@@ -26,7 +26,10 @@ DEFINE_NODE(ND_BITOR        , "|"           , 0         ) // |
 DEFINE_NODE(ND_BITXOR       , "^"           , 0         ) // |
 DEFINE_NODE(ND_LOGAND       , "&&"          , 0         ) // &&
 DEFINE_NODE(ND_LOGOR        , "||"          , 0         ) // ||
+DEFINE_NODE(ND_SHL          , "<<"          , 0         ) // <<
+DEFINE_NODE(ND_SHR          , ">>"          , 0         ) // >>
 DEFINE_NODE(ND_ASSIGN       , 0             , 0         ) // =
+DEFINE_NODE(ND_TERNARY      , 0             , 0         ) // ?:
 DEFINE_NODE(ND_COMMA        , 0             , 0         ) // ,
 DEFINE_NODE(ND_MEMBER       , 0             , 0         ) // . (struct member access)
 DEFINE_NODE(ND_IF           , 0             , 0         ) // "if"

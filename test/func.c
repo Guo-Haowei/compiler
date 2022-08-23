@@ -13,10 +13,7 @@ static int sub(int a, int b)
 
 int static fib(int x)
 {
-    // @TODO: ?:
-    if (x <= 1)
-        return 1;
-    return fib(x - 1) + fib(x - 2);
+    return x <= 1 ? 1: fib(x - 1) + fib(x - 2);
 }
 
 static int add4(int a, int b, int c, int d)

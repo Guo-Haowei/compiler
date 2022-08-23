@@ -44,7 +44,7 @@ typedef struct {
     char* brkLabel;
     char* cntLabel;
 
-    Node *currentSwitch;
+    Node* currentSwitch;
 } ParserState;
 
 /// token stream
@@ -265,6 +265,7 @@ static Node* parse_unary(ParserState* state);
 static Node* parse_cast(ParserState* state);
 static Node* parse_mul(ParserState* state);
 static Node* parse_add(ParserState* state);
+static Node* parse_shift(ParserState* state);
 static Node* parse_relational(ParserState* state);
 static Node* parse_equality(ParserState* state);
 static Node* parse_bitor(ParserState* state);
@@ -272,6 +273,7 @@ static Node* parse_bitxor(ParserState* state);
 static Node* parse_bitand(ParserState* state);
 static Node* parse_logor(ParserState* state);
 static Node* parse_logand(ParserState* state);
+static Node* parse_ternary(ParserState* state);
 static Node* parse_assign(ParserState* state);
 static Node* parse_funccall(ParserState* state);
 static Node* parse_expr(ParserState* state);
@@ -694,11 +696,18 @@ static Node* parse_add(ParserState* state)
     }
 }
 
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// shift = add ("<<" add | ">>" add)*
+static Node* parse_shift(ParserState* state)
+{
+    static char const* s_symbols[] = { ">>", "<<", NULL };
+    return parse_binary_internal(state, s_symbols, parse_add);
+}
+
+// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node* parse_relational(ParserState* state)
 {
     static char const* s_symbols[] = { "<", "<=", ">", ">=", NULL };
-    return parse_binary_internal(state, s_symbols, parse_add);
+    return parse_binary_internal(state, s_symbols, parse_shift);
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -756,17 +765,6 @@ static Node* parse_bitand(ParserState* state)
     return node;
 }
 
-// logor = logand ("||" logand)*
-static Node* parse_logor(ParserState* state)
-{
-    Node* node = parse_logand(state);
-    while (equal(state, "||")) {
-        Token* start = read(state);
-        node = new_binary(ND_LOGOR, node, parse_logand(state), start);
-    }
-    return node;
-}
-
 // logand = bitor ("&&" bitor)*
 static Node* parse_logand(ParserState* state)
 {
@@ -778,11 +776,39 @@ static Node* parse_logand(ParserState* state)
     return node;
 }
 
-// assign    = logor (assign-op assign)?
+// logor = logand ("||" logand)*
+static Node* parse_logor(ParserState* state)
+{
+    Node* node = parse_logand(state);
+    while (equal(state, "||")) {
+        Token* start = read(state);
+        node = new_binary(ND_LOGOR, node, parse_logand(state), start);
+    }
+    return node;
+}
+
+// ternary = logor ("?" expr ":" conditional)?
+static Node* parse_ternary(ParserState* state)
+{
+    Node* cond = parse_logor(state);
+    if (!consume(state, "?")) {
+        return cond;
+    }
+
+    Node* node = new_node(ND_TERNARY, cond->tok);
+    node->cond = cond;
+    node->then = parse_expr(state);
+    expect(state, ":");
+    node->els = parse_ternary(state);
+    return node;
+}
+
+// assign    = ternary (assign-op assign)?
 // assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
+//           | "<<=" | ">>="
 static Node* parse_assign(ParserState* state)
 {
-    Node* node = parse_logor(state);
+    Node* node = parse_ternary(state);
     Token* tok = peek(state);
     if (consume(state, "=")) {
         node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
@@ -810,6 +836,12 @@ static Node* parse_assign(ParserState* state)
     }
     if (consume(state, "^=")) {
         return to_assign(state, new_binary(ND_BITXOR, node, parse_assign(state), tok));
+    }
+    if (consume(state, "<<=")) {
+        return to_assign(state, new_binary(ND_SHL, node, parse_assign(state), tok));
+    }
+    if (consume(state, ">>=")) {
+        return to_assign(state, new_binary(ND_SHR, node, parse_assign(state), tok));
     }
     return node;
 }
@@ -992,7 +1024,7 @@ static Node* parse_stmt(ParserState* state)
         if (!state->cntLabel) {
             error_tok(start, "continue statement not within loop");
         }
-        Node *node = new_node(ND_GOTO, start);
+        Node* node = new_node(ND_GOTO, start);
         node->uniqueLabel = state->cntLabel;
         expect(state, ";");
         return node;
