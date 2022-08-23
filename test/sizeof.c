@@ -44,6 +44,22 @@ int main()
     ASSERT(8, sizeof((long)-10 * 5));
     ASSERT(8, sizeof((long)-10 / 5));
 
+    {
+        int i = 1;
+        sizeof(i *= 8);
+        ASSERT(1, i);
+        ASSERT(4, sizeof(i *= 8));
+    }
+    {
+        char i = 1;
+        sizeof(++i);
+        ASSERT(1, i);
+        ASSERT(1, sizeof(++i));
+        ASSERT(1, sizeof(i++));
+        ASSERT(1, sizeof(--i));
+        ASSERT(1, sizeof(i--));
+    }
+
     printf("OK\n");
     return 0;
 }

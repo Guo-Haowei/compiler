@@ -57,6 +57,18 @@ int main()
         ASSERT(4, x[1][1]);
         ASSERT(5, x[1][2]);
     }
+    {
+#define LENGTH 4
+        int x[LENGTH];
+        for (int *p = x, i = 0; i < LENGTH; ++i, ++p)
+        {
+            *p = 2 * i + 1;
+        }
+        ASSERT(1, x[0]);
+        ASSERT(3, x[1]);
+        ASSERT(5, x[2]);
+        ASSERT(7, x[3]);
+    }
 
     printf("OK\n");
     return 0;

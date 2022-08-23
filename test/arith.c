@@ -50,6 +50,18 @@ int main()
         i /= 3;
         ASSERT(4, i);
     }
+    {
+        int i = 2;
+        ASSERT(3, ++i);
+    }
+    {
+        int a[3];
+        a[0] = 0;
+        a[1] = 1;
+        a[2] = 2;
+        int *p1 = a + 1;
+        ASSERT(2, ++*p1);
+    }
 
     printf("OK\n");
     return 0;

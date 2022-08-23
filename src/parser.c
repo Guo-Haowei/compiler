@@ -274,6 +274,7 @@ static Type* parse_type_suffix(ParserState* state, Type* type);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
+static Node* to_assign(ParserState* state, Node* binary);
 
 // primary = "(" expr ")"
 //         | "sizeof" "(" type-name ")"
@@ -335,6 +336,7 @@ static Node* parse_primary(ParserState* state)
 }
 
 // unary = ("+" | "-" | "*" | "&") cast
+//       | ("++" | "--") unary
 //       | postfix
 static Node* parse_unary(ParserState* state)
 {
@@ -353,6 +355,16 @@ static Node* parse_unary(ParserState* state)
 
     if (consume(state, "&")) {
         return new_unary(ND_ADDR, parse_cast(state), tok);
+    }
+
+    // ++i => i+=1
+    if (consume(state, "++")) {
+        return to_assign(state, new_add(parse_unary(state), new_num(1, tok), tok));
+    }
+
+    // --i => i-=1
+    if (consume(state, "--")) {
+        return to_assign(state, new_sub(parse_unary(state), new_num(1, tok), tok));
     }
 
     return parse_postfix(state);
@@ -473,7 +485,16 @@ static Node* struct_ref(Node* lhs, Token* tok)
     return node;
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
+// Convert A++ to `(typeof A)((A += 1) - 1)`
+static Node* new_inc(ParserState* state, Node* node, Token* tok, int addend)
+{
+    add_type(node);
+    Node* inc = new_add(node, new_num(addend, tok), tok);
+    Node* dec = new_num(-addend, tok);
+    return new_cast(new_add(to_assign(state, inc), dec, tok), node->type, tok);
+}
+
+// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 static Node* parse_postfix(ParserState* state)
 {
     Node* node = parse_primary(state);
@@ -499,6 +520,16 @@ static Node* parse_postfix(ParserState* state)
             node = new_unary(ND_DEREF, node, tok);
             node = struct_ref(node, peek(state));
             read(state);
+            continue;
+        }
+
+        if (consume(state, "++")) {
+            node = new_inc(state, node, tok, 1);
+            continue;
+        }
+
+        if (consume(state, "--")) {
+            node = new_inc(state, node, tok, -1);
             continue;
         }
 
@@ -674,24 +705,19 @@ static Node* parse_assign(ParserState* state)
 {
     Node* node = parse_equality(state);
     Token* tok = peek(state);
-    if (is_token_equal(tok, "=")) {
-        read(state);
+    if (consume(state, "=")) {
         node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
     }
-    if (is_token_equal(tok, "+=")) {
-        read(state);
+    if (consume(state, "+=")) {
         return to_assign(state, new_add(node, parse_assign(state), tok));
     }
-    if (is_token_equal(tok, "-=")) {
-        read(state);
+    if (consume(state, "-=")) {
         return to_assign(state, new_sub(node, parse_assign(state), tok));
     }
-    if (is_token_equal(tok, "*=")) {
-        read(state);
+    if (consume(state, "*=")) {
         return to_assign(state, new_binary(ND_MUL, node, parse_assign(state), tok));
     }
-    if (is_token_equal(tok, "/=")) {
-        read(state);
+    if (consume(state, "/=")) {
         return to_assign(state, new_binary(ND_DIV, node, parse_assign(state), tok));
     }
     return node;
