@@ -14,6 +14,43 @@ int main()
     ASSERT(3, (1, 2, 3));
     ASSERT(0, 1073741824 * 100 / 100);
 
+    {
+        int i = 2;
+        ASSERT(7, i += 5);
+    }
+    {
+        int i = 2;
+        i += 5;
+        ASSERT(7, i);
+    }
+    {
+        int i = 5;
+        ASSERT(3, i -= 2);
+    }
+    {
+        int i = 5;
+        i -= 2;
+        ASSERT(3, i);
+    }
+    {
+        int i = 3;
+        ASSERT(6, i *= 2);
+    }
+    {
+        int i = 3;
+        i *= 2;
+        ASSERT(6, i);
+    }
+    {
+        int i = 12;
+        ASSERT(4, i /= 3);
+    }
+    {
+        int i = 12;
+        i /= 3;
+        ASSERT(4, i);
+    }
+
     printf("OK\n");
     return 0;
 }

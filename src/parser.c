@@ -653,7 +653,23 @@ static Node* parse_equality(ParserState* state)
     return parse_binary_internal(state, s_symbols, parse_relational);
 }
 
-// assign = equality ("=" assign)?
+// Convert `A op= B` to `tmp = &A, *tmp = *tmp op B`
+// where tmp is a fresh pointer variable.
+static Node* to_assign(ParserState* state, Node* binary)
+{
+    add_type(binary->lhs);
+    add_type(binary->rhs);
+    Token* tok = binary->tok;
+    Obj* tmp = new_lvar(state, "", pointer_to(binary->lhs->type));
+    Node* expr1 = new_binary(ND_ASSIGN, new_var(tmp, tok), new_unary(ND_ADDR, binary->lhs, tok), tok);
+    Node* derefTmp = new_unary(ND_DEREF, new_var(tmp, tok), tok);
+    Node* op = new_binary(binary->eNodeKind, new_unary(ND_DEREF, new_var(tmp, tok), tok), binary->rhs, tok);
+    Node* expr2 = new_binary(ND_ASSIGN, derefTmp, op, tok);
+    return new_binary(ND_COMMA, expr1, expr2, tok);
+}
+
+// assign    = equality (assign-op assign)?
+// assign-op = "=" | "+=" | "-=" | "*=" | "/="
 static Node* parse_assign(ParserState* state)
 {
     Node* node = parse_equality(state);
@@ -661,6 +677,22 @@ static Node* parse_assign(ParserState* state)
     if (is_token_equal(tok, "=")) {
         read(state);
         node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
+    }
+    if (is_token_equal(tok, "+=")) {
+        read(state);
+        return to_assign(state, new_add(node, parse_assign(state), tok));
+    }
+    if (is_token_equal(tok, "-=")) {
+        read(state);
+        return to_assign(state, new_sub(node, parse_assign(state), tok));
+    }
+    if (is_token_equal(tok, "*=")) {
+        read(state);
+        return to_assign(state, new_binary(ND_MUL, node, parse_assign(state), tok));
+    }
+    if (is_token_equal(tok, "/=")) {
+        read(state);
+        return to_assign(state, new_binary(ND_DIV, node, parse_assign(state), tok));
     }
     return node;
 }
