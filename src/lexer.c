@@ -443,7 +443,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         }
 
         // one char punct
-        if (strchr("=+-*/%()<>{}.,;&[]#!~&|^", c) != NULL) {
+        if (strchr("=+-*/%()<>{}.,;&[]#!~&|^:?", c) != NULL) {
             add_one_char_punct(&lexer, tokArray);
             continue;
         }

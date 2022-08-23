@@ -103,14 +103,20 @@ int main()
         int i = 15;
         ASSERT(10, i ^= 5);
     }
-
-    ASSERT(1, 0||1);
-    ASSERT(1, 0||(2-2)||5);
-    ASSERT(0, 0||0);
-    ASSERT(0, 0||(2-2));
-    ASSERT(0, 0&&1);
-    ASSERT(0, (2-2)&&5);
-    ASSERT(1, 1&&5);
+    {
+        int a[3];
+        a[0]=0; a[1]=1; a[2]=2;
+        int *p=a+1; (*p++)--;
+        ASSERT(0, a[1]);
+        ASSERT(p, a + 2);
+    }
+    {
+        int a[3];
+        a[0]=0; a[1]=1; a[2]=2;
+        int *p=a+1; (*(p--))--;
+        ASSERT(0, a[1]);
+        ASSERT(p, a);
+    }
 
     printf("OK\n");
     return 0;

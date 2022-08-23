@@ -397,6 +397,13 @@ static void gen_stmt(Node const* node)
         gen_expr(node->lhs);
         writeln("  jmp .L.return.%s", s_current_fn->name);
         return;
+    case ND_GOTO:
+        writeln("  jmp %s", node->uniqueLabel);
+        return;
+    case ND_LABEL:
+        writeln("%s:", node->uniqueLabel);
+        gen_stmt(node->lhs);
+        return;
     case ND_BLOCK:
         for (Node* n = node->body; n; n = n->next) {
             gen_stmt(n);

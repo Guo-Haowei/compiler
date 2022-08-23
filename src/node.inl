@@ -33,6 +33,8 @@ DEFINE_NODE(ND_IF           , 0             , 0         ) // "if"
 DEFINE_NODE(ND_FOR          , 0             , 0         ) // "for" or "while"
 DEFINE_NODE(ND_RETURN       , 0             , 0         ) // "return"
 DEFINE_NODE(ND_BLOCK        , 0             , 0         ) // { ... }
+DEFINE_NODE(ND_GOTO         , 0             , 0         ) // "goto"
+DEFINE_NODE(ND_LABEL        , 0             , 0         ) // label
 DEFINE_NODE(ND_FUNCCALL     , 0             , 0         ) // function call
 DEFINE_NODE(ND_EXPR_STMT    , 0             , 0         ) // expression statement
 DEFINE_NODE(ND_VAR          , 0             , 0         ) // variable

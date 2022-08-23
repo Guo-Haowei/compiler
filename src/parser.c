@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Obj* s_current_func;
-
 typedef struct {
     bool isTypedef;
     bool isStatic;
@@ -37,6 +35,11 @@ typedef struct Scope {
 typedef struct {
     TokenReader reader;
     List scopes;
+    Obj* currentFunc;
+
+    // Lists of all goto statements and labels in the curent function.
+    Node *gotos;
+    Node *labels;
 } ParserState;
 
 /// token stream
@@ -872,6 +875,8 @@ static Node* parse_expr_stmt(ParserState* state)
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
+//      | "goto" ident ";"
+//      | ident ":" stmt
 //      | "{" compound-stmt "}"
 //      | expr-stmt
 static Node* parse_stmt(ParserState* state)
@@ -884,7 +889,7 @@ static Node* parse_stmt(ParserState* state)
         expect(state, ";");
 
         add_type(expr);
-        node->lhs = new_cast(expr, s_current_func->type->retType, start);
+        node->lhs = new_cast(expr, state->currentFunc->type->retType, start);
         return node;
     }
 
@@ -934,6 +939,28 @@ static Node* parse_stmt(ParserState* state)
         node->cond = parse_expr(state);
         expect(state, ")");
         node->then = parse_stmt(state);
+        return node;
+    }
+
+    if (consume(state, "goto")) {
+        Token* label = read(state);
+        Node* node = new_node(ND_GOTO, label);
+        node->label = get_ident(label);
+        node->gotoNext = state->gotos;
+        state->gotos = node;
+        expect(state, ";");
+        return node;
+    }
+
+    if (start->kind == TK_IDENT && is_token_equal(peek_n(state, 1), ":")) {
+        Node* node = new_node(ND_LABEL, start);
+        node->label = strdup(start->raw);
+        node->uniqueLabel = new_unique_name();
+        read(state);
+        expect(state, ":");
+        node->lhs = parse_stmt(state);
+        node->gotoNext = state->labels;
+        state->labels = node;
         return node;
     }
 
@@ -989,7 +1016,7 @@ static Node* parse_compound_stmt(ParserState* state)
             break;
         }
 
-        if (is_type_name(state, tok)) {
+        if (is_type_name(state, tok) && !is_token_equal(peek_n(state, 1), ":")) {
             VarAttrib attrib;
             ZERO_MEMORY(attrib);
             Type* baseType = parse_declspec(state, &attrib);
@@ -1328,6 +1355,28 @@ static void parse_global_variable(ParserState* state, Type* basety)
     }
 }
 
+// This function matches gotos with labels.
+//
+// We cannot resolve gotos as we parse a function because gotos
+// can refer a label that appears later in the function.
+// So, we need to do this after we parse the entire function.
+static void resolve_goto_labels(ParserState* state)
+{
+    for (Node* x = state->gotos; x; x = x->gotoNext) {
+        for (Node* y = state->labels; y; y = y->gotoNext) {
+            if (streq(x->label, y->label)) {
+                x->uniqueLabel = y->uniqueLabel;
+                break;
+            }
+        }
+        if (x->uniqueLabel == NULL) {
+            error_tok(x->tok, "label '%s' used but not defined", x->label);
+        }
+    }
+    
+    state->gotos = state->labels = NULL;
+}
+
 static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib)
 {
     Type* type = parse_declarator(state, basetpye);
@@ -1340,7 +1389,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
     }
 
     s_locals = NULL;
-    s_current_func = fn;
+    state->currentFunc = fn;
 
     enter_scope(state);
 
@@ -1351,7 +1400,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
     fn->locals = s_locals;
 
     leave_scope(state);
-
+    resolve_goto_labels(state);
     return fn;
 }
 

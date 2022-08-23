@@ -424,7 +424,7 @@ static void postprocess(List* tokens)
 {
     static const char* const s_keywords[] = {
         "auto", "break", "char", "const", "continue", "do", "else", "enum",
-        "extern", "for", "if", "int", "long", "return", "short", "sizeof", "static",
+        "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static",
         "struct", "typedef", "union", "unsigned", "void", "while"
     };
 

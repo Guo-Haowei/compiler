@@ -125,6 +125,11 @@ struct Node {
     Node* args;
     int argc;
 
+    // Goto or labeled statement
+    char* label;
+    char* uniqueLabel;
+    Node* gotoNext;
+
     // @TODO: remove flags
     int isBinary;
     int isUnary;
