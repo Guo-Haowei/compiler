@@ -307,6 +307,7 @@ static Node* parse_primary(ParserState* state)
 
     if (tok->kind == TK_NUM) {
         Node* node = new_num(tok->val, tok);
+        node->type = tok->type;
         read(state);
         return node;
     }

@@ -120,7 +120,7 @@ void add_type(Node* node)
 
     switch (node->eNodeKind) {
     case ND_NUM:
-        node->type = (node->val == (int)node->val) ? g_int_type : g_long_type;
+        node->type = g_int_type;
         return;
     case ND_ADD:
     case ND_SUB:

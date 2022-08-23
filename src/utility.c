@@ -33,6 +33,17 @@ char* format(const char* fmt, ...)
     return buffer;
 }
 
+bool startswithcase(const char* p, const char* start)
+{
+    for (;*start; ++p, ++start) {
+        if (tolower(*start) != tolower(*p)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 size_t path_simplify(const char* inputPath, char* buf)
 {
     char tmp[MAX_OSPATH];

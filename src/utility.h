@@ -29,6 +29,8 @@ bool streq(const char* a, const char* b);
 char* strncopy(const char* src, int n);
 char* format(const char* fmt, ...);
 
+bool startswithcase(const char* p, const char* start);
+
 /// path
 #define MAX_OSPATH 512
 size_t path_simplify(const char* inputPath, char* buf);

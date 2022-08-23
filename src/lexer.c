@@ -66,19 +66,94 @@ static void lexer_fill_tok(Lexer* lexer, Token* tok)
     tok->sourceInfo = lexer->sourceInfo;
 }
 
-static void add_decimal_number(Lexer* lexer, Array* arr)
+static void add_int(Lexer* lexer, Array* arr)
 {
     Token tok;
     lexer_fill_tok(lexer, &tok);
     tok.kind = TK_NUM;
 
-    while (isdigit(lexer_peek(lexer))) {
+    const char *p = lexer->p;
+    int base = 10;
+    if (!strncasecmp(p, "0x", 2) && isxdigit(p[2])) {
+        p += 2;
+        base = 16;
+    } else if (!strncasecmp(p, "0b", 2) && (p[2] == '0' || p[2] == '1')) {
+        p += 2;
+        base = 2;
+    } else if (*p == '0') {
+        base = 8;
+    }
+
+    char* end = NULL;
+    long long val = strtoull(p, &end, base);
+
+    // Read U, L or LL suffixes.
+    bool l = false;
+    bool u = false;
+    if (startswithcase(end, "llu") || startswithcase(end, "ull")) {
+        end += 3;
+        l = u = true;
+    } else if (!strncasecmp(end, "lu", 2) || !strncasecmp(end, "ul", 2)) {
+        end += 2;
+        l = u = true;
+    } else if (startswithcase(end, "ll")) {
+        end += 2;
+        l = true;
+    } else if (*end == 'L' || *end == 'l') {
+        end++;
+        l = true;
+    } else if (*end == 'U' || *end == 'u') {
+        end++;
+        u = true;
+    }
+
+    if (isalnum(*end)) {
+        error_lex(lexer, "invalid number literal");
+    }
+
+    Type* ty = NULL;
+    if (base == 10) {
+        if (l && u) {
+            assert(0);
+        } else if (l) {
+            ty = g_long_type;
+        } else if (u) {
+            assert(0);
+            // ty = (val >> 32) ? ty_ulong : ty_uint;
+        } else {
+            ty = (val >> 31) ? g_long_type : g_int_type;
+        }
+    } else {
+        if (l && u) {
+            // ty = ty_ulong;
+            ty = g_long_type;
+        } else if (l) {
+            // ty = (val >> 63) ? ty_ulong : ty_long;
+            ty = (val >> 63) ? g_long_type : g_long_type;
+        } else if (u) {
+            // ty = (val >> 32) ? ty_ulong : ty_uint;
+            ty = (val >> 32) ? g_long_type : g_int_type;
+        } else if (val >> 63) {
+            // ty = ty_ulong;
+            ty = g_long_type;
+        } else if (val >> 32) {
+            ty = g_long_type;
+        } else if (val >> 31) {
+            // ty = ty_uint;
+            ty = g_int_type;
+        } else {
+            ty = g_int_type;
+        }
+    }
+
+    tok.val = val;
+    tok.len = (int)(end - tok.p);
+    tok.type = ty;
+
+    while (lexer->p != end) {
         lexer_read(lexer);
     }
 
-    tok.len = (int)(lexer->p - tok.p);
-
-    tok.val = atoll(tok.p);
     array_push_back(Token, arr, tok);
 }
 
@@ -180,6 +255,7 @@ static void add_char(Lexer* lexer, Array* arr)
     tok.len = end - start;
     tok.sourceInfo = lexer->sourceInfo;
     tok.val = c;
+    tok.type = g_int_type;
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -351,7 +427,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
 
         // decimal number
         if (isdigit(c)) {
-            add_decimal_number(&lexer, tokArray);
+            add_int(&lexer, tokArray);
             continue;
         }
 

@@ -1,6 +1,7 @@
 #ifndef __MINIC_H__
 #define __MINIC_H__
 #include <assert.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,9 +58,7 @@ struct Token {
 
     const SourceInfo* sourceInfo;
 
-    // int
     int64_t val;
-    // string
     Type* type;
     char* str;
 
