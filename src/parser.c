@@ -8,6 +8,7 @@ static Obj* s_current_func;
 
 typedef struct {
     bool isTypedef;
+    bool isStatic;
 } VarAttrib;
 
 // Scope for struct or union tags
@@ -807,7 +808,7 @@ static bool is_type_name(ParserState* state, Token* tok)
 {
     // clang-format off
     static const char* kw[] = {
-        "char", "enum", "int", "long", "short", "struct", "typedef", "union", "void", NULL,
+        "char", "enum", "int", "long", "short", "static", "struct", "typedef", "union", "void", NULL,
     };
     // clang-format on
 
@@ -869,7 +870,7 @@ static int64_t get_number(Token* tok)
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
+//             | "typedef" | "static"
 //             | struct-decl | union-decl | typedef-name
 //             | enum-specifier)+
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
@@ -893,12 +894,20 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
             break;
         }
 
-        // "typedef"
-        if (consume(state, "typedef")) {
+        // Handle storage class specifiers.
+        const bool isTypedef = is_token_equal(tok, "typedef");
+        const bool isStatic = is_token_equal(tok, "static");
+        if (isTypedef || isStatic) {
             if (!attrib) {
                 error_tok(tok, "storage class specifier is not allowed in this context");
             }
-            attrib->isTypedef = true;
+
+            attrib->isTypedef = attrib->isTypedef || isTypedef;
+            attrib->isStatic = attrib->isStatic || isStatic;
+            if (attrib->isStatic && attrib->isTypedef) {
+                error_tok(tok, "multiple storage classes in declaration specifiers");
+            }
+            read(state);
             continue;
         }
 
@@ -1168,12 +1177,13 @@ static void parse_global_variable(ParserState* state, Type* basety)
     }
 }
 
-static Obj* parse_function(ParserState* state, Type* basetpye)
+static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib)
 {
     Type* type = parse_declarator(state, basetpye);
     Obj* fn = new_gvar(state, get_ident(type->name), type);
     fn->isFunc = true;
     fn->isDefinition = !consume(state, ";");
+    fn->isStatic = attrib->isStatic;
     if (!fn->isDefinition) {
         return fn;
     }
@@ -1234,7 +1244,7 @@ Obj* parse(List* tokens)
         bool isFunc = is_function(&state);
         state.reader.cursor = oldCursor;
         if (isFunc) {
-            parse_function(&state, baseType);
+            parse_function(&state, baseType, &attrib);
         } else {
             parse_global_variable(&state, baseType);
         }

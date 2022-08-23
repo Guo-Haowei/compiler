@@ -79,6 +79,7 @@ struct Obj {
     bool isLocal;
     bool isFunc;
     bool isDefinition;
+    bool isStatic;
 
     // variable
     int offset;

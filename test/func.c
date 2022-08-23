@@ -6,12 +6,12 @@ int ret8()
     return 3;
 }
 
-int sub(int a, int b)
+static int sub(int a, int b)
 {
     return a - b;
 }
 
-int fib(int x)
+int static fib(int x)
 {
     // @TODO: ?:
     if (x <= 1)
@@ -19,46 +19,49 @@ int fib(int x)
     return fib(x - 1) + fib(x - 2);
 }
 
-int add4(int a, int b, int c, int d) { return a + b + c + d; }
+static int add4(int a, int b, int c, int d)
+{
+    return a + b + c + d;
+}
 
-char add_char(char a, char b)
+static char add_char(char a, char b)
 {
     return a + b;
 }
 
-short add_short(short a, short b)
+static short add_short(short a, short b)
 {
     return a + b;
 }
 
-int add_int(int a, int b)
+static int add_int(int a, int b)
 {
     return a + b;
 }
 
-long add_long(long a, long b)
+static long add_long(long a, long b)
 {
     return a + b;
 }
 
-short sub_short(short a, short b, short c)
+static short sub_short(short a, short b, short c)
 {
     return a - b - c;
 }
 
-long sub_long(long a, long b, long c)
+static long sub_long(long a, long b, long c)
 {
     return a - b - c;
 }
 
 int g1;
 
-int* g1_ptr()
+static int* g1_ptr()
 {
     return &g1;
 }
 
-char int_to_char(int x)
+static char int_to_char(int x)
 {
     return x;
 }

@@ -461,7 +461,9 @@ static void emit_text(Obj* prog)
             continue;
         }
 
-        writeln("  .globl %s", fn->name);
+        if (!fn->isStatic) {
+            writeln("  .global %s", fn->name);
+        }
         writeln("%s:", fn->name);
         s_current_fn = fn;
 
