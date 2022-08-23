@@ -120,12 +120,19 @@ void add_type(Node* node)
 
     switch (node->eNodeKind) {
     case ND_NUM:
+    case ND_NOT:
         node->type = g_int_type;
+        return;
+    case ND_BITNOT:
+        node->type = node->lhs->type;
         return;
     case ND_ADD:
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
+    case ND_BITAND:
+    case ND_BITOR:
+    case ND_BITXOR:
         usual_arith_conv(&node->lhs, &node->rhs);
         node->type = node->lhs->type;
         return;
@@ -194,7 +201,7 @@ void add_type(Node* node)
     case ND_COUNT:
         return;
     default:
-        error("unhandled node type %s\n", node_kind_to_string(node->eNodeKind));
+        error("unhandled node type %d\n", node->eNodeKind);
         break;
     }
 }

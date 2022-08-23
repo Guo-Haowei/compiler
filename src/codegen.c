@@ -259,6 +259,16 @@ static void gen_expr(Node const* node)
         gen_expr(node->lhs);
         gen_cast(node->lhs->type, node->type);
         return;
+    case ND_NOT:
+        gen_expr(node->lhs);
+        writeln("  cmp $0, %%rax");
+        writeln("  sete %%al");
+        writeln("  movzx %%al, %%rax");
+        return;
+    case ND_BITNOT:
+        gen_expr(node->lhs);
+        writeln("  not %%rax");
+        return;
     default:
         break;
     }
@@ -294,6 +304,15 @@ static void gen_expr(Node const* node)
             writeln("  cdq");
         }
         writeln("  idiv %s", di);
+        return;
+    case ND_BITAND:
+        writeln("  and %%rdi, %%rax");
+        return;
+    case ND_BITOR:
+        writeln("  or %%rdi, %%rax");
+        return;
+    case ND_BITXOR:
+        writeln("  xor %%rdi, %%rax");
         return;
     case ND_EQ:
     case ND_NE:

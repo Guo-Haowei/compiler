@@ -63,6 +63,40 @@ int main()
         ASSERT(2, ++*p1);
     }
 
+    ASSERT(0, !1);
+    ASSERT(0, !2);
+    ASSERT(1, !0);
+    ASSERT(1, !(char)0);
+    ASSERT(0, !(long)3);
+    ASSERT(4, sizeof(!(char)0));
+    ASSERT(4, sizeof(!(long)0));
+
+    ASSERT(-1, ~0);
+    ASSERT(0, ~-1);
+
+    ASSERT(0, 0&1);
+    ASSERT(1, 3&1);
+    ASSERT(3, 7&3);
+    ASSERT(10, -1&10);
+    ASSERT(1, 0|1);
+    ASSERT(0b10011, 0b10000|0b00011);
+    ASSERT(0, 0^0);
+    ASSERT(0, 0b1111^0b1111);
+    ASSERT(0b110100, 0b111000^0b001100);
+
+    {
+        int i = 6;
+        ASSERT(2, i &= 3);
+    }
+    {
+        int i = 6;
+        ASSERT(7, i |= 3);
+    }
+    {
+        int i = 15;
+        ASSERT(10, i ^= 5);
+    }
+
     printf("OK\n");
     return 0;
 }

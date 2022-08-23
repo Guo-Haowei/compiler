@@ -146,20 +146,6 @@ char const* token_kind_to_string(TokenKind eTokenKind)
     return s_names[eTokenKind];
 }
 
-char const* node_kind_to_string(NodeKind eNodeKind)
-{
-    ASSERT_IDX(eNodeKind, ND_COUNT);
-
-    static char const* const s_names[] = {
-#define DEFINE_NODE(NAME, BINOP, UNARYOP) #NAME,
-#include "node.inl"
-#undef DEFINE_NODE
-    };
-    STATIC_ASSERT(ARRAY_COUNTER(s_names) == ND_COUNT);
-
-    return s_names[eNodeKind];
-}
-
 void debug_print_token(const Token* tok)
 {
     if (tok->isFirstTok) {

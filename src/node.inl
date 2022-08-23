@@ -12,12 +12,17 @@ DEFINE_NODE(ND_DIV          , "/"           , 0         ) // /
 DEFINE_NODE(ND_NEG          , 0             , "-"       ) // unary -
 DEFINE_NODE(ND_ADDR         , 0             , "&"       ) // unary &
 DEFINE_NODE(ND_DEREF        , 0             , "*"       ) // unary *
+DEFINE_NODE(ND_NOT          , 0             , "!"       ) // unary !
+DEFINE_NODE(ND_BITNOT       , 0             , "~"       ) // unary ~
 DEFINE_NODE(ND_EQ           , "=="          , 0         ) // ==
 DEFINE_NODE(ND_NE           , "!="          , 0         ) // !=
 DEFINE_NODE(ND_LT           , "<"           , 0         ) // <
 DEFINE_NODE(ND_LE           , "<="          , 0         ) // <=
 DEFINE_NODE(ND_GT           , ">"           , 0         ) // >
 DEFINE_NODE(ND_GE           , ">="          , 0         ) // >=
+DEFINE_NODE(ND_BITAND       , "&"           , 0         ) // &
+DEFINE_NODE(ND_BITOR        , "|"           , 0         ) // |
+DEFINE_NODE(ND_BITXOR       , "^"           , 0         ) // |
 DEFINE_NODE(ND_ASSIGN       , 0             , 0         ) // =
 DEFINE_NODE(ND_COMMA        , 0             , 0         ) // ,
 DEFINE_NODE(ND_MEMBER       , 0             , 0         ) // . (struct member access)

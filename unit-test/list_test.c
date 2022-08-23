@@ -80,14 +80,6 @@ int list_test()
     printf("running list test\n");
     struct List* l = list_new();
 
-    assert(ALIGN(1, 16) == 16);
-    assert(ALIGN(8, 16) == 16);
-    assert(ALIGN(15, 16) == 16);
-    assert(ALIGN(16, 16) == 16);
-    assert(ALIGN(18, 16) == 32);
-    assert(ALIGN(31, 16) == 32);
-    assert(ALIGN(32, 16) == 32);
-
     int arr[] = { 0, 1, 2, 3, 4 };
     list_push_back(l, arr[0]);
     list_push_back(l, arr[1]);

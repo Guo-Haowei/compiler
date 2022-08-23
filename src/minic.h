@@ -238,7 +238,6 @@ void tr_expect(TokenReader* reader, const char* symbol);
  * misc
  */
 const char* token_kind_to_string(TokenKind eTokenKind);
-const char* node_kind_to_string(NodeKind eNodeKind);
 
 // DEBUG
 void debug_print_token(const Token* tok);

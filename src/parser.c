@@ -259,6 +259,9 @@ static Node* parse_mul(ParserState* state);
 static Node* parse_add(ParserState* state);
 static Node* parse_relational(ParserState* state);
 static Node* parse_equality(ParserState* state);
+static Node* parse_bitor(ParserState* state);
+static Node* parse_bitxor(ParserState* state);
+static Node* parse_bitand(ParserState* state);
 static Node* parse_assign(ParserState* state);
 static Node* parse_funccall(ParserState* state);
 static Node* parse_expr(ParserState* state);
@@ -336,7 +339,7 @@ static Node* parse_primary(ParserState* state)
     return NULL;
 }
 
-// unary = ("+" | "-" | "*" | "&") cast
+// unary = ("+" | "-" | "*" | "&" | "!" | "~") cast
 //       | ("++" | "--") unary
 //       | postfix
 static Node* parse_unary(ParserState* state)
@@ -356,6 +359,14 @@ static Node* parse_unary(ParserState* state)
 
     if (consume(state, "&")) {
         return new_unary(ND_ADDR, parse_cast(state), tok);
+    }
+
+    if (consume(state, "!")) {
+        return new_unary(ND_NOT, parse_cast(state), tok);
+    }
+
+    if (consume(state, "~")) {
+        return new_unary(ND_BITNOT, parse_cast(state), tok);
     }
 
     // ++i => i+=1
@@ -700,11 +711,44 @@ static Node* to_assign(ParserState* state, Node* binary)
     return new_binary(ND_COMMA, expr1, expr2, tok);
 }
 
-// assign    = equality (assign-op assign)?
-// assign-op = "=" | "+=" | "-=" | "*=" | "/="
-static Node* parse_assign(ParserState* state)
+// bitor = bitxor ("|" bitxor)*
+static Node* parse_bitor(ParserState* state)
+{
+    Node* node = parse_bitxor(state);
+    while (equal(state, "|")) {
+        Token* start = read(state);
+        node = new_binary(ND_BITOR, node, parse_bitxor(state), start);
+    }
+    return node;
+}
+
+// bitxor = bitand ("^" bitand)*
+static Node* parse_bitxor(ParserState* state)
+{
+    Node* node = parse_bitand(state);
+    while (equal(state, "^")) {
+        Token* start = read(state);
+        node = new_binary(ND_BITXOR, node, parse_bitand(state), start);
+    }
+    return node;
+}
+
+// bitand = equality ("&" equality)*
+static Node* parse_bitand(ParserState* state)
 {
     Node* node = parse_equality(state);
+    while (equal(state, "&")) {
+        Token* start = read(state);
+        node = new_binary(ND_BITAND, node, parse_equality(state), start);
+    }
+    return node;
+}
+
+// assign    = bitor (assign-op assign)?
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
+static Node* parse_assign(ParserState* state)
+{
+    Node* node = parse_bitor(state);
     Token* tok = peek(state);
     if (consume(state, "=")) {
         node = new_binary(ND_ASSIGN, node, parse_assign(state), tok);
@@ -720,6 +764,15 @@ static Node* parse_assign(ParserState* state)
     }
     if (consume(state, "/=")) {
         return to_assign(state, new_binary(ND_DIV, node, parse_assign(state), tok));
+    }
+    if (consume(state, "&=")) {
+        return to_assign(state, new_binary(ND_BITAND, node, parse_assign(state), tok));
+    }
+    if (consume(state, "|=")) {
+        return to_assign(state, new_binary(ND_BITOR, node, parse_assign(state), tok));
+    }
+    if (consume(state, "^=")) {
+        return to_assign(state, new_binary(ND_BITXOR, node, parse_assign(state), tok));
     }
     return node;
 }
