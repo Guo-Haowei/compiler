@@ -461,7 +461,7 @@ static char* read_file(const char* path)
 {
     FILE* fp = fopen(path, "r");
     if (!fp) {
-        error("cannot open %s: %s", path, strerror(errno));
+        error("cannot open %s: %s\n", path, strerror(errno));
     }
 
     fseek(fp, 0, SEEK_END);

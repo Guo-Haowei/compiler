@@ -1,3 +1,7 @@
+/// lexing and preprocessing
+/// pass1: lex source to an array of tokens, cache for reuse
+/// pass2: preprocess, such as #include, #if...
+/// pass3: cleanup and check if keywords
 #include "minic.h"
 
 typedef struct {
@@ -18,6 +22,7 @@ typedef struct {
     List* processed;
     List* unprocessed;
     Array* macros;
+    const char* includepath;
 } PreprocState;
 
 bool is_token_equal(const Token* token, const char* symbol)
@@ -423,10 +428,8 @@ static void include(PreprocState* state, List* preprocLine)
                 }
 
                 if (pathOk) {
-                    // @TODO: add include path -I
-#define INCLUDE_PATH "include"
                     int pathLen = end - start->p - 1;
-                    snprintf(file, MAX_OSPATH, "./%s/%.*s", INCLUDE_PATH, pathLen, start->p + 1);
+                    snprintf(file, MAX_OSPATH, "./%s/%.*s", state->includepath, pathLen, start->p + 1);
                     goto include_ok;
                 }
             }
@@ -581,27 +584,25 @@ static void postprocess(List* tokens)
     return;
 }
 
-List* preproc(Array* rawTokens)
+List* preproc(Array* toks, const char* includepath)
 {
-    // copy raw tokens;
+    assert(includepath);
+    // @TODO: add predefined macro
 
     PreprocState state;
     state.processed = list_new();
     state.unprocessed = list_new();
     state.conditions = list_new();
     state.macros = array_new(sizeof(Macro), 8);
+    state.includepath = includepath;
 
     // copy all tokens to unprocessed
-    for (int i = 0; i < rawTokens->len; ++i) {
-        const Token* tok = array_at(Token, rawTokens, i);
+    for (int i = 0; i < toks->len; ++i) {
+        const Token* tok = array_at(Token, toks, i);
         _list_push_back(state.unprocessed, tok, sizeof(Token));
     }
 
     preproc2(&state);
-
-    // 1. convert keywords
-    // 2. generate raw tokens
-    // 3. combine string literals
     postprocess(state.processed);
 
     // add eof

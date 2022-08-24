@@ -3,17 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#if 0
-#define DEBUG_ONLY(x) x
-#else
-#define DEBUG_ONLY(x) ((void)0)
-#endif
-
-static const char* s_exename;
-
 typedef struct {
     const char* input;
 } TranslationUnit;
+
+static const char* s_exename;
+static const char* s_includepath;
 
 static Array* process_args(int argc, const char** argv)
 {
@@ -34,16 +29,21 @@ static Array* process_args(int argc, const char** argv)
     for (int i = 1; i < argc;) {
         const char* arg = argv[i];
 
+        if (stricmp(arg, "-I") == 0) {
+            if (i + 1 >= argc) {
+                hasError = true;
+                break;
+            }
+
+            s_includepath = argv[++i];
+            ++i;
+            continue;
+        }
+
         TranslationUnit unit;
         unit.input = arg;
         array_push_back(TranslationUnit, files, unit);
         ++i;
-
-        // if (stricmp(arg, "-o") == 0) {
-        //     if (i + 1 >= argc) {
-        //         hasError = true;
-        //         break;
-        //     }
 
         //     strncpy(s_output, argv[++i], MAX_OSPATH);
         //     ++i;
@@ -72,9 +72,10 @@ static Array* process_args(int argc, const char** argv)
     return files;
 }
 
-static void compile_one(const char* input) {
+static void compile_one(const char* input)
+{
     Array* rawToks = lex(input);
-    List* toks = preproc(rawToks);
+    List* toks = preproc(rawToks, s_includepath);
     Obj* prog = parse(toks);
 
     char* slash = strrchr(input, '/');
@@ -99,6 +100,8 @@ int main(int argc, const char** argv)
     if (files->len == 0) {
         error("%s: no input files\n", s_exename);
     }
+
+    s_includepath = s_includepath ? s_includepath : "";
 
     for (int i = 0; i < files->len; ++i) {
         TranslationUnit* unit = array_at(TranslationUnit, files, i);

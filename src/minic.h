@@ -214,12 +214,9 @@ Type* enum_type();
 
 bool is_token_equal(const Token* token, const char* symbol);
 
-/// lexing and preprocessing
-/// pass1: lex source to an array of tokens, cache for reuse
-/// pass2: preprocess, such as #include, #if...
-/// pass3: cleanup and check if keywords
 Array* lex(const char* filename);
-List* preproc(Array* toks);
+
+List* preproc(Array* toks, const char* includepath);
 
 void dump_preproc(List* toks);
 Node* new_cast(Node* expr, Type* type, Token* tok);
