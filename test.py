@@ -31,7 +31,7 @@ def safe_run(cmdList):
 def test_file(file):
     print(f'running test {file}.c')
     # generate .s
-    safe_subprocess(f'./{build.exe_name} -s ../test/{file}.c -o {file}.s')
+    safe_subprocess(f'./{build.exe_name} ../test/{file}.c')
     # compile
     safe_run(f'gcc -c {file}.s -o {file}.o {stack_bound}')
     safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')

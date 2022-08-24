@@ -613,4 +613,5 @@ void gen(Obj* prog, const char* srcname, const char* asmname)
     emit_data(prog);
 
     fclose(s_output);
+    s_output = NULL;
 }
