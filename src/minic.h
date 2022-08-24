@@ -57,7 +57,7 @@ struct Token {
     char* raw;
     int len;
 
-    const SourceInfo* sourceInfo;
+    SourceInfo* sourceInfo;
 
     int64_t val;
     Type* type;
@@ -143,7 +143,7 @@ struct Node {
 };
 
 typedef struct lexer_t {
-    const SourceInfo* sourceInfo;
+    SourceInfo* sourceInfo;
     const char* p;
     int line;
     int col;

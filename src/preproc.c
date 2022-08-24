@@ -244,6 +244,18 @@ static void handle_macro(PreprocState* state, const Token* macroName_)
         char buf[128];
         snprintf(buf, sizeof(buf), "%lld", macroName.val);
         macroName.raw = strncopy(buf, (int)strlen(buf));
+        macroName.type = g_int_type;
+        list_push_back(state->processed, macroName);
+        return;
+    }
+
+    if (is_token_equal(&macroName, "__FILE__")) {
+        macroName.kind = TK_STR;
+        macroName.str = macroName.sourceInfo->file;
+        char buf[MAX_OSPATH];
+        snprintf(buf, MAX_OSPATH, "\"%s\"", macroName.str);
+        macroName.raw = strdup(buf);
+        macroName.type = array_of(g_char_type, strlen(macroName.sourceInfo->file) + 1);
         list_push_back(state->processed, macroName);
         return;
     }

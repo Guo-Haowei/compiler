@@ -3,16 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static void _expect(int ok, int line, char* msg)
-{
-    if (!ok) {
-        printf("Assertion: %s failed on line %d\n", msg, line);
-        exit(1);
-    }
-}
-
-#define expect(expr) _expect(!!(expr), __LINE__, #expr)
-
 static void print_array(Array* array)
 {
     printf("[");
@@ -37,11 +27,11 @@ int array_test()
         array_push_back(int, arr, a);
     }
 
-    expect(arr->capacity == target);
-    expect(arr->len == target);
-    expect(arr->eleSize == sizeof(int));
+    assert(arr->capacity == target);
+    assert(arr->len == target);
+    assert(arr->eleSize == sizeof(int));
     for (int i = 0; i < target; ++i) {
-        expect(target - i == *array_at(int, arr, i));
+        assert(target - i == *array_at(int, arr, i));
     }
 
     print_array(arr);

@@ -365,7 +365,7 @@ static void postprocess(Array* toks)
     }
 }
 
-static Array* lex_source_info(const SourceInfo* sourceInfo)
+static Array* lex_source_info(SourceInfo* sourceInfo)
 {
     Array* cached = fcache_get(sourceInfo->file);
     if (cached) {
