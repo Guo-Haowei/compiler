@@ -27,22 +27,12 @@ typedef struct {
 
 bool is_token_equal(const Token* token, const char* symbol)
 {
-    assert(token);
-    // not expanded
-    if (!token->expandedFrom) {
-        int len = (int)strlen(symbol);
-        if (len != token->len) {
-            return false;
-        }
-
-        return strncmp(token->p, symbol, token->len) == 0;
-    }
-
-    assert(token->raw);
-    return strcmp(token->raw, symbol) == 0;
+    assert(token && token->raw);
+    return streq(token->raw, symbol);
 }
 
-static bool is_active(PreprocState* state) {
+static bool is_active(PreprocState* state)
+{
     if (list_is_empty(state->conditions)) {
         return true;
     }
@@ -52,18 +42,16 @@ static bool is_active(PreprocState* state) {
 
 static Macro* find_macro(PreprocState* state, const Token* token)
 {
+    assert(token->raw);
     Array* macros = state->macros;
     for (int i = 0; i < macros->len; ++i) {
         Macro* macro = array_at(Macro, macros, i);
+        assert(!macro->token.expandedFrom);
         if (macro->token.len == 0) {
             continue;
         }
-        const int len = token->raw ? (int)strlen(token->raw) : token->len;
-        if (macro->token.len != len) {
-            continue;
-        }
-        const char* start = token->raw ? token->raw : token->p;
-        if (strncmp(start, macro->token.p, len) == 0) {
+        assert(macro->token.raw);
+        if (streq(token->raw, macro->token.raw)) {
             return macro;
         }
     }
@@ -74,7 +62,7 @@ static void preproc2(PreprocState* state);
 
 static bool is_hash(const Token* tok)
 {
-    return tok->len == 1 && tok->p[0] == '#';
+    return tok->len == 1 && tok->raw[0] == '#';
 }
 
 typedef struct {
@@ -97,9 +85,7 @@ static int is_node_arg(Macro* macro, Token* token)
     int i = 0;
     for (ListNode* argNode = macro->args->front; argNode; argNode = argNode->next) {
         Token* arg = list_node_get(Token, argNode);
-        if (!arg->raw) {
-            arg->raw = strncopy(arg->p, arg->len);
-        }
+        assert(arg->raw);
         if (is_token_equal(token, arg->raw)) {
             return i;
         }
@@ -121,8 +107,9 @@ static void pop_to(List* tokens, ListNode* node)
 
 static void expand_token(Token* input, Token* original, Token* macroToken)
 {
-    input->raw = strncopy(input->p, input->len);
-    input->p = original->p;
+    if (original->expandedFrom) {
+        //assert(0);
+    }
     input->len = original->len;
     input->line = original->line;
     input->col = original->col;
@@ -173,9 +160,8 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
 
     if (args->len != macro->args->len) {
         error_tok(tr_peek(&tr),
-            "macro \"%.*s\" passed %d arguments, but takes %d",
-            macro->token.len,
-            macro->token.p,
+            "macro \"%s\" passed %d arguments, but takes %d",
+            macro->token.raw,
             args->len,
             macro->args->len);
     }
@@ -194,10 +180,10 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             int idx = is_node_arg(macro, &token);
             assert(idx != -1);
             Token stringToken;
+            ZERO_MEMORY(stringToken);
             stringToken.kind = TK_STR;
             stringToken.line = macroName->line;
             stringToken.col = macroName->col;
-            stringToken.p = macroName->p;
             stringToken.sourceInfo = macroName->sourceInfo;
             stringToken.isFirstTok = macroName->isFirstTok;
             stringToken.expandedFrom = &macro->token;
@@ -262,6 +248,7 @@ static void handle_macro(PreprocState* state, const Token* macroName_)
         return;
     }
 
+    // assert(!macroName.expandedFrom);
     Macro* macro = find_macro(state, &macroName);
     if (!macro) {
         list_push_back(state->processed, macroName);
@@ -301,7 +288,7 @@ static void define(PreprocState* state, List* preprocLine)
     Macro* found = find_macro(state, name);
     if (found) {
         info_tok(&(found->token), "this is the location of the previous definition");
-        error_tok(name, "'%.*s' redefined", name->len, name->p);
+        error_tok(name, "'%s' redefined", name->raw);
     }
 
     ProcLineReader reader;
@@ -378,7 +365,7 @@ static void if_defined(PreprocState* state, List* preprocLine)
 {
     Token* start = list_front(Token, preprocLine);
     if (list_len(preprocLine) < 2) {
-        error_tok(start, "no macro name given in #%.*s directive", start->len, start->p);
+        error_tok(start, "no macro name given in #%s directive", start->raw);
     }
 
     bool isIfdef = is_token_equal(start, "ifdef");
@@ -416,7 +403,7 @@ static void include(PreprocState* state, List* preprocLine)
             goto include_ok;
         }
 
-        if (start->len == 1 && start->p[0] == '<') {
+        if (start->len == 1 && start->raw[0] == '<') {
             const char* end = strchr(start->p, '>');
             if (end) {
                 bool pathOk = true;
@@ -461,7 +448,7 @@ static List* getline(PreprocState* state, int line, const char* sourceFile)
             break;
         }
 
-        if (token->len == 1 && token->p[0] == '\\') {
+        if (token->len == 1 && token->raw[0] == '\\') {
             list_pop_front(state->unprocessed);
             assert(list_len(state->unprocessed));
             token = list_front(Token, state->unprocessed);
@@ -528,7 +515,7 @@ static void preproc2(PreprocState* state)
             bool isParentActive = !parent || list_node_get(CondIf, parent)->active;
             if (isParentActive) {
                 CondIf* cond = list_back(CondIf, state->conditions);
-                cond->active = !cond->active; 
+                cond->active = !cond->active;
             }
             continue;
         }
@@ -554,7 +541,7 @@ static void preproc2(PreprocState* state)
             continue;
         }
 
-        error_tok(directive, "invalid preprocessing directive #%.*s", directive->len, directive->p);
+        error_tok(directive, "invalid preprocessing directive #%s", directive->raw);
     }
 }
 
@@ -568,16 +555,13 @@ static void postprocess(List* tokens)
 
     for (ListNode* c = tokens->front; c; c = c->next) {
         Token* tok = (Token*)(c + 1);
+        assert(tok->raw);
         for (size_t i = 0; i < ARRAY_COUNTER(s_keywords); ++i) {
             const int len = (int)strlen(s_keywords[i]);
-            if (len == tok->len && strncmp(tok->p, s_keywords[i], tok->len) == 0) {
+            if (len == tok->len && streq(tok->raw, s_keywords[i])) {
                 tok->kind = TK_KEYWORD;
                 break;
             }
-        }
-
-        if (tok->raw == NULL) {
-            tok->raw = strncopy(tok->p, tok->len);
         }
     }
 
@@ -611,9 +595,8 @@ List* preproc(Array* toks, const char* includepath)
     eof->kind = TK_EOF;
     eof->line = last->line;
     eof->col = last->col + last->len;
-    eof->p = "<eof>";
-    eof->raw = "<eof>";
-    eof->len = (int)strlen(eof->p);
+    eof->p = eof->raw = "<eof>";
+    eof->len = (int)strlen(eof->raw);
     eof->sourceInfo = last->sourceInfo;
     _list_push_back(state.processed, eof, sizeof(Token));
     return state.processed;

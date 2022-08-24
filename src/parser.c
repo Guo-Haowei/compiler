@@ -111,7 +111,8 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
     Scope* scope = list_back(Scope, &(state->scopes));
     TagScope sc;
     ZERO_MEMORY(sc);
-    sc.name = strncopy(tok->p, tok->len);
+    // @TODO: remove
+    sc.name = strdup(tok->raw);
     sc.ty = ty;
     list_push_back(&(scope->tags), sc);
     return _list_back(&(scope->tags));
@@ -255,7 +256,8 @@ static char* get_ident(const Token* tok)
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
     }
-    return strncopy(tok->p, tok->len);
+    // @TODO: remove
+    return strdup(tok->raw);
 }
 
 static Type* parse_enum_specifier(ParserState* state);

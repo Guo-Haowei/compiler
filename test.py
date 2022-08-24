@@ -3,12 +3,17 @@ import subprocess
 import build
 import sys
 
-test_folder = 'tmp'
 test_src_folder = f'{build.build_proj_path()}/test/'
 checkmark = u'\u2713'
 crossmark = u'\u2717'
 stack_bound = '-mpreferred-stack-boundary=3'
 
+rules = {
+    'unit.array' : {
+        'defines': [],
+        'extra' : [ 'src/generic/array.c' ]
+    }
+}
 
 def safe_subprocess(cmd):
     child = subprocess.Popen(cmd)
@@ -30,11 +35,26 @@ def safe_run(cmdList):
 
 def test_file(file):
     print(f'running test {file}.c')
-    # generate .s
-    safe_subprocess(f'./{build.exe_name} ../test/{file}.c')
-    # compile
-    safe_run(f'gcc -c {file}.s -o {file}.o {stack_bound}')
-    safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')
+    include_flag = '-I ../include'
+    if file in rules:
+        defines = rules[file]['defines']
+        srcs = [f'../test/{file}.c']
+        for f in rules[file]['extra']:
+            srcs.append(f'../{f}')
+        # generate .s
+        safe_subprocess(f'./{build.exe_name} {include_flag} {" ".join(srcs)}')
+
+        asms = []
+        for f in srcs:
+            name = os.path.basename(f)
+            asms.append(name.replace('.c', '.s'))
+        safe_run(f'gcc {" ".join(asms)} -o tmp {stack_bound}')
+    else:
+        # generate .s
+        safe_subprocess(f'./{build.exe_name} {include_flag} ../test/{file}.c')
+        # compile
+        safe_run(f'gcc -c {file}.s -o {file}.o {stack_bound}')
+        safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')
 
     child = subprocess.Popen('./tmp')
     child.communicate()
@@ -43,27 +63,25 @@ def test_file(file):
         print(f'    in file {test_src_folder}{file}.c(error: {retcode})')
         os._exit(1)
 
-    return
-
-
-def test_main(cases):
+def setup(folder):
     # create tmp folder
-    if os.path.exists(test_folder):
-        os.system(f'rm -r {test_folder}')
+    if os.path.exists(folder):
+        os.system(f'rm -r {folder}')
 
     try:
-        os.mkdir(test_folder)
+        os.mkdir(folder)
     except:
-        print(f'failed to create folder {test_folder}')
-        return
+        print(f'failed to create folder {folder}')
+        os._exit(1)
 
     # change working directory
-    os.chdir(test_folder)
-
+    os.chdir(folder)
     build.build_exe()
 
-    # compile assert_impl.c
+def test_main(cases):
+    setup('tmp')
 
+    # compile assert_impl.c
     cmds = ['gcc', '-c', f'{test_src_folder}assert_impl.c', stack_bound]
     safe_run(cmds)
 

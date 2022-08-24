@@ -14,7 +14,6 @@
 
 typedef struct List List;
 typedef struct ListNode ListNode;
-typedef struct Array Array;
 
 /**
  * file_cache.c
@@ -53,7 +52,9 @@ struct Token {
     TokenKind kind;
     int line;
     int col;
+
     const char* p;
+    char* raw;
     int len;
 
     const SourceInfo* sourceInfo;
@@ -61,8 +62,6 @@ struct Token {
     int64_t val;
     Type* type;
     char* str;
-
-    char* raw;
 
     bool isFirstTok;
     Token* expandedFrom;

@@ -137,7 +137,7 @@ void error_tok(const Token* tok, const char* fmt, ...)
     const Token* macro = tok->expandedFrom;
     if (macro) {
         char buffer[1024];
-        snprintf(buffer, sizeof(buffer), "in expansion of macro '%.*s'", macro->len, macro->p);
+        snprintf(buffer, sizeof(buffer), "in expansion of macro '%s'", macro->raw);
         verror_tok_internal(LEVEL_NOTE, tok->expandedFrom, buffer, NULL);
     }
 

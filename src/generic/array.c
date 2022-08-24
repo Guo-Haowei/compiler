@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void array_new_cap(struct Array* arr, int newCap)
+static void array_new_cap(Array* arr, int newCap)
 {
     assert(newCap > arr->capacity);
     assert(arr->eleSize);
@@ -22,7 +22,7 @@ static void array_new_cap(struct Array* arr, int newCap)
     free(oldBuffer);
 }
 
-void array_init(struct Array* arr, int eleSize, int cap)
+void array_init(Array* arr, int eleSize, int cap)
 {
     arr->buffer = NULL;
     arr->len = arr->capacity = 0;
@@ -31,33 +31,33 @@ void array_init(struct Array* arr, int eleSize, int cap)
     array_new_cap(arr, cap);
 }
 
-struct Array* array_new(int eleSize, int cap)
+Array* array_new(int eleSize, int cap)
 {
-    struct Array* arr = calloc(1, sizeof(struct Array));
+    Array* arr = calloc(1, sizeof(Array));
     array_init(arr, eleSize, cap);
     return arr;
 }
 
-void array_clear(struct Array* arr)
+void array_clear(Array* arr)
 {
     free(arr->buffer);
     arr->buffer = NULL;
     arr->eleSize = arr->len = arr->capacity = 0;
 }
 
-void* _array_at(struct Array* arr, int idx)
+void* _array_at(Array* arr, int idx)
 {
     assert(arr->len > idx);
 
     return arr->buffer + idx * arr->eleSize;
 }
 
-void* array_back(struct Array* arr)
+void* array_back(Array* arr)
 {
     return _array_at(arr, arr->len - 1);
 }
 
-void _array_push_back(struct Array* arr, void* data)
+void _array_push_back(Array* arr, void* data)
 {
     assert(arr->eleSize);
     assert(arr->buffer);

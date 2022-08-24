@@ -72,7 +72,7 @@ static void add_int(Lexer* lexer, Array* arr)
     lexer_fill_tok(lexer, &tok);
     tok.kind = TK_NUM;
 
-    const char *p = lexer->p;
+    const char* p = lexer->p;
     int base = 10;
     if (startswithcase(p, "0x") && isxdigit(p[2])) {
         p += 2;
@@ -346,16 +346,18 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
     return false;
 }
 
-static void check_if_bol(Array* toks)
+static void postprocess(Array* toks)
 {
     int currentLine = 0;
 
     for (int idx = 0; idx < toks->len; ++idx) {
         Token* tok = array_at(Token, toks, idx);
-        if (tok->kind == TK_EOF) {
-            break;
-        }
+        assert(tok->kind != TK_EOF);
 
+        // copy string
+        tok->raw = strncopy(tok->p, tok->len);
+
+        // check if begin of line
         if (tok->line != currentLine) {
             currentLine = tok->line;
             tok->isFirstTok = true;
@@ -451,7 +453,7 @@ static Array* lex_source_info(const SourceInfo* sourceInfo)
         error_lex(&lexer, "stray '%c' in program", c);
     }
 
-    check_if_bol(tokArray);
+    postprocess(tokArray);
 
     fcache_add(sourceInfo->file, tokArray);
     return tokArray;
@@ -476,7 +478,7 @@ static char* read_file(const char* path)
     return buf;
 }
 
-void lex_file(struct Array* arr, const char* filename);
+void lex_file(Array* arr, const char* filename);
 
 Array* lex(const char* file)
 {
