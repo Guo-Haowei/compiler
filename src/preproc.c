@@ -441,7 +441,7 @@ include_ok:
     Array* rawToks = lex(file);
     // append arr2 to unprocessed list
     for (int i = rawToks->len - 1; i >= 0; --i) {
-        const Token* rawTok = array_at(Token, rawToks, i);
+        Token* rawTok = array_at(Token, rawToks, i);
         _list_push_front(state->unprocessed, rawTok, sizeof(Token));
     }
 
@@ -594,7 +594,7 @@ List* preproc(Array* toks, const char* includepath)
 
     // copy all tokens to unprocessed
     for (int i = 0; i < toks->len; ++i) {
-        const Token* tok = array_at(Token, toks, i);
+        Token* tok = array_at(Token, toks, i);
         _list_push_back(state.unprocessed, tok, sizeof(Token));
     }
 

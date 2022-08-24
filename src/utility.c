@@ -35,7 +35,7 @@ char* format(const char* fmt, ...)
 
 bool startswithcase(const char* p, const char* start)
 {
-    for (;*start; ++p, ++start) {
+    for (; *start; ++p, ++start) {
         if (tolower(*start) != tolower(*p)) {
             return false;
         }
@@ -57,7 +57,7 @@ size_t path_simplify(const char* inputPath, char* buf)
     }
 
     // 2. resolve ./ and ../
-    struct List* parts = list_new();
+    List* parts = list_new();
 
     char* l = tmp;
     char* r = tmp;
@@ -71,9 +71,9 @@ size_t path_simplify(const char* inputPath, char* buf)
         list_push_back(parts, part);
     }
 
-    struct List* newParts = list_new();
+    List* newParts = list_new();
 
-    for (struct ListNode* c = parts->front; c; c = c->next) {
+    for (ListNode* c = parts->front; c; c = c->next) {
         StringView* part = (StringView*)(c + 1);
         if (part->len == 1 && part->start[0] == '.') {
             continue;
@@ -92,7 +92,7 @@ size_t path_simplify(const char* inputPath, char* buf)
 
     // @TODO: prevent overflow
     int offset = 0;
-    for (struct ListNode* c = newParts->front; c; c = c->next) {
+    for (ListNode* c = newParts->front; c; c = c->next) {
         StringView* part = list_node_get(StringView, c);
         if (part->len == 0) {
             continue;

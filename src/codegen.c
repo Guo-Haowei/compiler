@@ -260,7 +260,14 @@ static void gen_expr(Node const* node)
         }
 
         writeln("  mov $0, %%rax");
-        writeln("  call %s", node->funcname);
+
+        if (s_depth % 2 == 0) {
+            writeln("  call %s", node->funcname);
+        } else {
+            writeln("  sub $8, %%rsp");
+            writeln("  call %s", node->funcname);
+            writeln("  add $8, %%rsp");
+        }
         return;
     case ND_LOGAND: {
         int c = label_counter();

@@ -6,14 +6,18 @@ import sys
 test_src_folder = f'{build.build_proj_path()}/test/'
 checkmark = u'\u2713'
 crossmark = u'\u2717'
-stack_bound = '-mpreferred-stack-boundary=3'
 
 rules = {
-    'unit.array' : {
+    'unit.array': {
         'defines': [],
-        'extra' : [ 'src/generic/array.c' ]
+        'extra': ['src/generic/array.c']
+    },
+    'unit.list': {
+        'defines': [],
+        'extra': ['src/generic/list.c']
     }
 }
+
 
 def safe_subprocess(cmd):
     child = subprocess.Popen(cmd)
@@ -48,13 +52,13 @@ def test_file(file):
         for f in srcs:
             name = os.path.basename(f)
             asms.append(name.replace('.c', '.s'))
-        safe_run(f'gcc {" ".join(asms)} -o tmp {stack_bound}')
+        safe_run(f'gcc {" ".join(asms)} -o tmp')
     else:
         # generate .s
         safe_subprocess(f'./{build.exe_name} {include_flag} ../test/{file}.c')
         # compile
-        safe_run(f'gcc -c {file}.s -o {file}.o {stack_bound}')
-        safe_run(f'gcc -o tmp assert_impl.o {file}.o {stack_bound}')
+        safe_run(f'gcc -c {file}.s -o {file}.o')
+        safe_run(f'gcc -o tmp assert_impl.o {file}.o')
 
     child = subprocess.Popen('./tmp')
     child.communicate()
@@ -62,6 +66,7 @@ def test_file(file):
     if retcode != 0:
         print(f'    in file {test_src_folder}{file}.c(error: {retcode})')
         os._exit(1)
+
 
 def setup(folder):
     # create tmp folder
@@ -78,11 +83,12 @@ def setup(folder):
     os.chdir(folder)
     build.build_exe()
 
+
 def test_main(cases):
     setup('tmp')
 
     # compile assert_impl.c
-    cmds = ['gcc', '-c', f'{test_src_folder}assert_impl.c', stack_bound]
+    cmds = ['gcc', '-c', f'{test_src_folder}assert_impl.c']
     safe_run(cmds)
 
     blacklist = ['assert_impl.c', 'tmp.c']

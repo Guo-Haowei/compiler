@@ -423,6 +423,8 @@ static void parse_struct_members(ParserState* state, Type* ty)
 // struct-union-decl = ident? ("{" struct-members)?
 static Type* parse_struct_union_decl(ParserState* state)
 {
+    Type* ty = struct_type();
+
     // Read a struct tag.
     Token* tag = NULL;
     Token* tok = peek(state);
@@ -432,22 +434,27 @@ static Type* parse_struct_union_decl(ParserState* state)
     }
 
     if (tag && !equal(state, "{")) {
-        Type* ty = find_tag(state, tag);
-        if (!ty) {
-            error_tok(tag, "unknown struct %s", tag->raw);
+        Type* ty2 = find_tag(state, tag);
+        if (ty2) {
+            return ty2;
         }
+
+        ty->size = -1;
+        push_tag_scope(state, tag, ty);
         return ty;
     }
 
     // Construct a struct object.
     expect(state, "{");
 
-    Type* ty = calloc(1, sizeof(Type));
-    ty->eTypeKind = TY_INVALID;
-    ty->align = 1;
     parse_struct_members(state, ty);
 
     if (tag) {
+        Type* ty2 = find_tag(state, tag);
+        if (ty2) {
+            *ty2 = *ty;
+            return ty2;
+        }
         push_tag_scope(state, tag, ty);
     }
 

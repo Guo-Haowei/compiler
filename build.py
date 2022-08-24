@@ -33,8 +33,7 @@ def build_exe():
     flags = [
         '-Wall',
         '-Wextra',
-        '-Wno-unused-local-typedefs',
-        '-mpreferred-stack-boundary=3'  # stack aligned to 8
+        '-Wno-unused-local-typedefs'
     ]
 
     cmd = cmd + flags + ['-o', exe_name]

@@ -4,31 +4,31 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct ListNode* _list_node_new(int size)
+static ListNode* _list_node_new(int size)
 {
-    struct ListNode* node = malloc(sizeof(struct ListNode) + ALIGN(size, 16));
+    ListNode* node = calloc(1, sizeof(ListNode) + ALIGN(size, 16));
     node->prev = NULL;
     node->next = NULL;
     return node;
 }
 
-struct List* list_new()
+List* list_new()
 {
-    struct List* list = malloc(sizeof(struct List));
+    List* list = calloc(1, sizeof(List));
     list->front = NULL;
     list->back = NULL;
     list->len = 0;
     return list;
 }
 
-void list_delete(struct List* plist)
+void list_delete(List* plist)
 {
     assert(plist);
     list_clear(plist);
     free(plist);
 }
 
-void list_clear(struct List* list)
+void list_clear(List* list)
 {
     assert(list);
 
@@ -41,31 +41,31 @@ void list_clear(struct List* list)
     assert(list->back == 0);
 }
 
-void* _list_back(struct List* list)
+void* _list_back(List* list)
 {
     assert(list && list->len && list->front && list->back);
     return list->back + 1;
 }
 
-void* _list_front(struct List* list)
+void* _list_front(List* list)
 {
     assert(list && list->len && list->front && list->back);
     return list->front + 1;
 }
 
-void* _list_at(struct List* list, int idx)
+void* _list_at(List* list, int idx)
 {
     assert(list && idx >= 0 && idx < list->len);
 
-    struct ListNode* n = list->front;
+    ListNode* n = list->front;
     for (; idx--; n = n->next) { }
     return n + 1;
 }
 
-void _list_push_front(struct List* list, const void* data, int size)
+void _list_push_front(List* list, void* data, int size)
 {
     assert(list);
-    struct ListNode* n = _list_node_new(size);
+    ListNode* n = _list_node_new(size);
     n->prev = NULL;
     n->next = list->front;
     memcpy(n + 1, data, size);
@@ -79,10 +79,10 @@ void _list_push_front(struct List* list, const void* data, int size)
     ++list->len;
 }
 
-void _list_push_back(struct List* list, const void* data, int size)
+void _list_push_back(List* list, void* data, int size)
 {
     assert(list);
-    struct ListNode* n = _list_node_new(size);
+    ListNode* n = _list_node_new(size);
     n->next = NULL;
     n->prev = list->back;
     memcpy(n + 1, data, size);
@@ -96,11 +96,11 @@ void _list_push_back(struct List* list, const void* data, int size)
     ++list->len;
 }
 
-void list_pop_front(struct List* list)
+void list_pop_front(List* list)
 {
     assert(list);
     assert(list->len);
-    struct ListNode* n = list->front;
+    ListNode* n = list->front;
     list->front = n->next;
     if (n->next) {
         n->next->prev = NULL;
@@ -112,11 +112,11 @@ void list_pop_front(struct List* list)
     free(n);
 }
 
-void list_pop_back(struct List* list)
+void list_pop_back(List* list)
 {
     assert(list);
     assert(list->len);
-    struct ListNode* n = list->back;
+    ListNode* n = list->back;
     list->back = n->prev;
     if (n->prev) {
         n->prev->next = NULL;
@@ -128,13 +128,13 @@ void list_pop_back(struct List* list)
     free(n);
 }
 
-struct List* list_append(struct List* a, struct List* b)
+List* list_append(List* a, List* b)
 {
     a->back->next = b->front;
     b->front->prev = a->back;
     b->front = a->front;
     a->len += b->len;
 
-    memset(b, 0, sizeof(struct List));
+    memset(b, 0, sizeof(List));
     return a;
 }

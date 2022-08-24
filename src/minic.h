@@ -12,9 +12,6 @@
 
 #include "utility.h"
 
-typedef struct List List;
-typedef struct ListNode ListNode;
-
 /**
  * file_cache.c
  */
@@ -208,6 +205,7 @@ Type* copy_type(Type* type);
 Type* pointer_to(Type* base);
 Type* func_type(Type* returnType);
 Type* array_of(Type* base, int size);
+Type* struct_type();
 void add_type(Node* node);
 Type* enum_type();
 
