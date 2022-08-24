@@ -286,6 +286,7 @@ static void parse_typedef(ParserState* state, Type* baseType);
 static bool is_type_name(ParserState* state, Token* tok);
 static Type* parse_type_name(ParserState* state);
 static Type* parse_type_suffix(ParserState* state, Type* type);
+static int64_t parse_constexpr(ParserState* state);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
@@ -908,14 +909,6 @@ static Node* parse_expr_stmt(ParserState* state)
     return node;
 }
 
-static int64_t get_number(Token* tok)
-{
-    if (tok->kind != TK_NUM) {
-        error_tok(tok, "expected a number");
-    }
-    return tok->val;
-}
-
 // stmt = "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
@@ -1062,7 +1055,7 @@ static Node* parse_stmt(ParserState* state)
             error_tok(start, "case label not within a switch statement");
         }
 
-        int64_t val = get_number(read(state));
+        int64_t val = parse_constexpr(state);
         Node* node = new_node(ND_CASE, start);
         expect(state, ":");
         node->label = new_unique_name();
@@ -1171,6 +1164,81 @@ static Node* parse_compound_stmt(ParserState* state)
     Node* node = new_node(ND_BLOCK, compoundTok);
     node->body = head.next;
     return node;
+}
+
+// Evaluate a given node as a constant expression.
+static int64_t eval(Node* node)
+{
+    add_type(node);
+    switch (node->eNodeKind) {
+    case ND_ADD:
+        return eval(node->lhs) + eval(node->rhs);
+    case ND_SUB:
+        return eval(node->lhs) - eval(node->rhs);
+    case ND_MUL:
+        return eval(node->lhs) * eval(node->rhs);
+    case ND_DIV:
+        return eval(node->lhs) / eval(node->rhs);
+    case ND_NEG:
+        return -eval(node->lhs);
+    case ND_MOD:
+        return eval(node->lhs) % eval(node->rhs);
+    case ND_BITAND:
+        return eval(node->lhs) & eval(node->rhs);
+    case ND_BITOR:
+        return eval(node->lhs) | eval(node->rhs);
+    case ND_BITXOR:
+        return eval(node->lhs) ^ eval(node->rhs);
+    case ND_SHL:
+        return eval(node->lhs) << eval(node->rhs);
+    case ND_SHR:
+        return eval(node->lhs) >> eval(node->rhs);
+    case ND_EQ:
+        return eval(node->lhs) == eval(node->rhs);
+    case ND_NE:
+        return eval(node->lhs) != eval(node->rhs);
+    case ND_LT:
+        return eval(node->lhs) < eval(node->rhs);
+    case ND_LE:
+        return eval(node->lhs) <= eval(node->rhs);
+    case ND_TERNARY:
+        return eval(node->cond) ? eval(node->then) : eval(node->els);
+    case ND_COMMA:
+        return eval(node->rhs);
+    case ND_NOT:
+        return !eval(node->lhs);
+    case ND_BITNOT:
+        return ~eval(node->lhs);
+    case ND_LOGAND:
+        return eval(node->lhs) && eval(node->rhs);
+    case ND_LOGOR:
+        return eval(node->lhs) || eval(node->rhs);
+    case ND_CAST:
+        if (is_integer(node->type)) {
+            switch (node->type->size) {
+            case 1:
+                return (uint8_t)eval(node->lhs);
+            case 2:
+                return (uint16_t)eval(node->lhs);
+            case 4:
+                return (uint32_t)eval(node->lhs);
+            }
+        }
+        return eval(node->lhs);
+    case ND_NUM:
+        return node->val;
+    default:
+        break;
+    }
+
+    error_tok(node->tok, "not a compile-time constant");
+    return 0;
+}
+
+static int64_t parse_constexpr(ParserState* state)
+{
+    Node* node = parse_ternary(state);
+    return eval(node);
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
@@ -1323,7 +1391,7 @@ static Type* parse_enum_specifier(ParserState* state)
 
         char* name = get_ident(read(state));
         if (consume(state, "=")) {
-            val = get_number(read(state));
+            val = parse_constexpr(state);
         }
 
         VarScope* sc = push_var_scope(state, name);
@@ -1388,8 +1456,7 @@ static Type* parse_type_suffix(ParserState* state, Type* type)
     }
 
     if (consume(state, "[")) {
-        int arrayLen = (int)get_number(peek(state));
-        read(state);
+        int arrayLen = parse_constexpr(state);
         expect(state, "]");
         type = parse_type_suffix(state, type);
         return array_of(type, arrayLen);
