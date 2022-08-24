@@ -29,7 +29,31 @@ int main()
     ABC;
     ABC;
 
+#ifdef FGHLJHGFGHJK
+    ASSERT(0, 1);
+#endif
+
+#ifdef ABC
+#ifndef int64
+    ASSERT(0, 1);
+#endif
+#else
+    ASSERT(0, 1);
+#endif
+
+#ifndef ABC
+#ifdef FOO
+    aaaaaaaaaaaaaaaaa;
+#endif
+#endif
+
 #undef ABC
+#ifdef ABC
+    printf("You shouldn't see this\n");
+#ifndef int64
+    ASSERT(0, 1);
+#endif
+#endif
 
 #define ABC ("ABC")
     ASSERT('A', ABC[0]);

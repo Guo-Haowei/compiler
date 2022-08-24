@@ -1,6 +1,8 @@
 #include "minic.h"
 
-#define DEBUG_PREPROC 1
+typedef struct {
+    bool active;
+} CondIf;
 
 typedef struct {
     Token token;
@@ -12,6 +14,7 @@ typedef struct {
 } Macro;
 
 typedef struct {
+    List* conditions;
     List* processed;
     List* unprocessed;
     Array* macros;
@@ -32,6 +35,14 @@ bool is_token_equal(const Token* token, const char* symbol)
 
     assert(token->raw);
     return strcmp(token->raw, symbol) == 0;
+}
+
+static bool is_active(PreprocState* state) {
+    if (list_is_empty(state->conditions)) {
+        return true;
+    }
+
+    return list_back(CondIf, state->conditions)->active;
 }
 
 static Macro* find_macro(PreprocState* state, const Token* token)
@@ -358,6 +369,32 @@ static void undef(PreprocState* state, List* preprocLine)
     memset(found, 0, sizeof(Macro));
 }
 
+static void if_defined(PreprocState* state, List* preprocLine)
+{
+    Token* start = list_front(Token, preprocLine);
+    if (list_len(preprocLine) < 2) {
+        error_tok(start, "no macro name given in #%.*s directive", start->len, start->p);
+    }
+
+    bool isIfdef = is_token_equal(start, "ifdef");
+    list_pop_front(preprocLine); // pop #ifdef or #ifndef
+
+    const Token* name = list_front(Token, preprocLine);
+    if (name->kind != TK_IDENT) {
+        error_tok(name, "macro names must be identifiers");
+    }
+
+    Macro* found = find_macro(state, name);
+    bool active = false;
+    if (is_active(state)) {
+        active = (found && isIfdef) || (!found && !isIfdef);
+    }
+
+    CondIf cond;
+    cond.active = active;
+    list_push_back(state->conditions, cond);
+}
+
 static void include(PreprocState* state, List* preprocLine)
 {
     char file[MAX_OSPATH];
@@ -449,11 +486,15 @@ static void preproc2(PreprocState* state)
 
         const Token* token = list_front(Token, state->unprocessed);
         if (!is_hash(token)) {
-            handle_macro(state, token);
+            if (is_active(state)) {
+                handle_macro(state, token);
+            } else {
+                list_pop_front(state->unprocessed);
+            }
             continue;
         }
 
-        if (!token->isFirstTok) {
+        if (!token->isFirstTok && !is_active(state)) {
             error_tok(token, "'#' is not the first symbol of the line");
         }
 
@@ -468,6 +509,35 @@ static void preproc2(PreprocState* state)
         }
 
         Token* directive = list_front(Token, preprocLine);
+        if (is_token_equal(directive, "endif")) {
+            if (list_is_empty(state->conditions)) {
+                error_tok(directive, "#endif without #if");
+            }
+            list_pop_back(state->conditions);
+            continue;
+        }
+
+        if (is_token_equal(directive, "else")) {
+            if (list_is_empty(state->conditions)) {
+                error_tok(directive, "#else without #if");
+            }
+            ListNode* parent = state->conditions->back->prev;
+            bool isParentActive = !parent || list_node_get(CondIf, parent)->active;
+            if (isParentActive) {
+                CondIf* cond = list_back(CondIf, state->conditions);
+                cond->active = !cond->active; 
+            }
+            continue;
+        }
+
+        if (is_token_equal(directive, "ifdef") || is_token_equal(directive, "ifndef")) {
+            if_defined(state, preprocLine);
+            continue;
+        }
+
+        if (!is_active(state)) {
+            continue;
+        }
         if (is_token_equal(directive, "include")) {
             include(state, preprocLine);
             continue;
@@ -518,6 +588,7 @@ List* preproc(Array* rawTokens)
     PreprocState state;
     state.processed = list_new();
     state.unprocessed = list_new();
+    state.conditions = list_new();
     state.macros = array_new(sizeof(Macro), 8);
 
     // copy all tokens to unprocessed
