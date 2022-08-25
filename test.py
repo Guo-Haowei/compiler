@@ -19,6 +19,10 @@ rules = {
     'unit.list': {
         'defines': [],
         'extra': ['src/generic/list.c']
+    },
+    'extern': {
+        'defines': [],
+        'extra': ['test/extern2.c']
     }
 }
 
@@ -89,7 +93,7 @@ def setup(folder):
 
 def get_test_list():
     cases = []
-    blacklist = ['tmp.c']
+    blacklist = ['tmp.c', 'extern2.c']
     for f in os.listdir(f'{build.build_proj_path()}/test'):
         if f.endswith('.c') and f not in blacklist:
             size = len(f)

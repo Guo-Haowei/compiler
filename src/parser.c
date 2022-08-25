@@ -7,6 +7,7 @@
 typedef struct {
     bool isTypedef;
     bool isStatic;
+    bool isExtern;
 } VarAttrib;
 
 // Scope for struct or union tags
@@ -221,6 +222,7 @@ static Obj* new_gvar(ParserState* state, char* name, Type* type)
 {
     Obj* var = new_variable(state, name, type);
     var->next = s_globals;
+    var->isDefinition = true;
     s_globals = var;
     return var;
 }
@@ -1158,15 +1160,25 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
+static char* s_typenames[12] = {
+    "char",
+    "enum",
+    "extern",
+    "int",
+    "long",
+    "short",
+    "static",
+    "struct",
+    "typedef",
+    "union",
+    "void",
+    NULL,
+};
+
 static bool is_type_name(ParserState* state, Token* tok)
 {
-    // clang-format off
-    static char* kw[] = {
-        "char", "enum", "int", "long", "short", "static", "struct", "typedef", "union", "void", NULL,
-    };
-    // clang-format on
 
-    for (char** p = kw; *p; ++p) {
+    for (char** p = s_typenames; *p; ++p) {
         if (is_token_equal(tok, *p)) {
             return true;
         }
@@ -1291,7 +1303,7 @@ static int64_t parse_constexpr(ParserState* state)
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef" | "static"
+//             | "typedef" | "static" | "extern"
 //             | struct-decl | union-decl | typedef-name
 //             | enum-specifier)+
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
@@ -1318,14 +1330,16 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
         // Handle storage class specifiers.
         bool isTypedef = is_token_equal(tok, "typedef");
         bool isStatic = is_token_equal(tok, "static");
-        if (isTypedef || isStatic) {
+        bool isExtern = is_token_equal(tok, "extern");
+        if (isTypedef || isStatic || isExtern) {
             if (!attrib) {
                 error_tok(tok, "storage class specifier is not allowed in this context");
             }
 
-            attrib->isTypedef = attrib->isTypedef || isTypedef;
-            attrib->isStatic = attrib->isStatic || isStatic;
-            if (attrib->isStatic && attrib->isTypedef) {
+            attrib->isTypedef = !!(attrib->isTypedef || isTypedef);
+            attrib->isStatic = !!(attrib->isStatic || isStatic);
+            attrib->isExtern = !!(attrib->isExtern || isExtern);
+            if (attrib->isStatic + attrib->isTypedef + attrib->isExtern > 1) {
                 error_tok(tok, "multiple storage classes in declaration specifiers");
             }
             read(state);
@@ -1591,14 +1605,14 @@ static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* a
 {
     int i = 0;
     while (!consume(state, ";")) {
-        if (i) {
+        if (i++ > 0) {
             expect(state, ",");
         }
-        ++i;
 
         Type* type = parse_declarator(state, basety);
         Obj* obj = new_gvar(state, get_ident(type->name), type);
         obj->isStatic = attrib->isStatic;
+        obj->isDefinition = !attrib->isExtern;
     }
 }
 

@@ -527,7 +527,7 @@ static void emit_data(Obj* prog)
 {
     writeln("  .data");
     for (Obj* var = prog; var; var = var->next) {
-        if (var->isFunc) {
+        if (var->isFunc || !var->isDefinition) {
             continue;
         }
 
