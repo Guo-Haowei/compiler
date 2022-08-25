@@ -5,6 +5,7 @@
 // clang-format off
 //          enum            , binary-op     , unary-op
 DEFINE_NODE(ND_INVALID      , 0             , 0         )
+DEFINE_NODE(ND_NULL_EXPR    , 0             , 0         )
 DEFINE_NODE(ND_ADD          , "+"           , 0         ) // +
 DEFINE_NODE(ND_SUB          , "-"           , 0         ) // -
 DEFINE_NODE(ND_MUL          , "*"           , 0         ) // *

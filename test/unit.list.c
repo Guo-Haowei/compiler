@@ -35,7 +35,13 @@ static void list_eq(List* list, int arrLen, int* arr)
     }
 }
 
-// @TODO: fix list test
+#define LIST_EQ(LIST, LEN, INIT)     \
+    {                                \
+        int __array[LEN] = INIT;     \
+        list_eq(LIST, LEN, __array); \
+    }                                \
+    ((void)0)
+
 int list_test()
 {
     printf("running list test...\n");
@@ -43,51 +49,37 @@ int list_test()
     assert(list_is_empty(l));
     assert(list_len(l) == 0);
 
-    // TODO: initializer
-    int arr[5];
-    for (int i = 0; i < 5; ++i) {
-        arr[i] = i;
-    }
+    int arr[5] = { 0, 1, 2, 3, 4 };
     list_push_back(l, arr[0]);
     list_push_back(l, arr[1]);
     list_push_back(l, arr[2]);
 
-    // // LIST_EQ(l, 3, 0, 1, 2);
-    {
-        int arr[3];
-        arr[0] = 0;
-        arr[1] = 1;
-        arr[2] = 2;
-        list_eq(l, 3, arr);
-    }
+    // @TODO: use __VA_ARGS__ instead
+    LIST_EQ(l, 3, { 0, 1, 2 });
 
-    // print_list(l);
+    list_push_front(l, arr[3]);
+    list_push_front(l, arr[4]);
 
-    // list_push_front(l, arr[3]);
-    // list_push_front(l, arr[4]);
+    LIST_EQ(l, 5, { 4, 3, 0, 1, 2 });
 
-    // // LIST_EQ(l, 5, 4, 3, 0, 1, 2);
-    // print_list(l);
+    int* v = NULL;
+    v = list_front(int, l);
+    assert(*v == 4);
+    v = list_back(int, l);
+    assert(*v == 2);
+    v = list_at(int, l, 1);
+    assert(*v == 3);
+    v = list_at(int, l, 2);
+    assert(*v == 0);
 
-    // int* v = NULL;
-    // v = list_front(int, l);
-    // assert(*v == 4);
-    // v = list_back(int, l);
-    // assert(*v == 2);
-    // v = list_at(int, l, 1);
-    // assert(*v == 3);
-    // v = list_at(int, l, 2);
-    // assert(*v == 0);
+    list_pop_back(l);
+    list_pop_front(l);
+    LIST_EQ(l, 3, { 3, 0, 1 });
 
-    // list_pop_back(l);
-    // list_pop_front(l);
-    // // LIST_EQ(l, 3, 3, 0, 1);
-    // print_list(l);
-
-    // v = list_front(int, l);
-    // assert(*v == 3);
-    // v = list_back(int, l);
-    // assert(*v == 1);
+    v = list_front(int, l);
+    assert(*v == 3);
+    v = list_back(int, l);
+    assert(*v == 1);
 
     list_clear(l);
     assert(list_is_empty(l));

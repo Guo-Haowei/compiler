@@ -221,6 +221,7 @@ void add_type(Node* node)
     case ND_LABEL:
     case ND_SWITCH:
     case ND_CASE:
+    case ND_NULL_EXPR:
         return;
     default:
         error("unhandled node type %d\n", node->eNodeKind);

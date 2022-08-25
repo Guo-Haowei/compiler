@@ -47,6 +47,30 @@ typedef struct {
     Node* currentSwitch;
 } ParserState;
 
+// This struct represents a variable initializer. Since initializers
+// can be nested (e.g. `int x[2][2] = {{1, 2}, {3, 4}}`), this struct
+// is a tree data structure.
+typedef struct Initializer Initializer;
+struct Initializer {
+    Initializer* next;
+    Type* ty;
+    Token* tok;
+    // If it's not an aggregate type and has an initializer,
+    // `expr` has an initialization expression.
+    Node* expr;
+    // If it's an initializer for an aggregate type (e.g. array or struct),
+    // `children` has initializers for its children.
+    Initializer** children;
+};
+
+// For local variable initializer.
+typedef struct InitDesg InitDesg;
+struct InitDesg {
+    InitDesg* next;
+    int idx;
+    Obj* var;
+};
+
 /// token stream
 static Token* peek_n(ParserState* state, int n)
 {
@@ -284,6 +308,7 @@ static Node* parse_compound_stmt(ParserState* state);
 static Node* parse_decl(ParserState* state, Type* baseType);
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib);
 static Type* parse_declarator(ParserState* state, Type* type);
+static Node* parse_lvar_initializer(ParserState* state, Obj* var);
 static void parse_typedef(ParserState* state, Type* baseType);
 static bool is_type_name(ParserState* state, Token* tok);
 static Type* parse_type_name(ParserState* state);
@@ -293,6 +318,19 @@ static int64_t parse_constexpr(ParserState* state);
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 static Node* to_assign(ParserState* state, Node* binary);
+
+static Initializer* new_initializer(Type* ty)
+{
+    Initializer* init = calloc(1, sizeof(Initializer));
+    init->ty = ty;
+    if (ty->eTypeKind == TY_ARRAY) {
+        init->children = calloc(ty->arrayLen, sizeof(Initializer*));
+        for (int i = 0; i < ty->arrayLen; ++i) {
+            init->children[i] = new_initializer(ty->base);
+        }
+    }
+    return init;
+}
 
 // primary = "(" expr ")"
 //         | "sizeof" "(" type-name ")"
@@ -1509,10 +1547,9 @@ static Node* parse_decl(ParserState* state, Type* baseType)
         Token* tok = peek(state);
         if (is_token_equal(tok, "=")) {
             read(state);
-            Node* lhs = new_var(var, type->name);
-            Node* rhs = parse_assign(state);
-            Node* node = new_binary(ND_ASSIGN, lhs, rhs, tok);
-            cur = cur->next = new_unary(ND_EXPR_STMT, node, lhs->tok);
+
+            Node* expr = parse_lvar_initializer(state, var);
+            cur = cur->next = new_unary(ND_EXPR_STMT, expr, tok);
         }
     }
 
@@ -1555,6 +1592,79 @@ static void parse_global_variable(ParserState* state, Type* basety)
         Type* type = parse_declarator(state, basety);
         new_gvar(state, get_ident(type->name), type);
     }
+}
+
+// initializer = "{" initializer ("," initializer)* "}"
+//             | assign
+static void initializer2(ParserState* state, Initializer* init)
+{
+    if (init->ty->eTypeKind == TY_ARRAY) {
+        expect(state, "{");
+        for (int i = 0; i < init->ty->arrayLen; i++) {
+            if (i > 0) {
+                expect(state, ",");
+            }
+            initializer2(state, init->children[i]);
+        }
+        expect(state, "}");
+        return;
+    }
+    init->expr = parse_assign(state);
+}
+
+static Initializer* parse_initializer(ParserState* state, Type* ty)
+{
+    Initializer* init = new_initializer(ty);
+    initializer2(state, init);
+    return init;
+}
+
+static Node* init_desg_expr(InitDesg* desg, Token* tok)
+{
+    if (desg->var) {
+        return new_var(desg->var, tok);
+    }
+    Node* lhs = init_desg_expr(desg->next, tok);
+    Node* rhs = new_num(desg->idx, tok);
+    return new_unary(ND_DEREF, new_add(lhs, rhs, tok), tok);
+}
+
+static Node* create_lvar_init(Initializer* init, Type* ty, InitDesg* desg, Token* tok)
+{
+    if (ty->eTypeKind == TY_ARRAY) {
+        Node* node = new_node(ND_NULL_EXPR, tok);
+        for (int i = 0; i < ty->arrayLen; i++) {
+            InitDesg desg2;
+            ZERO_MEMORY(desg2);
+            desg2.next = desg;
+            desg2.idx = i;
+            Node* rhs = create_lvar_init(init->children[i], ty->base, &desg2, tok);
+            node = new_binary(ND_COMMA, node, rhs, tok);
+        }
+        return node;
+    }
+
+    Node* lhs = init_desg_expr(desg, tok);
+    Node* rhs = init->expr;
+    return new_binary(ND_ASSIGN, lhs, rhs, tok);
+}
+
+// A variable definition with an initializer is a shorthand notation
+// for a variable definition followed by assignments. This function
+// generates assignment expressions for an initializer. For example,
+// `int x[2][2] = {{6, 7}, {8, 9}}` is converted to the following
+// expressions:
+//
+//   x[0][0] = 6;
+//   x[0][1] = 7;
+//   x[1][0] = 8;
+//   x[1][1] = 9;
+static Node* parse_lvar_initializer(ParserState* state, Obj* var)
+{
+    Token* tok = peek(state);
+    Initializer* init = parse_initializer(state, var->type);
+    InitDesg desg = { NULL, 0, var };
+    return create_lvar_init(init, var->type, &desg, tok);
 }
 
 // This function matches gotos with labels.

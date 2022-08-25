@@ -213,6 +213,8 @@ static void gen_cast(Type* from, Type* to)
 static void gen_expr(Node const* node)
 {
     switch (node->eNodeKind) {
+    case ND_NULL_EXPR:
+        return;
     case ND_NUM:
         writeln("  mov $%ld, %%rax", node->val);
         return;
