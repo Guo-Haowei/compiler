@@ -1545,6 +1545,10 @@ static Node* parse_decl(ParserState* state, Type* baseType)
         }
 
         Type* type = parse_declarator(state, baseType);
+        if (type->eTypeKind == TY_VOID) {
+            error_tok(type->name, "variable or field '%s' declared void", type->name->raw);
+        }
+
         Obj* var = new_lvar(state, get_ident(type->name), type);
 
         Token* tok = peek(state);
@@ -1583,7 +1587,7 @@ static void create_param_lvars(ParserState* state, Type* param)
     }
 }
 
-static void parse_global_variable(ParserState* state, Type* basety)
+static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* attrib)
 {
     int i = 0;
     while (!consume(state, ";")) {
@@ -1593,7 +1597,8 @@ static void parse_global_variable(ParserState* state, Type* basety)
         ++i;
 
         Type* type = parse_declarator(state, basety);
-        new_gvar(state, get_ident(type->name), type);
+        Obj* obj = new_gvar(state, get_ident(type->name), type);
+        obj->isStatic = attrib->isStatic;
     }
 }
 
@@ -1808,7 +1813,7 @@ Obj* parse(List* tokens)
         if (isFunc) {
             parse_function(&state, baseType, &attrib);
         } else {
-            parse_global_variable(&state, baseType);
+            parse_global_variable(&state, baseType, &attrib);
         }
     }
 

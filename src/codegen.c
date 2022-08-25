@@ -533,10 +533,10 @@ static void emit_data(Obj* prog)
 
         assert(!var->isLocal);
 
-        writeln("  .globl %s", var->name);
-        Token* tok = var->tok;
-        if (tok) {
-            writeln("# %s", tok->raw);
+        writeln("# %s", var->name);
+        writeln("  .align %d", var->type->align);
+        if (!var->isStatic) {
+            writeln("  .globl %s", var->name);
         }
         writeln("%s:", var->name);
 

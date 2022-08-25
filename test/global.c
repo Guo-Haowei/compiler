@@ -1,7 +1,7 @@
 #include "test.h"
 
 int x;
-int arr[4];
+static int arr[4];
 
 int main()
 {
