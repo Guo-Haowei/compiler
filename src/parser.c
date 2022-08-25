@@ -149,7 +149,7 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
 static Node* new_node(NodeKind eNodeKind, Token* tok)
 {
     static int s_id = 0;
-    Node* node = calloc(1, sizeof(Node));
+    Node* node = calloc(1, ALIGN(sizeof(Node), 16));
     node->id = s_id++;
     node->tok = tok;
     node->eNodeKind = eNodeKind;
@@ -201,7 +201,7 @@ Node* new_cast(Node* expr, Type* type, Token* tok)
 static Obj* new_variable(ParserState* state, char* name, Type* type)
 {
     static int s_id = 0;
-    Obj* var = calloc(1, sizeof(Obj));
+    Obj* var = calloc(1, ALIGN(sizeof(Obj), 16));
     var->id = s_id++;
     var->name = name;
     var->type = type;
@@ -325,10 +325,12 @@ static void initializer2(ParserState* state, Initializer* init);
 
 static Initializer* new_initializer(Type* ty)
 {
-    Initializer* init = calloc(1, sizeof(Initializer));
+    Initializer* init = calloc(1, ALIGN(sizeof(Initializer), 16));
     init->type = ty;
     if (ty->eTypeKind == TY_ARRAY) {
-        init->children = calloc(ty->arrayLen, sizeof(Initializer*));
+        int size = ty->arrayLen * sizeof(Initializer);
+        size = ALIGN(size, 16);
+        init->children = calloc(1, size);
         for (int i = 0; i < ty->arrayLen; ++i) {
             init->children[i] = new_initializer(ty->base);
         }
@@ -453,7 +455,7 @@ static void parse_struct_members(ParserState* state, Type* ty)
                 expect(state, ",");
             }
 
-            Member* member = calloc(1, sizeof(Member));
+            Member* member = calloc(1, ALIGN(sizeof(Member), 16));
             member->type = parse_declarator(state, basety);
             member->name = member->type->name;
             cur = cur->next = member;
@@ -1493,23 +1495,31 @@ static Type* parse_type_name(ParserState* state)
     return parse_abstract_declarator(state, type);
 }
 
-// type-suffix = ("(" func-params? ")")?
-// func-params = param ("," param)*
+// func-params = ("void" | param ("," param)* ("," "...")?)? ")"
 // param       = declspec declarator
 static Type* parse_func_params(ParserState* state, Type* type)
 {
     Type head = { .next = NULL };
     Type* cur = &head;
+    bool isVaridadic = false;
     while (!consume(state, ")")) {
         if (cur != &head) {
             expect(state, ",");
         }
+
+        if (consume(state, "...")) {
+            isVaridadic = true;
+            expect(state, ")");
+            break;
+        }
+
         Type* basety = parse_declspec(state, NULL);
         Type* ty = parse_declarator(state, basety);
         cur = cur->next = copy_type(ty);
     }
     type = func_type(type);
     type->params = head.next;
+    type->isVariadic = isVaridadic;
     return type;
 }
 

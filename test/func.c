@@ -1,4 +1,5 @@
 #include "test.h"
+#include <string.h>
 
 static int s_int;
 
@@ -98,6 +99,10 @@ int main()
     ASSERT(1, s_int);
     ASSERT(3, char_fn());
     ASSERT(5, short_fn());
+
+    char buf[128];
+    snprintf(buf, sizeof(buf), "HHHH %s", "AAAA");
+    ASSERT(0, strcmp(buf, "HHHH AAAA"));
 
     printf("OK\n");
     return 0;

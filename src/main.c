@@ -44,25 +44,6 @@ static Array* process_args(int argc, char** argv)
         unit.input = arg;
         array_push_back(TranslationUnit, files, unit);
         ++i;
-
-        //     strncpy(s_output, argv[++i], MAX_OSPATH);
-        //     ++i;
-        //     continue;
-        // }
-
-        // if (stricmp(arg, "-s") == 0) {
-        //     if (i + 1 >= argc) {
-        //         hasError = true;
-        //         break;
-        //     }
-
-        //     s_input = argv[++i];
-        //     ++i;
-        //     continue;
-        // }
-
-        // hasError = true;
-        // break;
     }
 
     if (hasError) {

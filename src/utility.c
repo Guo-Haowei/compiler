@@ -18,7 +18,7 @@ char* strncopy(char* src, int n)
     assert(src);
     assert((int)strlen(src) >= n);
 
-    char* ret = calloc(1, n + 1);
+    char* ret = calloc(1, ALIGN(n + 1, 16));
     memcpy(ret, src, n);
     return ret;
 }

@@ -66,7 +66,7 @@ struct Token {
 
 // Variable or function
 struct Obj {
-    uint32_t id;
+    int id;
     char* name;
     Obj* next;
     Type* type;
@@ -186,6 +186,7 @@ struct Type {
     Type* retType;
     Type* params;
     Type* next;
+    bool isVariadic;
 };
 
 // Struct member
@@ -196,9 +197,11 @@ struct Member {
     int offset;
 };
 
-#define DEFINE_BASE_TYPE(name, enum, sz, al) extern Type* g_##name##_type;
-#include "base_type.inl"
-#undef DEFINE_BASE_TYPE
+extern Type* g_void_type;
+extern Type* g_char_type;
+extern Type* g_short_type;
+extern Type* g_int_type;
+extern Type* g_long_type;
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);
@@ -248,6 +251,7 @@ void tr_expect(TokenReader* reader, char* symbol);
  */
 char* token_kind_to_string(TokenKind eTokenKind);
 char* format(char* fmt, ...);
+char* read_file(char* path);
 
 // DEBUG
 void debug_print_token(Token* tok);

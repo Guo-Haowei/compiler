@@ -5,6 +5,8 @@ void* memcpy(void* dest, void* src, int n);
 void* memset(void* dest, int val, int n);
 
 int strcmp(char* str1, char* str2);
+int strncmp(char* str1, char* str2, int n);
+
 int strlen(char* str);
 
 char* strncpy(char* dest, char* src, int n);

@@ -214,15 +214,13 @@ static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
 
     *new_pos = p + 1;
 
-    // clang-format off
-    static char s_escape[] = {
-        '\a', '\b', 'c', 'd', 27, '\f', 'g',
-        'h', 'i', 'j', 'k', 'l', 'm', '\n',
-        'o', 'p', 'q', '\r', 's', '\t',
-        'u', '\v', 'w', 'x', 'y', 'z'
-    };
-    // clang-format on
     if (islower(*p)) {
+        char s_escape[26] = {
+            '\a', '\b', 'c', 'd', 27, '\f', 'g',
+            'h', 'i', 'j', 'k', 'l', 'm', '\n',
+            'o', 'p', 'q', '\r', 's', '\t',
+            'u', '\v', 'w', 'x', 'y', 'z'
+        };
         return s_escape[*p - 'a'];
     }
 
@@ -240,7 +238,7 @@ static void add_char(Lexer* lexer, Array* arr)
     }
 
     char c = (*p == '\\') ? read_escaped_char(lexer, &p, p + 1) : *p;
-    char* end = strchr(start + 1, '\'');
+    char* end = strchr(p, '\'');
     if (end == NULL) {
         error_lex(&dummy, "unclosed char literal");
     }
@@ -269,10 +267,10 @@ static void add_string(Lexer* lexer, Array* arr)
     char* start = lexer->p;
     char* end = find_string_end(lexer);
     int maxStringLen = (int)(end - start);
-    char* buf = calloc(1, maxStringLen);
+    char* buf = calloc(1, ALIGN(maxStringLen, 16));
 
     int len = 0;
-    for (char* p = start + 1; *p != '"';) {
+    for (char* p = start + 1; *p != 34 /* quote */;) {
         if (*p == '\\') {
             buf[len++] = read_escaped_char(lexer, &p, p + 1);
         } else {
@@ -324,13 +322,12 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
     array_push_back(Token, arr, tok);
 }
 
-static char s_multi_char_puncts[][4] = {
-    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
-    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
-};
-
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
+    char s_multi_char_puncts[23][4] = {
+        "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
+        ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
+    };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
         if (begin_with(lexer->p, s_multi_char_puncts[i])) {
@@ -373,7 +370,7 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
         return cached;
     }
 
-    Array* tokArray = malloc(sizeof(Array));
+    Array* tokArray = calloc(1, ALIGN(sizeof(Array), 16));
     array_init(tokArray, sizeof(Token), 128);
 
     Lexer lexer;
@@ -460,30 +457,9 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
     return tokArray;
 }
 
-static char* read_file(char* path)
-{
-    FILE* fp = fopen(path, "r");
-    if (!fp) {
-        error("cannot open %s: %s\n", path, strerror(errno));
-    }
-
-    fseek(fp, 0, SEEK_END);
-    int size = (int)ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    char* buf = malloc(size + 1);
-    size_t read = fread(buf, 1, size, fp);
-    fclose(fp);
-
-    buf[read] = 0;
-    return buf;
-}
-
-void lex_file(Array* arr, char* filename);
-
 Array* lex(char* file)
 {
-    SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
+    SourceInfo* sourceInfo = calloc(1, ALIGN(sizeof(SourceInfo), 16));
 
     path_simplify(file, sourceInfo->file);
     sourceInfo->start = read_file(file);

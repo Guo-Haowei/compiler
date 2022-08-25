@@ -11,7 +11,7 @@
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
-    Type* ty = calloc(1, sizeof(Type));
+    Type* ty = calloc(1, ALIGN(sizeof(Type), 16));
     ty->eTypeKind = kind;
     ty->size = size;
     ty->align = align;
@@ -44,7 +44,6 @@ Type* pointer_to(Type* base)
 Type* array_of(Type* base, int len)
 {
     Type* ty = new_type(TY_ARRAY, base->size * len, base->align);
-    ty->eTypeKind = TY_ARRAY;
     ty->size = base->size * len;
     ty->base = base;
     ty->arrayLen = len;
@@ -53,7 +52,7 @@ Type* array_of(Type* base, int len)
 
 Type* func_type(Type* retType)
 {
-    Type* type = calloc(1, sizeof(Type));
+    Type* type = calloc(1, ALIGN(sizeof(Type), 16));
     type->eTypeKind = TY_FUNC;
     type->retType = retType;
     return type;
@@ -66,7 +65,7 @@ Type* enum_type()
 
 Type* copy_type(Type* type)
 {
-    Type* ret = calloc(1, sizeof(Type));
+    Type* ret = calloc(1, ALIGN(sizeof(Type), 16));
     *ret = *type;
     return ret;
 }

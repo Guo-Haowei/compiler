@@ -266,15 +266,12 @@ static void gen_expr(Node* node)
             pop(s_argreg64[i]);
         }
 
-        writeln("  mov $0, %%rax");
-
-        if (s_depth % 2 == 0) {
-            writeln("  call %s", node->funcname);
-        } else {
-            writeln("  sub $8, %%rsp");
-            writeln("  call %s", node->funcname);
-            writeln("  add $8, %%rsp");
-        }
+        // surrond with guard
+        // it seems malloc corrupts stack for some reason
+        int guard = 16 + ((s_depth % 2) ? 8 : 0);
+        writeln("  sub $%d, %%rsp", guard);
+        writeln("  call %s", node->funcname);
+        writeln("  add $%d, %%rsp", guard);
 
         // It looks like the most significant 48 or 56 bits in RAX may
         // contain garbage if a function return type is short or bool/char,

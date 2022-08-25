@@ -602,7 +602,7 @@ List* preproc(Array* toks, char* includepath)
 
     // add eof
     Token* last = list_back(Token, state.processed);
-    Token* eof = calloc(1, sizeof(Token));
+    Token* eof = calloc(1, ALIGN(sizeof(Token), 16));
     eof->kind = TK_EOF;
     eof->line = last->line;
     eof->col = last->col + last->len;

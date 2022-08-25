@@ -1,5 +1,7 @@
 import os
 
+boundary = '-mpreferred-stack-boundary=3'
+
 exe_name = 'minic'
 src_files = [
     'generic/array.c',
@@ -32,7 +34,8 @@ def build_exe():
     flags = [
         '-Wall',
         '-Wextra',
-        '-Wno-unused-local-typedefs'
+        '-Wno-unused-local-typedefs',
+        boundary
     ]
 
     cmd = cmd + flags + ['-o', exe_name]

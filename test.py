@@ -60,12 +60,12 @@ def test_file(file, compiler):
         for f in srcs:
             name = os.path.basename(f)
             asms.append(name.replace('.c', '.s'))
-        safe_run(f'gcc {" ".join(asms)} -o tmp')
+        safe_run(f'gcc {build.boundary} {" ".join(asms)} -o tmp')
     else:
         # generate .s
         safe_subprocess(f'./{compiler} {include_flag} ../test/{file}.c')
         # compile
-        safe_run(f'gcc {file}.s -o tmp')
+        safe_run(f'gcc {build.boundary} {file}.s -o tmp')
 
     child = subprocess.Popen('./tmp')
     child.communicate()

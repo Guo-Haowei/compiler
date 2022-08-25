@@ -211,9 +211,29 @@ char* format(char* fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     int size = vsnprintf(NULL, 0, fmt, ap);
-    char* buffer = calloc(1, size + 1);
+    char* buffer = calloc(1, ALIGN(size + 1, 16));
     vsnprintf(buffer, size + 1, fmt, ap);
     va_end(ap);
 
     return buffer;
+}
+
+// @TODO: fix this
+char* read_file(char* path)
+{
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        error("cannot open '%s'\n", path);
+    }
+
+    fseek(fp, 0, SEEK_END);
+    int size = (int)ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    char* buf = calloc(1, ALIGN(size + 1, 16));
+    size_t read = fread(buf, 1, size, fp);
+    fclose(fp);
+
+    buf[read] = 0;
+    return buf;
 }

@@ -1,5 +1,6 @@
 #include "array.h"
 
+#include "common.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +11,7 @@ static void array_new_cap(Array* arr, int newCap)
     assert(arr->eleSize);
 
     void* oldBuffer = arr->buffer;
-    void* newBuffer = calloc(1, newCap * arr->eleSize);
+    void* newBuffer = calloc(1, ALIGN(newCap * arr->eleSize, 16));
 
     if (oldBuffer) {
         memcpy(newBuffer, oldBuffer, arr->eleSize * arr->capacity);
@@ -33,7 +34,7 @@ void array_init(Array* arr, int eleSize, int cap)
 
 Array* array_new(int eleSize, int cap)
 {
-    Array* arr = calloc(1, sizeof(Array));
+    Array* arr = calloc(1, ALIGN(sizeof(Array), 16));
     array_init(arr, eleSize, cap);
     return arr;
 }
