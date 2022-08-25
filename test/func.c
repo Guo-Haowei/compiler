@@ -1,5 +1,13 @@
 #include "test.h"
 
+static int s_int;
+
+void ret()
+{
+    ++s_int;
+    return;
+}
+
 int ret8()
 {
     return 8;
@@ -13,7 +21,7 @@ static int sub(int a, int b)
 
 int static fib(int x)
 {
-    return x <= 1 ? 1: fib(x - 1) + fib(x - 2);
+    return x <= 1 ? 1 : fib(x - 1) + fib(x - 2);
 }
 
 static int add4(int a, int b, int c, int d)
@@ -63,6 +71,9 @@ static char int_to_char(int x)
     return x;
 }
 
+static char char_fn() { return (2 << 8) + 3; }
+static short short_fn() { return (2 << 16) + 5; }
+
 int main()
 {
     ASSERT(8, ret8());
@@ -82,6 +93,11 @@ int main()
     g1 = 3;
     ASSERT(3, *g1_ptr());
     ASSERT(5, int_to_char(261));
+
+    ret();
+    ASSERT(1, s_int);
+    ASSERT(3, char_fn());
+    ASSERT(5, short_fn());
 
     printf("OK\n");
     return 0;

@@ -960,7 +960,7 @@ static Node* parse_expr_stmt(ParserState* state)
     return node;
 }
 
-// stmt = "return" expr ";"
+// stmt = "return" expr? ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
@@ -979,6 +979,9 @@ static Node* parse_stmt(ParserState* state)
 
     if (consume(state, "return")) {
         Node* node = new_node(ND_RETURN, start);
+        if (consume(state, ";")) {
+            return node;
+        }
         Node* expr = parse_expr(state);
         expect(state, ";");
 

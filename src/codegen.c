@@ -254,7 +254,7 @@ static void gen_expr(Node* node)
         gen_expr(node->lhs);
         gen_expr(node->rhs);
         return;
-    case ND_FUNCCALL:
+    case ND_FUNCCALL: {
         Node* arg = node->args;
         for (int i = 0; i < node->argc; ++i, arg = arg->next) {
             gen_expr(arg);
@@ -275,7 +275,18 @@ static void gen_expr(Node* node)
             writeln("  call %s", node->funcname);
             writeln("  add $8, %%rsp");
         }
+
+        // It looks like the most significant 48 or 56 bits in RAX may
+        // contain garbage if a function return type is short or bool/char,
+        // respectively. We clear the upper bits here.
+        int kind = node->type->eTypeKind;
+        if (kind == TY_CHAR) {
+            writeln("  movsbl %%al, %%eax");
+        } else if (kind == TY_SHORT) {
+            writeln("  movswl %%ax, %%eax");
+        }
         return;
+    }
     case ND_LOGAND: {
         int c = label_counter();
         gen_expr(node->lhs);
@@ -431,7 +442,9 @@ static void gen_stmt(Node* node)
         gen_expr(node->lhs);
         return;
     case ND_RETURN:
-        gen_expr(node->lhs);
+        if (node->lhs) {
+            gen_expr(node->lhs);
+        }
         writeln("  jmp .L.return.%s", s_current_fn->name);
         return;
     case ND_GOTO:
