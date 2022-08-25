@@ -85,7 +85,7 @@ static void add_int(Lexer* lexer, Array* arr)
     }
 
     char* end = NULL;
-    long long val = strtoull(p, &end, base);
+    uint64_t val = strtoull(p, &end, base);
 
     // Read U, L or LL suffixes.
     bool l = false;
@@ -324,12 +324,13 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
     array_push_back(Token, arr, tok);
 }
 
+static char s_multi_char_puncts[][4] = {
+    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
+    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
+};
+
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
-    static char s_multi_char_puncts[][4] = {
-        "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
-        ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
-    };
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
         if (begin_with(lexer->p, s_multi_char_puncts[i])) {

@@ -1,6 +1,19 @@
 import os
 
 exe_name = 'minic'
+src_files = [
+    'generic/array.c',
+    'generic/list.c',
+    'file_cache.c',
+    'codegen.c',
+    'lexer.c',
+    'main.c',
+    'parser.c',
+    'preproc.c',
+    'misc.c',
+    'type.c',
+    'utility.c',
+]
 
 
 def build_proj_path():
@@ -15,20 +28,6 @@ def build_proj_path():
 def build_exe():
 
     cmd = ['gcc']
-
-    src_files = [
-        'generic/array.c',
-        'generic/list.c',
-        'file_cache.c',
-        'codegen.c',
-        'lexer.c',
-        'main.c',
-        'parser.c',
-        'preproc.c',
-        'misc.c',
-        'type.c',
-        'utility.c',
-    ]
 
     flags = [
         '-Wall',

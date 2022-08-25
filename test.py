@@ -41,7 +41,7 @@ def safe_run(cmdList):
     return
 
 
-def test_file(file):
+def test_file(file, compiler):
     print(f'running test {file}.c')
     include_flag = '-I ../include'
     if file in rules:
@@ -50,7 +50,7 @@ def test_file(file):
         for f in rules[file]['extra']:
             srcs.append(f'../{f}')
         # generate .s
-        safe_subprocess(f'./{build.exe_name} {include_flag} {" ".join(srcs)}')
+        safe_subprocess(f'./{compiler} {include_flag} {" ".join(srcs)}')
 
         asms = []
         for f in srcs:
@@ -59,10 +59,9 @@ def test_file(file):
         safe_run(f'gcc {" ".join(asms)} -o tmp')
     else:
         # generate .s
-        safe_subprocess(f'./{build.exe_name} {include_flag} ../test/{file}.c')
+        safe_subprocess(f'./{compiler} {include_flag} ../test/{file}.c')
         # compile
-        safe_run(f'gcc -c {file}.s -o {file}.o')
-        safe_run(f'gcc -o tmp assert_impl.o {file}.o')
+        safe_run(f'gcc {file}.s -o tmp')
 
     child = subprocess.Popen('./tmp')
     child.communicate()
@@ -88,24 +87,25 @@ def setup(folder):
     build.build_exe()
 
 
+def get_test_list():
+    cases = []
+    blacklist = ['tmp.c']
+    for f in os.listdir(f'{build.build_proj_path()}/test'):
+        if f.endswith('.c') and f not in blacklist:
+            size = len(f)
+            cases.append(f[:size - 2])
+    return cases
+
+
 def test_main(cases):
     setup('tmp')
 
-    # compile assert_impl.c
-    cmds = ['gcc', '-c', f'{test_src_folder}assert_impl.c']
-    safe_run(cmds)
-
-    blacklist = ['assert_impl.c', 'tmp.c']
     if len(cases) == 0:
-        for f in os.listdir(f'{build.build_proj_path()}/test'):
-            if f.endswith('.c'):
-                if f not in blacklist:
-                    size = len(f)
-                    cases.append(f[:size - 2])
+        cases = get_test_list()
 
     # run tests
     for f in cases:
-        test_file(f)
+        test_file(f, build.exe_name)
 
     print('All tests passed')
     return

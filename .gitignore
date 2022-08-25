@@ -1,5 +1,8 @@
 __pycache__/
 .vscode/
+build/
+self-host/
+tmp/
 *.exe
 *.a
 *.o
@@ -8,7 +11,6 @@ __pycache__/
 *.s
 *.asm
 dummy.c
-build/
 
 minic
 list-test
