@@ -22,10 +22,10 @@ typedef struct {
     List* processed;
     List* unprocessed;
     Array* macros;
-    const char* includepath;
+    char* includepath;
 } PreprocState;
 
-bool is_token_equal(const Token* token, const char* symbol)
+bool is_token_equal(Token* token, char* symbol)
 {
     assert(token && token->raw);
     return streq(token->raw, symbol);
@@ -40,7 +40,7 @@ static bool is_active(PreprocState* state)
     return list_back(CondIf, state->conditions)->active;
 }
 
-static Macro* find_macro(PreprocState* state, const Token* token)
+static Macro* find_macro(PreprocState* state, Token* token)
 {
     assert(token->raw);
     Array* macros = state->macros;
@@ -60,7 +60,7 @@ static Macro* find_macro(PreprocState* state, const Token* token)
 
 static void preproc2(PreprocState* state);
 
-static bool is_hash(const Token* tok)
+static bool is_hash(Token* tok)
 {
     return tok->len == 1 && tok->raw[0] == '#';
 }
@@ -190,10 +190,10 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
 
             List* argList = array_at(List, args, idx);
             assert(argList);
-            const char* start = list_front(Token, argList)->p;
+            char* start = list_front(Token, argList)->p;
             Token* last = list_back(Token, argList);
-            const char* end = last->p + last->len;
-            const int len = (int)(end - start);
+            char* end = last->p + last->len;
+            int len = (int)(end - start);
             stringToken.str = strncopy(start, len);
             stringToken.raw = strncopy(start - 1, len + 2);
             stringToken.raw[0] = '"';
@@ -228,7 +228,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     state->unprocessed = newList;
 }
 
-static void handle_macro(PreprocState* state, const Token* macroName_)
+static void handle_macro(PreprocState* state, Token* macroName_)
 {
     Token macroName = *macroName_;
     list_pop_front(state->unprocessed);
@@ -292,7 +292,7 @@ static void define(PreprocState* state, List* preprocLine)
     }
 
     list_pop_front(preprocLine); // pop #define
-    const Token* name = list_front(Token, preprocLine);
+    Token* name = list_front(Token, preprocLine);
     if (name->kind != TK_IDENT) {
         error_tok(name, "macro names must be identifiers");
     }
@@ -360,7 +360,7 @@ static void undef(PreprocState* state, List* preprocLine)
     }
 
     list_pop_front(preprocLine); // pop #undef
-    const Token* name = list_front(Token, preprocLine);
+    Token* name = list_front(Token, preprocLine);
     if (name->kind != TK_IDENT) {
         error_tok(name, "macro names must be identifiers");
     }
@@ -383,7 +383,7 @@ static void if_defined(PreprocState* state, List* preprocLine)
     bool isIfdef = is_token_equal(start, "ifdef");
     list_pop_front(preprocLine); // pop #ifdef or #ifndef
 
-    const Token* name = list_front(Token, preprocLine);
+    Token* name = list_front(Token, preprocLine);
     if (name->kind != TK_IDENT) {
         error_tok(name, "macro names must be identifiers");
     }
@@ -416,10 +416,10 @@ static void include(PreprocState* state, List* preprocLine)
         }
 
         if (start->len == 1 && start->raw[0] == '<') {
-            const char* end = strchr(start->p, '>');
+            char* end = strchr(start->p, '>');
             if (end) {
                 bool pathOk = true;
-                for (const char* p = start->p; p != end; ++p) {
+                for (char* p = start->p; p != end; ++p) {
                     if (*p == '\n') {
                         pathOk = false;
                         break;
@@ -448,7 +448,7 @@ include_ok:
     return;
 }
 
-static List* getline(PreprocState* state, int line, const char* sourceFile)
+static List* getline(PreprocState* state, int line, char* sourceFile)
 {
     List* preprocLine = list_new();
     for (;;) {
@@ -486,7 +486,7 @@ static void preproc2(PreprocState* state)
             break;
         }
 
-        const Token* token = list_front(Token, state->unprocessed);
+        Token* token = list_front(Token, state->unprocessed);
         if (!is_hash(token)) {
             if (is_active(state)) {
                 handle_macro(state, token);
@@ -501,8 +501,8 @@ static void preproc2(PreprocState* state)
         }
 
         // ignore line
-        const int line = token->line;
-        const char* sourceFile = token->sourceInfo->file;
+        int line = token->line;
+        char* sourceFile = token->sourceInfo->file;
         list_pop_front(state->unprocessed); // pop '#'
 
         List* preprocLine = getline(state, line, sourceFile);
@@ -559,7 +559,7 @@ static void preproc2(PreprocState* state)
 
 static void postprocess(List* tokens)
 {
-    static const char* const s_keywords[] = {
+    static char* s_keywords[] = {
         "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum",
         "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static",
         "struct", "switch", "typedef", "union", "unsigned", "void", "while"
@@ -569,7 +569,7 @@ static void postprocess(List* tokens)
         Token* tok = (Token*)(c + 1);
         assert(tok->raw);
         for (size_t i = 0; i < ARRAY_COUNTER(s_keywords); ++i) {
-            const int len = (int)strlen(s_keywords[i]);
+            int len = (int)strlen(s_keywords[i]);
             if (len == tok->len && streq(tok->raw, s_keywords[i])) {
                 tok->kind = TK_KEYWORD;
                 break;
@@ -580,7 +580,7 @@ static void postprocess(List* tokens)
     return;
 }
 
-List* preproc(Array* toks, const char* includepath)
+List* preproc(Array* toks, char* includepath)
 {
     assert(includepath);
     // @TODO: add predefined macro
@@ -626,4 +626,65 @@ void dump_preproc(List* tokens)
         printf(" %s", tok->raw);
     }
     printf("\n");
+}
+
+Token* tr_peek_n(TokenReader* reader, int n)
+{
+    ListNode* c = reader->cursor;
+    if (n >= 0) {
+        for (int i = 0; i < n; ++i) {
+            if (!c) {
+                return NULL;
+            }
+            c = c->next;
+        }
+    } else {
+        for (int i = 0; i < -n; ++i) {
+            if (!c) {
+                return NULL;
+            }
+            c = c->prev;
+        }
+    }
+    return c ? (Token*)(c + 1) : NULL;
+}
+
+Token* tr_peek(TokenReader* reader)
+{
+    return tr_peek_n(reader, 0);
+}
+
+Token* tr_read(TokenReader* reader)
+{
+    Token* ret = tr_peek(reader);
+    assert(ret);
+    reader->cursor = reader->cursor->next;
+    return ret;
+}
+
+bool tr_equal(TokenReader* reader, char* symbol)
+{
+    return is_token_equal(tr_peek(reader), symbol);
+}
+
+bool tr_consume(TokenReader* reader, char* symbol)
+{
+    if (tr_equal(reader, symbol)) {
+        assert(reader->cursor);
+        reader->cursor = reader->cursor->next;
+        return true;
+    }
+
+    return false;
+}
+
+void tr_expect(TokenReader* reader, char* symbol)
+{
+    Token* token = tr_peek(reader);
+    if (is_token_equal(token, symbol)) {
+        reader->cursor = reader->cursor->next;
+        return;
+    }
+
+    error_tok(token, "expected '%s', got '%s'", symbol, token->raw);
 }

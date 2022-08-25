@@ -87,17 +87,17 @@ static Token* read(ParserState* state)
     return tr_read(&(state->reader));
 }
 
-static bool equal(ParserState* state, const char* symbol)
+static bool equal(ParserState* state, char* symbol)
 {
     return tr_equal(&(state->reader), symbol);
 }
 
-static bool consume(ParserState* state, const char* symbol)
+static bool consume(ParserState* state, char* symbol)
 {
     return tr_consume(&(state->reader), symbol);
 }
 
-static void expect(ParserState* state, const char* symbol)
+static void expect(ParserState* state, char* symbol)
 {
     tr_expect(&(state->reader), symbol);
 }
@@ -228,7 +228,7 @@ static Obj* new_gvar(ParserState* state, char* name, Type* type)
 typedef Node* (*ParseBinaryFn)(ParserState*);
 
 // Find a local variable by name.
-static Type* find_tag(ParserState* state, const Token* tok)
+static Type* find_tag(ParserState* state, Token* tok)
 {
     for (ListNode* s = state->scopes.back; s; s = s->prev) {
         Scope* scope = list_node_get(Scope, s);
@@ -242,7 +242,7 @@ static Type* find_tag(ParserState* state, const Token* tok)
     return NULL;
 }
 
-static VarScope* find_var(ParserState* state, const Token* tok)
+static VarScope* find_var(ParserState* state, Token* tok)
 {
     for (ListNode* s = state->scopes.back; s; s = s->prev) {
         Scope* scope = list_node_get(Scope, s);
@@ -275,7 +275,7 @@ static Obj* new_string_literal(ParserState* state, char* p, Type* type, Token* t
     return var;
 }
 
-static char* get_ident(const Token* tok)
+static char* get_ident(Token* tok)
 {
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
@@ -508,13 +508,13 @@ static Type* parse_struct_decl(ParserState* state)
     // Assign offsets within the struct to members.
     int offset = 0;
     for (Member* mem = ty->members; mem; mem = mem->next) {
-        offset = ALIGN_TO(offset, mem->type->align);
+        offset = ALIGN(offset, mem->type->align);
         mem->offset = offset;
         offset += mem->type->size;
 
         ty->align = MAX(ty->align, mem->type->align);
     }
-    ty->size = ALIGN_TO(offset, ty->align);
+    ty->size = ALIGN(offset, ty->align);
 
     return ty;
 }
@@ -528,7 +528,7 @@ static Type* parse_union_decl(ParserState* state)
         ty->align = MAX(ty->align, mem->type->align);
         ty->size = MAX(ty->size, mem->type->size);
     }
-    ty->size = ALIGN_TO(ty->size, ty->align);
+    ty->size = ALIGN(ty->size, ty->align);
     return ty;
 }
 
@@ -547,7 +547,7 @@ static Member* get_struct_member(Type* ty, Token* tok)
 static Node* struct_ref(Node* lhs, Token* tok)
 {
     add_type(lhs);
-    const TypeKind k = lhs->type->eTypeKind;
+    TypeKind k = lhs->type->eTypeKind;
     if (k != TY_STRUCT && k != TY_UNION) {
         error_tok(lhs->tok, "not a struct or union");
     }
@@ -623,7 +623,7 @@ static Node* parse_cast(ParserState* state)
 }
 
 // @TODO: remove this
-static NodeKind to_binary_node_kind(char const* symbol)
+static NodeKind to_binary_node_kind(char* symbol)
 {
 #define DEFINE_NODE(NAME, BINOP, UNARYOP) \
     if (BINOP && streq(symbol, BINOP))    \
@@ -634,13 +634,13 @@ static NodeKind to_binary_node_kind(char const* symbol)
 }
 
 // @TODO: use macro instead
-static Node* parse_binary_internal(ParserState* state, const char** symbols, ParseBinaryFn fp)
+static Node* parse_binary_internal(ParserState* state, char** symbols, ParseBinaryFn fp)
 {
     Node* node = fp(state);
 
     for (;;) {
         bool found = false;
-        for (const char** p = symbols; *p; ++p) {
+        for (char** p = symbols; *p; ++p) {
             Token* tok = peek(state);
             if (is_token_equal(tok, *p)) {
                 read(state);
@@ -663,7 +663,7 @@ static Node* parse_binary_internal(ParserState* state, const char** symbols, Par
 // mul = cast ("*" cast | "/" cast | "%" cast)*
 static Node* parse_mul(ParserState* state)
 {
-    static char const* s_symbols[] = { "*", "/", "%", NULL };
+    static char* s_symbols[] = { "*", "/", "%", NULL };
     return parse_binary_internal(state, s_symbols, parse_cast);
 }
 
@@ -747,21 +747,21 @@ static Node* parse_add(ParserState* state)
 // shift = add ("<<" add | ">>" add)*
 static Node* parse_shift(ParserState* state)
 {
-    static char const* s_symbols[] = { ">>", "<<", NULL };
+    static char* s_symbols[] = { ">>", "<<", NULL };
     return parse_binary_internal(state, s_symbols, parse_add);
 }
 
 // relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node* parse_relational(ParserState* state)
 {
-    static char const* s_symbols[] = { "<", "<=", ">", ">=", NULL };
+    static char* s_symbols[] = { "<", "<=", ">", ">=", NULL };
     return parse_binary_internal(state, s_symbols, parse_shift);
 }
 
 // equality = relational ("==" relational | "!=" relational)*
 static Node* parse_equality(ParserState* state)
 {
-    static char const* s_symbols[] = { "==", "!=", NULL };
+    static char* s_symbols[] = { "==", "!=", NULL };
     return parse_binary_internal(state, s_symbols, parse_relational);
 }
 
@@ -1159,12 +1159,12 @@ static Type* find_typedef(ParserState* state, Token* tok)
 static bool is_type_name(ParserState* state, Token* tok)
 {
     // clang-format off
-    static const char* kw[] = {
+    static char* kw[] = {
         "char", "enum", "int", "long", "short", "static", "struct", "typedef", "union", "void", NULL,
     };
     // clang-format on
 
-    for (const char** p = kw; *p; ++p) {
+    for (char** p = kw; *p; ++p) {
         if (is_token_equal(tok, *p)) {
             return true;
         }
@@ -1314,8 +1314,8 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
         }
 
         // Handle storage class specifiers.
-        const bool isTypedef = is_token_equal(tok, "typedef");
-        const bool isStatic = is_token_equal(tok, "static");
+        bool isTypedef = is_token_equal(tok, "typedef");
+        bool isStatic = is_token_equal(tok, "static");
         if (isTypedef || isStatic) {
             if (!attrib) {
                 error_tok(tok, "storage class specifier is not allowed in this context");
@@ -1332,9 +1332,9 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 
         // user defined types
         Type* ty2 = find_typedef(state, tok);
-        const bool isStruct = is_token_equal(tok, "struct");
-        const bool isUnion = is_token_equal(tok, "union");
-        const bool isEnum = is_token_equal(tok, "enum");
+        bool isStruct = is_token_equal(tok, "struct");
+        bool isUnion = is_token_equal(tok, "union");
+        bool isEnum = is_token_equal(tok, "enum");
         if (isStruct || isUnion || isEnum || ty2) {
             if (counter) {
                 break;

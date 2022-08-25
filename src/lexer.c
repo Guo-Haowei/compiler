@@ -5,17 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool is_ident1(char const c)
+static bool is_ident1(char c)
 {
     return isalpha(c) || c == '_';
 }
 
-static bool is_ident2(char const c)
+static bool is_ident2(char c)
 {
     return is_ident1(c) || isdigit(c);
 }
 
-static bool begin_with(char const* str, char const* prefix)
+static bool begin_with(char* str, char* prefix)
 {
     return strncmp(str, prefix, strlen(prefix)) == 0;
 }
@@ -49,7 +49,7 @@ static void lexer_shift(Lexer* lexer, int n)
 static void lexer_skipline(Lexer* lexer)
 {
     for (;;) {
-        const char c = lexer_peek(lexer);
+        char c = lexer_peek(lexer);
         if (c == '\n' || c == '\0') {
             break;
         }
@@ -72,7 +72,7 @@ static void add_int(Lexer* lexer, Array* arr)
     lexer_fill_tok(lexer, &tok);
     tok.kind = TK_NUM;
 
-    const char* p = lexer->p;
+    char* p = lexer->p;
     int base = 10;
     if (startswithcase(p, "0x") && isxdigit(p[2])) {
         p += 2;
@@ -157,9 +157,9 @@ static void add_int(Lexer* lexer, Array* arr)
     array_push_back(Token, arr, tok);
 }
 
-static const char* find_string_end(Lexer* lexer)
+static char* find_string_end(Lexer* lexer)
 {
-    const char* p = lexer->p + 1; // skip '"'
+    char* p = lexer->p + 1; // skip '"'
     for (; *p != '"'; ++p) {
         if (*p == '\n' || *p == '\0') {
             error_lex(lexer, "unclosed string literal");
@@ -183,7 +183,7 @@ static int from_hex(char c)
     return c - 'A' + 10;
 }
 
-static int read_escaped_char(Lexer* lexer, const char** new_pos, const char* p)
+static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
 {
     if ('0' <= *p && *p <= '7') {
         // Read an octal number.
@@ -232,9 +232,9 @@ static int read_escaped_char(Lexer* lexer, const char** new_pos, const char* p)
 static void add_char(Lexer* lexer, Array* arr)
 {
     Lexer dummy = *lexer;
-    const char* start = lexer->p;
+    char* start = lexer->p;
     lexer_read(lexer);
-    const char* p = lexer->p;
+    char* p = lexer->p;
     if (start[1] == '\0') {
         error_lex(&dummy, "unclosed char literal");
     }
@@ -266,13 +266,13 @@ static void add_char(Lexer* lexer, Array* arr)
 
 static void add_string(Lexer* lexer, Array* arr)
 {
-    const char* start = lexer->p;
-    const char* end = find_string_end(lexer);
+    char* start = lexer->p;
+    char* end = find_string_end(lexer);
     int maxStringLen = (int)(end - start);
     char* buf = calloc(1, maxStringLen);
 
     int len = 0;
-    for (const char* p = start + 1; *p != '"';) {
+    for (char* p = start + 1; *p != '"';) {
         if (*p == '\\') {
             buf[len++] = read_escaped_char(lexer, &p, p + 1);
         } else {
@@ -326,7 +326,7 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
 
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
-    static const char* s_multi_char_puncts[] = {
+    static char* s_multi_char_puncts[] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
         ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
     };
@@ -459,7 +459,7 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
     return tokArray;
 }
 
-static char* read_file(const char* path)
+static char* read_file(char* path)
 {
     FILE* fp = fopen(path, "r");
     if (!fp) {
@@ -478,9 +478,9 @@ static char* read_file(const char* path)
     return buf;
 }
 
-void lex_file(Array* arr, const char* filename);
+void lex_file(Array* arr, char* filename);
 
-Array* lex(const char* file)
+Array* lex(char* file)
 {
     SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
 

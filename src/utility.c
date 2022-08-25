@@ -1,17 +1,19 @@
+#include "utility.h"
+
 #include "generic/list.h"
-#include "minic.h"
 
 #include <assert.h>
-#include <stdarg.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-bool streq(const char* a, const char* b)
+bool streq(char* a, char* b)
 {
+    assert(a && b);
     return strcmp(a, b) == 0;
 }
 
-char* strncopy(const char* src, int n)
+char* strncopy(char* src, int n)
 {
     assert(src);
     assert((int)strlen(src) >= n);
@@ -21,19 +23,7 @@ char* strncopy(const char* src, int n)
     return ret;
 }
 
-char* format(const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    const int size = vsnprintf(NULL, 0, fmt, ap);
-    char* buffer = calloc(1, size + 1);
-    vsnprintf(buffer, size + 1, fmt, ap);
-    va_end(ap);
-
-    return buffer;
-}
-
-bool startswithcase(const char* p, const char* start)
+bool startswithcase(char* p, char* start)
 {
     for (; *start; ++p, ++start) {
         if (tolower(*start) != tolower(*p)) {
@@ -44,7 +34,7 @@ bool startswithcase(const char* p, const char* start)
     return true;
 }
 
-size_t path_simplify(const char* inputPath, char* buf)
+int path_simplify(char* inputPath, char* buf)
 {
     char tmp[MAX_OSPATH];
 
@@ -65,7 +55,7 @@ size_t path_simplify(const char* inputPath, char* buf)
         r = strchr(r + 1, '/');
         StringView part;
         part.start = l;
-        part.len = (int)(r - l);
+        part.len = (int)((r ? r : tmp + strlen(tmp)) - l);
         l = r + 1;
 
         list_push_back(parts, part);
@@ -97,11 +87,14 @@ size_t path_simplify(const char* inputPath, char* buf)
         if (part->len == 0) {
             continue;
         }
-        sprintf(buf + offset, "%.*s/", part->len, part->start);
-        offset += (1 + part->len);
+        strncpy(buf + offset, part->start, part->len);
+        offset += part->len;
+        buf[offset] = '/';
+        buf[offset + 1] = '\0';
+        offset += 1;
     }
 
-    size_t len = strlen(buf) - 1;
+    int len = strlen(buf) - 1;
     buf[len] = 0; // remove last '/'
 
     list_clear(newParts);
@@ -110,65 +103,4 @@ size_t path_simplify(const char* inputPath, char* buf)
     free(parts);
 
     return len;
-}
-
-Token* tr_peek_n(TokenReader* reader, int n)
-{
-    ListNode* c = reader->cursor;
-    if (n >= 0) {
-        for (int i = 0; i < n; ++i) {
-            if (!c) {
-                return NULL;
-            }
-            c = c->next;
-        }
-    } else {
-        for (int i = 0; i < -n; ++i) {
-            if (!c) {
-                return NULL;
-            }
-            c = c->prev;
-        }
-    }
-    return c ? (Token*)(c + 1) : NULL;
-}
-
-Token* tr_peek(TokenReader* reader)
-{
-    return tr_peek_n(reader, 0);
-}
-
-Token* tr_read(TokenReader* reader)
-{
-    Token* ret = tr_peek(reader);
-    assert(ret);
-    reader->cursor = reader->cursor->next;
-    return ret;
-}
-
-bool tr_equal(TokenReader* reader, const char* symbol)
-{
-    return is_token_equal(tr_peek(reader), symbol);
-}
-
-bool tr_consume(TokenReader* reader, const char* symbol)
-{
-    if (tr_equal(reader, symbol)) {
-        assert(reader->cursor);
-        reader->cursor = reader->cursor->next;
-        return true;
-    }
-
-    return false;
-}
-
-void tr_expect(TokenReader* reader, const char* symbol)
-{
-    Token* token = tr_peek(reader);
-    if (is_token_equal(token, symbol)) {
-        reader->cursor = reader->cursor->next;
-        return;
-    }
-
-    error_tok(token, "expected '%s', got '%s'", symbol, token->raw);
 }

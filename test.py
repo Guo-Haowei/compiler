@@ -8,6 +8,10 @@ checkmark = u'\u2713'
 crossmark = u'\u2717'
 
 rules = {
+    'unit.util': {
+        'defines': [],
+        'extra': ['src/generic/list.c', 'src/utility.c']
+    },
     'unit.array': {
         'defines': [],
         'extra': ['src/generic/array.c']

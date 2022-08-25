@@ -4,16 +4,16 @@
 #include <string.h>
 
 typedef struct {
-    const char* input;
+    char* input;
 } TranslationUnit;
 
-static const char* s_exename;
-static const char* s_includepath;
+static char* s_exename;
+static char* s_includepath;
 
-static Array* process_args(int argc, const char** argv)
+static Array* process_args(int argc, char** argv)
 {
     s_exename = argv[0];
-    const char* p = strrchr(s_exename, '/');
+    char* p = strrchr(s_exename, '/');
     if (p) {
         s_exename = p + 1;
     } else {
@@ -27,7 +27,7 @@ static Array* process_args(int argc, const char** argv)
 
     bool hasError = false;
     for (int i = 1; i < argc;) {
-        const char* arg = argv[i];
+        char* arg = argv[i];
 
         if (stricmp(arg, "-I") == 0) {
             if (i + 1 >= argc) {
@@ -72,7 +72,7 @@ static Array* process_args(int argc, const char** argv)
     return files;
 }
 
-static void compile_one(const char* input)
+static void compile_one(char* input)
 {
     Array* rawToks = lex(input);
     List* toks = preproc(rawToks, s_includepath);
@@ -80,7 +80,7 @@ static void compile_one(const char* input)
 
     char* slash = strrchr(input, '/');
     char* bslash = strrchr(input, '\\');
-    const char* p = MAX(slash, bslash);
+    char* p = MAX(slash, bslash);
     p = p ? p + 1 : input;
     char output[MAX_OSPATH];
     strncpy(output, p, MAX_OSPATH);
@@ -92,7 +92,7 @@ static void compile_one(const char* input)
     gen(prog, input, output);
 }
 
-int main(int argc, const char** argv)
+int main(int argc, char** argv)
 {
     process_args(argc, argv);
 

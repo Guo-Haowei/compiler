@@ -1,5 +1,5 @@
-#ifndef __ARRAY_H__
-#define __ARRAY_H__
+#ifndef __GENERIC_ARRAY_H__
+#define __GENERIC_ARRAY_H__
 #include <assert.h>
 
 typedef struct {
@@ -22,4 +22,4 @@ void* array_back(Array* arr);
 
 void _array_push_back(Array* arr, void* data);
 
-#endif // ifndef __ARRAY_H__
+#endif

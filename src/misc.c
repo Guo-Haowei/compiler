@@ -19,7 +19,7 @@ enum {
 #define KYEL "\033[0;33m"
 #define KBLU "\033[0;34m"
 
-static void verror_at(int level, const char* file, const char* source, int sourceLen, int line, int col, int span, const char* fmt, va_list args)
+static void verror_at(int level, char* file, char* source, int sourceLen, int line, int col, int span, char* fmt, va_list args)
 {
     assert(file);
     assert(source);
@@ -29,8 +29,8 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     assert(span);
 
     // fprintf(stderr, "debug verror_at(): span: %d\n", span);
-    const char* color = level == LEVEL_ERROR ? KRED : KYEL;
-    const char* label = "";
+    char* color = level == LEVEL_ERROR ? KRED : KYEL;
+    char* label = "";
     switch (level) {
     case LEVEL_NOTE:
         color = KBLU;
@@ -54,7 +54,7 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     fprintf(stderr, "\n");
 
     // print line
-    char const* lineStart = source;
+    char* lineStart = source;
     for (int curLine = 1; curLine < line; ++curLine) {
         lineStart = strchr(lineStart, '\n');
         if (lineStart) {
@@ -64,12 +64,12 @@ static void verror_at(int level, const char* file, const char* source, int sourc
         }
     }
 
-    const char* lineEnd = lineStart;
+    char* lineEnd = lineStart;
     if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
         lineEnd = source + sourceLen;
     }
 
-    const int lineLen = (int)(lineEnd - lineStart);
+    int lineLen = (int)(lineEnd - lineStart);
     fprintf(stderr, "%5d | ", line);
     int len1 = col - 1;
     int len2 = span;
@@ -80,7 +80,7 @@ static void verror_at(int level, const char* file, const char* source, int sourc
     fprintf(stderr, "      |%s%.*s%.*s%s\n", color, col, EMPTYLINE, span, UNDERLINE, KRESET);
 }
 
-void error(const char* const fmt, ...)
+void error(char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -89,13 +89,13 @@ void error(const char* const fmt, ...)
     exit(-1);
 }
 
-void error_lex(const Lexer* lexer, const char* fmt, ...)
+void error_lex(Lexer* lexer, char* fmt, ...)
 {
-    char const* file = lexer->sourceInfo->file;
-    char const* source = lexer->sourceInfo->start;
-    int const sourceLen = lexer->sourceInfo->len;
-    int const line = lexer->line;
-    int const col = lexer->col;
+    char* file = lexer->sourceInfo->file;
+    char* source = lexer->sourceInfo->start;
+    int sourceLen = lexer->sourceInfo->len;
+    int line = lexer->line;
+    int col = lexer->col;
 
     va_list args;
     va_start(args, fmt);
@@ -104,13 +104,13 @@ void error_lex(const Lexer* lexer, const char* fmt, ...)
     exit(-1);
 }
 
-static void verror_tok_internal(int level, const Token* tok, const char* fmt, va_list args)
+static void verror_tok_internal(int level, Token* tok, char* fmt, va_list args)
 {
-    const char* file = tok->sourceInfo->file;
-    const char* source = tok->sourceInfo->start;
-    const int sourceLen = tok->sourceInfo->len;
-    const int line = tok->line;
-    const int col = tok->col;
+    char* file = tok->sourceInfo->file;
+    char* source = tok->sourceInfo->start;
+    int sourceLen = tok->sourceInfo->len;
+    int line = tok->line;
+    int col = tok->col;
     int span = tok->len;
     if (tok->kind == TK_EOF) {
         span = 1;
@@ -119,7 +119,7 @@ static void verror_tok_internal(int level, const Token* tok, const char* fmt, va
     verror_at(level, file, source, sourceLen, line, col, span, fmt, args);
 }
 
-void info_tok(const Token* tok, const char* fmt, ...)
+void info_tok(Token* tok, char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -127,14 +127,14 @@ void info_tok(const Token* tok, const char* fmt, ...)
     va_end(args);
 }
 
-void error_tok(const Token* tok, const char* fmt, ...)
+void error_tok(Token* tok, char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
     verror_tok_internal(LEVEL_ERROR, tok, fmt, args);
     va_end(args);
 
-    const Token* macro = tok->expandedFrom;
+    Token* macro = tok->expandedFrom;
     if (macro) {
         char buffer[1024];
         snprintf(buffer, sizeof(buffer), "in expansion of macro '%s'", macro->raw);
@@ -145,21 +145,20 @@ void error_tok(const Token* tok, const char* fmt, ...)
     exit(-1);
 }
 
-char const* token_kind_to_string(TokenKind eTokenKind)
+char* token_kind_to_string(TokenKind eTokenKind)
 {
     ASSERT_IDX(eTokenKind, TK_COUNT);
 
-    static char const* const s_names[] = {
+    static char* s_names[] = {
 #define DEFINE_TOKEN(NAME) #NAME,
 #include "token.inl"
 #undef DEFINE_TOKEN
     };
-    STATIC_ASSERT(ARRAY_COUNTER(s_names) == TK_COUNT);
 
     return s_names[eTokenKind];
 }
 
-void debug_print_token(const Token* tok)
+void debug_print_token(Token* tok)
 {
     if (tok->isFirstTok) {
         fprintf(stderr, "line: %d\n", tok->line);
@@ -175,7 +174,7 @@ void debug_print_token(const Token* tok)
     } else {
         fprintf(stderr, " '%.*s'", tok->len, tok->p);
     }
-    const Token* macro = tok->expandedFrom;
+    Token* macro = tok->expandedFrom;
     if (macro) {
         fprintf(stderr, "expanded from macro (%.*s:%d:%d)", tok->len, tok->p, macro->line, macro->col);
     }
@@ -189,4 +188,16 @@ void debug_print_tokens(List* toks)
         Token* tok = (Token*)(c + 1);
         debug_print_token(tok);
     }
+}
+
+char* format(char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    int size = vsnprintf(NULL, 0, fmt, ap);
+    char* buffer = calloc(1, size + 1);
+    vsnprintf(buffer, size + 1, fmt, ap);
+    va_end(ap);
+
+    return buffer;
 }

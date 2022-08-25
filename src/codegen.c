@@ -25,7 +25,7 @@ static int label_counter()
     return i++;
 }
 
-static void writeln(const char* fmt, ...)
+static void writeln(char* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -40,13 +40,13 @@ static void push()
     s_depth++;
 }
 
-static void pop(char const* arg)
+static void pop(char* arg)
 {
     writeln("  pop %s", arg);
     s_depth--;
 }
 
-static void gen_expr(Node const* node);
+static void gen_expr(Node* node);
 
 // Load a value from where %rax is pointing to.
 static void load(Type* type)
@@ -119,7 +119,7 @@ static void store(Type* type)
 
 // Compute the absolute address of a given node.
 // It's an error if a given node does not reside in memory.
-static void gen_addr(Node const* node)
+static void gen_addr(Node* node)
 {
     switch (node->eNodeKind) {
     case ND_VAR:
@@ -150,9 +150,9 @@ static void gen_addr(Node const* node)
     error_tok(node->tok, "not an lvalue");
 }
 
-static void gen_cmp_expr(NodeKind eNodeKind, const char* di, const char* ax)
+static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax)
 {
-    static char const* const s_cmds[] = {
+    static char* s_cmds[] = {
         "sete",
         "setne",
         "setl",
@@ -161,9 +161,7 @@ static void gen_cmp_expr(NodeKind eNodeKind, const char* di, const char* ax)
         "setge",
     };
 
-    STATIC_ASSERT(ARRAY_COUNTER(s_cmds) == (ND_GE - ND_EQ + 1));
-
-    int const index = eNodeKind - ND_EQ;
+    int index = eNodeKind - ND_EQ;
     ASSERT_IDX(index, ARRAY_COUNTER(s_cmds));
 
     writeln("  cmp %s, %s", di, ax);
@@ -210,7 +208,7 @@ static void gen_cast(Type* from, Type* to)
     }
 }
 
-static void gen_expr(Node const* node)
+static void gen_expr(Node* node)
 {
     switch (node->eNodeKind) {
     case ND_NULL_EXPR:
@@ -336,7 +334,7 @@ static void gen_expr(Node const* node)
     gen_expr(node->lhs);
     pop("%rdi");
 
-    const char *ax = NULL, *di = NULL;
+    char *ax = NULL, *di = NULL;
     if (node->lhs->type->eTypeKind == TY_LONG || node->lhs->type->base) {
         ax = "%rax";
         di = "%rdi";
@@ -403,13 +401,13 @@ static void gen_expr(Node const* node)
     error_tok(node->tok, "invalid statement");
 }
 
-static void gen_stmt(Node const* node)
+static void gen_stmt(Node* node)
 {
     writeln("  .loc 1 %d", node->tok->line);
 
     switch (node->eNodeKind) {
     case ND_IF: {
-        const int c = label_counter();
+        int c = label_counter();
         gen_expr(node->cond);
         writeln("  cmp $0, %%rax");
         writeln("  je  .L.else.%d", c);
@@ -468,7 +466,7 @@ static void gen_stmt(Node const* node)
     case ND_SWITCH:
         gen_expr(node->cond);
         for (Node* n = node->caseNext; n; n = n->caseNext) {
-            const char* reg = (node->cond->type->size == 8) ? "%rax" : "%eax";
+            char* reg = (node->cond->type->size == 8) ? "%rax" : "%eax";
             writeln("  cmp $%ld, %s", n->val, reg);
             writeln("  je %s", n->label);
         }
@@ -511,10 +509,10 @@ static void assign_lvar_offsets(Obj* prog)
         int offset = 0;
         for (Obj* var = fn->locals; var; var = var->next) {
             offset += var->type->size;
-            offset = ALIGN_TO(offset, var->type->align);
+            offset = ALIGN(offset, var->type->align);
             var->offset = -offset;
         }
-        fn->stackSize = ALIGN_TO(offset, 16);
+        fn->stackSize = ALIGN(offset, 16);
     }
 }
 
@@ -611,7 +609,7 @@ static void emit_text(Obj* prog)
     }
 }
 
-void gen(Obj* prog, const char* srcname, const char* asmname)
+void gen(Obj* prog, char* srcname, char* asmname)
 {
     s_output = fopen(asmname, "w");
 

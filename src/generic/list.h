@@ -1,7 +1,5 @@
-#ifndef __LIST_H__
-#define __LIST_H__
-
-#define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
+#ifndef __GENERIC_LIST_H__
+#define __GENERIC_LIST_H__
 
 typedef struct ListNode ListNode;
 typedef struct List List;

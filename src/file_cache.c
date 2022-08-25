@@ -12,7 +12,7 @@ static void fcache_init()
     s_filecaches = array_new(sizeof(FileCache), 4);
 }
 
-Array* fcache_get(const char* path)
+Array* fcache_get(char* path)
 {
     if (!s_filecaches) {
         fcache_init();
@@ -27,7 +27,7 @@ Array* fcache_get(const char* path)
     return NULL;
 }
 
-bool fcache_add(const char* path, Array* toks)
+bool fcache_add(char* path, Array* toks)
 {
     if (!s_filecaches) {
         fcache_init();

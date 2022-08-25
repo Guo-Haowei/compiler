@@ -15,8 +15,8 @@
 /**
  * file_cache.c
  */
-Array* fcache_get(const char* absPath);
-bool fcache_add(const char* absPath, Array* toks);
+Array* fcache_get(char* absPath);
+bool fcache_add(char* absPath, Array* toks);
 
 typedef enum token_kind_t {
 #define DEFINE_TOKEN(NAME) NAME,
@@ -34,8 +34,8 @@ typedef enum node_kind_t {
 
 typedef struct source_info_t {
     char file[MAX_OSPATH];
-    const char* start;
-    const char* end;
+    char* start;
+    char* end;
     int len;
 } SourceInfo;
 
@@ -50,7 +50,7 @@ struct Token {
     int line;
     int col;
 
-    const char* p;
+    char* p;
     char* raw;
     int len;
 
@@ -141,7 +141,7 @@ struct Node {
 
 typedef struct lexer_t {
     SourceInfo* sourceInfo;
-    const char* p;
+    char* p;
     int line;
     int col;
 } Lexer;
@@ -209,22 +209,22 @@ Type* struct_type();
 void add_type(Node* node);
 Type* enum_type();
 
-bool is_token_equal(const Token* token, const char* symbol);
+bool is_token_equal(Token* token, char* symbol);
 
-Array* lex(const char* filename);
+Array* lex(char* filename);
 
-List* preproc(Array* toks, const char* includepath);
+List* preproc(Array* toks, char* includepath);
 
 void dump_preproc(List* toks);
 Node* new_cast(Node* expr, Type* type, Token* tok);
 Obj* parse(List* toks);
 
-void gen(Obj* prog, const char* srcname, const char* asmname);
+void gen(Obj* prog, char* srcname, char* asmname);
 
-void error(const char* const fmt, ...);
-void error_lex(const Lexer* lexer, const char* fmt, ...);
-void error_tok(const Token* token, const char* fmt, ...);
-void info_tok(const Token* tok, const char* fmt, ...);
+void error(char* fmt, ...);
+void error_lex(Lexer* lexer, char* fmt, ...);
+void error_tok(Token* token, char* fmt, ...);
+void info_tok(Token* tok, char* fmt, ...);
 
 /**
  *  utility
@@ -238,17 +238,18 @@ typedef struct {
 Token* tr_peek_n(TokenReader* reader, int n);
 Token* tr_peek(TokenReader* reader);
 Token* tr_read(TokenReader* reader);
-bool tr_equal(TokenReader* reader, const char* symbol);
-bool tr_consume(TokenReader* reader, const char* symbol);
-void tr_expect(TokenReader* reader, const char* symbol);
+bool tr_equal(TokenReader* reader, char* symbol);
+bool tr_consume(TokenReader* reader, char* symbol);
+void tr_expect(TokenReader* reader, char* symbol);
 
 /**
  * misc
  */
-const char* token_kind_to_string(TokenKind eTokenKind);
+char* token_kind_to_string(TokenKind eTokenKind);
+char* format(char* fmt, ...);
 
 // DEBUG
-void debug_print_token(const Token* tok);
+void debug_print_token(Token* tok);
 void debug_print_tokens(List* toks);
 
 #endif

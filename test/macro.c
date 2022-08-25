@@ -58,15 +58,6 @@ int main()
 #define ABC ("ABC")
     ASSERT('A', ABC[0]);
 
-#define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
-    ASSERT(16, ALIGN(1, 16));
-    ASSERT(16, ALIGN(8, 16));
-    ASSERT(16, ALIGN(15, 16));
-    ASSERT(16, ALIGN(16, 16));
-    ASSERT(32, ALIGN(18, 16));
-    ASSERT(32, ALIGN(31, 16));
-    ASSERT(32, ALIGN(32, 16));
-
     printf("OK\n");
     return 0;
 }
