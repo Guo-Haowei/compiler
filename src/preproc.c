@@ -403,6 +403,8 @@ static void include(PreprocState* state, List* preprocLine)
 {
     char file[MAX_OSPATH];
 
+    bool ok = false;
+
     if (list_len(preprocLine) >= 2) {
         Token* start = (Token*)(preprocLine->front->next + 1);
         if (start->kind == TK_STR) {
@@ -412,7 +414,7 @@ static void include(PreprocState* state, List* preprocLine)
             assert(p);
             *(++p) = '\0';
             strcpy(p, start->str);
-            goto include_ok;
+            ok = true;
         }
 
         if (start->len == 1 && start->raw[0] == '<') {
@@ -429,15 +431,17 @@ static void include(PreprocState* state, List* preprocLine)
                 if (pathOk) {
                     int pathLen = end - start->p - 1;
                     snprintf(file, MAX_OSPATH, "./%s/%.*s", state->includepath, pathLen, start->p + 1);
-                    goto include_ok;
+                    ok = true;
                 }
             }
         }
     }
 
-    error_tok(list_front(Token, preprocLine), "#include expects \"FILENAME\" or <FILENAME>");
+    if (!ok) {
+        error_tok(list_front(Token, preprocLine), "#include expects \"FILENAME\" or <FILENAME>");
+    }
 
-include_ok:
+    // include_ok:
     Array* rawToks = lex(file);
     // append arr2 to unprocessed list
     for (int i = rawToks->len - 1; i >= 0; --i) {
@@ -557,12 +561,11 @@ static void preproc2(PreprocState* state)
     }
 }
 
-static char s_keywords[27][12] = {
-    "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
-};
-
 static void postprocess(List* tokens)
 {
+    char s_keywords[27][12] = {
+        "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
+    };
 
     for (ListNode* c = tokens->front; c; c = c->next) {
         Token* tok = (Token*)(c + 1);

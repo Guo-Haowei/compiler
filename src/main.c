@@ -29,7 +29,7 @@ static Array* process_args(int argc, char** argv)
     for (int i = 1; i < argc;) {
         char* arg = argv[i];
 
-        if (stricmp(arg, "-I") == 0) {
+        if (strcmp(arg, "-I") == 0) {
             if (i + 1 >= argc) {
                 hasError = true;
                 break;

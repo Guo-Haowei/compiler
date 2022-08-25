@@ -29,7 +29,8 @@ sh_exe_name = 'minic2'
 def test_main():
     test.setup('self-host')
     # build compiler with minic
-    build_with_minic = ['generic/array.c', 'generic/list.c', 'lexer.c']
+    build_with_minic = ['generic/array.c',
+                        'generic/list.c', 'lexer.c', 'file_cache.c', 'main.c']
     build_with_gcc = []
     for f in build.src_files:
         if not f in build_with_minic:
