@@ -210,21 +210,7 @@ void add_type(Node* node)
     case ND_MEMBER:
         node->type = node->member->type;
         return;
-    case ND_IF:
-    case ND_FOR:
-    case ND_RETURN:
-    case ND_BLOCK:
-    case ND_EXPR_STMT:
-    case ND_INVALID:
-    case ND_COUNT:
-    case ND_GOTO:
-    case ND_LABEL:
-    case ND_SWITCH:
-    case ND_CASE:
-    case ND_NULL_EXPR:
-        return;
     default:
-        error("unhandled node type %d\n", node->eNodeKind);
         break;
     }
 }

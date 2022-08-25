@@ -53,7 +53,7 @@ typedef struct {
 typedef struct Initializer Initializer;
 struct Initializer {
     Initializer* next;
-    Type* ty;
+    Type* type;
     Token* tok;
     // If it's not an aggregate type and has an initializer,
     // `expr` has an initialization expression.
@@ -319,10 +319,12 @@ static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 static Node* to_assign(ParserState* state, Node* binary);
 
+static void initializer2(ParserState* state, Initializer* init);
+
 static Initializer* new_initializer(Type* ty)
 {
     Initializer* init = calloc(1, sizeof(Initializer));
-    init->ty = ty;
+    init->type = ty;
     if (ty->eTypeKind == TY_ARRAY) {
         init->children = calloc(ty->arrayLen, sizeof(Initializer*));
         for (int i = 0; i < ty->arrayLen; ++i) {
@@ -1355,18 +1357,19 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
             continue;
         }
 
-        if (consume(state, "void"))
+        if (consume(state, "void")) {
             counter += VOID;
-        else if (consume(state, "char"))
+        } else if (consume(state, "char")) {
             counter += CHAR;
-        else if (consume(state, "short"))
+        } else if (consume(state, "short")) {
             counter += SHORT;
-        else if (consume(state, "int"))
+        } else if (consume(state, "int")) {
             counter += INT;
-        else if (consume(state, "long"))
+        } else if (consume(state, "long")) {
             counter += LONG;
-        else
-            UNREACHABLE();
+        } else {
+            assert(0);
+        }
 
         switch (counter) {
         case VOID:
@@ -1594,21 +1597,57 @@ static void parse_global_variable(ParserState* state, Type* basety)
     }
 }
 
-// initializer = "{" initializer ("," initializer)* "}"
-//             | assign
-static void initializer2(ParserState* state, Initializer* init)
+static void skip_excess_element(ParserState* state)
 {
-    if (init->ty->eTypeKind == TY_ARRAY) {
-        expect(state, "{");
-        for (int i = 0; i < init->ty->arrayLen; i++) {
-            if (i > 0) {
-                expect(state, ",");
-            }
-            initializer2(state, init->children[i]);
-        }
+    if (consume(state, "{")) {
+        skip_excess_element(state);
         expect(state, "}");
         return;
     }
+
+    parse_assign(state);
+}
+
+// string-initializer = string-literal
+static void string_initializer(ParserState* state, Initializer* init)
+{
+    Token* tok = read(state);
+    assert(tok->kind == TK_STR);
+    int len = MIN(init->type->arrayLen, tok->type->arrayLen);
+    for (int i = 0; i < len; i++) {
+        init->children[i]->expr = new_num(tok->str[i], tok);
+    }
+}
+
+// array-initializer = "{" initializer ("," initializer)* "}"
+static void array_initializer(ParserState* state, Initializer* init)
+{
+    expect(state, "{");
+    for (int i = 0; !consume(state, "}"); i++) {
+        if (i > 0) {
+            expect(state, ",");
+        }
+        if (i < init->type->arrayLen) {
+            initializer2(state, init->children[i]);
+        } else {
+            skip_excess_element(state);
+        }
+    }
+}
+
+// initializer = string-initializer | array-initializer | assign
+static void initializer2(ParserState* state, Initializer* init)
+{
+    Token* start = peek(state);
+    if (init->type->eTypeKind == TY_ARRAY && start->kind == TK_STR) {
+        string_initializer(state, init);
+        return;
+    }
+    if (init->type->eTypeKind == TY_ARRAY) {
+        array_initializer(state, init);
+        return;
+    }
+
     init->expr = parse_assign(state);
 }
 
@@ -1644,9 +1683,12 @@ static Node* create_lvar_init(Initializer* init, Type* ty, InitDesg* desg, Token
         return node;
     }
 
+    if (!init->expr) {
+        return new_node(ND_NULL_EXPR, tok);
+    }
+
     Node* lhs = init_desg_expr(desg, tok);
-    Node* rhs = init->expr;
-    return new_binary(ND_ASSIGN, lhs, rhs, tok);
+    return new_binary(ND_ASSIGN, lhs, init->expr, tok);
 }
 
 // A variable definition with an initializer is a shorthand notation
@@ -1664,7 +1706,15 @@ static Node* parse_lvar_initializer(ParserState* state, Obj* var)
     Token* tok = peek(state);
     Initializer* init = parse_initializer(state, var->type);
     InitDesg desg = { NULL, 0, var };
-    return create_lvar_init(init, var->type, &desg, tok);
+
+    // If a partial initializer list is given, the standard requires
+    // that unspecified elements are set to 0. Here, we simply
+    // zero-initialize the entire memory region of a variable before
+    // initializing it with user-supplied values.
+    Node* lhs = new_node(ND_MEMZERO, tok);
+    lhs->var = var;
+    Node* rhs = create_lvar_init(init, var->type, &desg, tok);
+    return new_binary(ND_COMMA, lhs, rhs, tok);
 }
 
 // This function matches gotos with labels.

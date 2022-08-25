@@ -559,7 +559,7 @@ static void preproc2(PreprocState* state)
 
 static void postprocess(List* tokens)
 {
-    static char* s_keywords[] = {
+    static char s_keywords[][12] = {
         "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum",
         "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static",
         "struct", "switch", "typedef", "union", "unsigned", "void", "while"

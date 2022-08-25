@@ -46,4 +46,5 @@ DEFINE_NODE(ND_EXPR_STMT    , 0             , 0         ) // expression statemen
 DEFINE_NODE(ND_VAR          , 0             , 0         ) // variable
 DEFINE_NODE(ND_NUM          , 0             , 0         ) // number literal
 DEFINE_NODE(ND_CAST         , 0             , 0         ) // cast
+DEFINE_NODE(ND_MEMZERO      , 0             , 0         ) // zero-clear a stack variable
 // clang-format on

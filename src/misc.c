@@ -18,6 +18,7 @@ enum {
 #define KRED "\033[0;31m"
 #define KYEL "\033[0;33m"
 #define KBLU "\033[0;34m"
+#define KMAG "\033[0;35m"
 
 static void verror_at(int level, char* file, char* source, int sourceLen, int line, int col, int span, char* fmt, va_list args)
 {
@@ -29,15 +30,15 @@ static void verror_at(int level, char* file, char* source, int sourceLen, int li
     assert(span);
 
     // fprintf(stderr, "debug verror_at(): span: %d\n", span);
-    char* color = level == LEVEL_ERROR ? KRED : KYEL;
-    char* label = "";
+    char* color = NULL;
+    char* label = NULL;
     switch (level) {
     case LEVEL_NOTE:
         color = KBLU;
-        label = "not:";
+        label = "note:";
         break;
     case LEVEL_WARN:
-        color = KYEL;
+        color = KMAG;
         label = "warn:";
         break;
     case LEVEL_ERROR:
@@ -125,6 +126,21 @@ void info_tok(Token* tok, char* fmt, ...)
     va_start(args, fmt);
     verror_tok_internal(LEVEL_NOTE, tok, fmt, args);
     va_end(args);
+}
+
+void warn_tok(Token* tok, char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    verror_tok_internal(LEVEL_WARN, tok, fmt, args);
+    va_end(args);
+
+    Token* macro = tok->expandedFrom;
+    if (macro) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), "in expansion of macro '%s'", macro->raw);
+        verror_tok_internal(LEVEL_NOTE, tok->expandedFrom, buffer, NULL);
+    }
 }
 
 void error_tok(Token* tok, char* fmt, ...)

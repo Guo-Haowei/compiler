@@ -8,7 +8,6 @@
 #include "generic/common.h"
 
 #define ASSERT_IDX(a, bound) assert(((int)a >= 0) && ((int)a < (int)bound))
-#define UNREACHABLE() assert(0)
 
 /// math
 #ifdef ZERO_MEMORY

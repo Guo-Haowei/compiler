@@ -326,7 +326,7 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
 
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
-    static char* s_multi_char_puncts[] = {
+    static char s_multi_char_puncts[][4] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
         ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
     };

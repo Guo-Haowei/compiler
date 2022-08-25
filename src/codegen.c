@@ -10,10 +10,10 @@ enum { I8, I16, I32, I64 };
 
 // @TODO: refactor
 static int s_depth = 0;
-static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char* s_argreg16[] = { "%cx", "%dx", "%r8w", "%r9w" };
-static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
-static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
+static char s_argreg8[4][8] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char s_argreg16[4][8] = { "%cx", "%dx", "%r8w", "%r9w" };
+static char s_argreg32[4][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
+static char s_argreg64[4][8] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static Obj* s_current_fn;
 static FILE* s_output;
@@ -80,7 +80,7 @@ static void load(Type* type)
         writeln("  mov (%%rax), %%rax");
         break;
     default:
-        UNREACHABLE();
+        assert(0);
         break;
     }
 }
@@ -112,7 +112,7 @@ static void store(Type* type)
         writeln("  mov %%rax, (%%rdi)");
         break;
     default:
-        UNREACHABLE();
+        assert(0);
         break;
     }
 }
@@ -236,6 +236,13 @@ static void gen_expr(Node* node)
         return;
     case ND_ADDR:
         gen_addr(node->lhs);
+        return;
+    case ND_MEMZERO:
+        // `rep stosb` is equivalent to `memset(%rdi, %al, %rcx)`.
+        writeln("  mov $%d, %%rcx", node->var->type->size);
+        writeln("  lea %d(%%rbp), %%rdi", node->var->offset);
+        writeln("  mov $0, %%al");
+        writeln("  rep stosb");
         return;
     case ND_ASSIGN:
         gen_addr(node->lhs);
@@ -560,7 +567,8 @@ static void store_gp(int r, int offset, int sz)
         writeln("  mov %s, %d(%%rbp)", s_argreg64[r], offset);
         return;
     }
-    UNREACHABLE();
+
+    assert(0);
 }
 
 static void emit_text(Obj* prog)

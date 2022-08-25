@@ -224,6 +224,7 @@ void gen(Obj* prog, char* srcname, char* asmname);
 void error(char* fmt, ...);
 void error_lex(Lexer* lexer, char* fmt, ...);
 void error_tok(Token* token, char* fmt, ...);
+void warn_tok(Token* token, char* fmt, ...);
 void info_tok(Token* tok, char* fmt, ...);
 
 /**
