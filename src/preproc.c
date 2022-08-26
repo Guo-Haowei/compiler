@@ -159,11 +159,9 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     pop_to(state->unprocessed, tr.cursor);
 
     if (args->len != macro->args->len) {
-        error_tok(tr_peek(&tr),
-            "macro \"%s\" passed %d arguments, but takes %d",
-            macro->token.raw,
-            args->len,
-            macro->args->len);
+        // @TODO: support more than 4 args
+        // error_tok(tr_peek(&tr), "macro \"%s\" passed %d arguments, but takes %d", macro->token.raw, args->len, macro->args->len);
+        error_tok(tr_peek(&tr), "passed %d arguments, but takes %d", args->len, macro->args->len);
     }
 
     List* tmp = list_new();
@@ -430,7 +428,10 @@ static void include(PreprocState* state, List* preprocLine)
 
                 if (pathOk) {
                     int pathLen = end - start->p - 1;
-                    snprintf(file, MAX_OSPATH, "./%s/%.*s", state->includepath, pathLen, start->p + 1);
+                    // @TODO support more than 4 args
+                    // snprintf(file, MAX_OSPATH, "./%s/%.*s", state->includepath, pathLen, start->p + 1);
+                    char* name = strncopy(start->p + 1, pathLen);
+                    sprintf(file, "./%s/%s", state->includepath, name);
                     ok = true;
                 }
             }

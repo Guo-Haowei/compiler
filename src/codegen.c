@@ -262,7 +262,10 @@ static void gen_expr(Node* node)
         }
         assert(arg == NULL);
 
-        assert(node->argc <= 4);
+        if (node->argc > 4) {
+            error_tok(node->tok, "Support up to 4 parameters");
+        }
+        // assert(node->argc <= 4);
         for (int i = node->argc - 1; i >= 0; --i) {
             pop(s_argreg64[i]);
         }
@@ -270,6 +273,7 @@ static void gen_expr(Node* node)
         // surrond with guard
         // it seems malloc corrupts stack for some reason
         int guard = 16 + ((s_depth % 2) ? 8 : 0);
+        // writeln("  mov $0, %%rax");
         writeln("  sub $%d, %%rsp", guard);
         writeln("  call %s", node->funcname);
         writeln("  add $%d, %%rsp", guard);

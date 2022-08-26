@@ -1,8 +1,6 @@
 #ifndef __STDIO_H__
 #define __STDIO_H__
 
-// typedef void FILE;
-
 #define SEEK_CUR 1
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -20,6 +18,7 @@ typedef struct {
 } FILE;
 
 int printf(char* fmt, ...);
+int sprintf(char* buf, char* fmt, ...);
 int snprintf(char* buf, int n, char* fmt, ...);
 
 FILE* fopen(char* filename, char* mode);
