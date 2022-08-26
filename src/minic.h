@@ -162,8 +162,7 @@ struct Node {
 
     // Function call
     char* funcname;
-    Node* args;
-    int argc;
+    Array* args;
 
     // Goto or labeled statement
     char* label;
@@ -298,7 +297,6 @@ void tr_expect(TokenReader* reader, char* symbol);
  * misc
  */
 char* format(char* fmt, ...);
-char* read_file(char* path);
 
 // DEBUG
 void debug_print_token(Token* tok);

@@ -100,6 +100,10 @@ int main()
     ASSERT(3, char_fn());
     ASSERT(5, short_fn());
 
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%d%d%d%d%d%d%d%d", 1, 2, 3, 4, 5, 6, 7, 8);
+    ASSERT(0, strcmp(buf, "12345678"));
+
     printf("OK\n");
     return 0;
 }

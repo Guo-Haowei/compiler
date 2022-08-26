@@ -255,28 +255,34 @@ static void gen_expr(Node* node)
         gen_expr(node->rhs);
         return;
     case ND_FUNCCALL: {
-        Node* arg = node->args;
-        for (int i = 0; i < node->argc; ++i, arg = arg->next) {
+        int argc = node->args->len;
+
+        int regCnt = MIN(argc, 4);
+        // first 4 args saved in registers
+        for (int i = 0; i < regCnt; ++i) {
+            Node* arg = array_at(Node, node->args, i);
             gen_expr(arg);
             push();
         }
-        assert(arg == NULL);
 
-        if (node->argc > 4) {
-            error_tok(node->tok, "Support up to 4 parameters");
-        }
-        // assert(node->argc <= 4);
-        for (int i = node->argc - 1; i >= 0; --i) {
+        for (int i = regCnt - 1; i >= 0; --i) {
             pop(s_argreg64[i]);
         }
 
-        // surrond with guard
-        // it seems malloc corrupts stack for some reason
-        int guard = 16 + ((s_depth % 2) ? 8 : 0);
-        // writeln("  mov $0, %%rax");
-        writeln("  sub $%d, %%rsp", guard);
+        for (int i = node->args->len - 1; i >= 4; --i) {
+            Node* arg = array_at(Node, node->args, i);
+            gen_expr(arg);
+            push();
+        }
+
+        // shadow
+        writeln("  sub $32, %%rsp"); // HACK: fix main segfault
         writeln("  call %s", node->funcname);
-        writeln("  add $%d, %%rsp", guard);
+
+        int stackArgs = MAX(node->args->len - 4, 0);
+        int restore = 32 + stackArgs * 8;
+        writeln("  add $%d, %%rsp", restore);
+        s_depth -= stackArgs;
 
         // It looks like the most significant 48 or 56 bits in RAX may
         // contain garbage if a function return type is short or bool/char,
@@ -603,7 +609,6 @@ static void emit_text(Obj* prog)
         // Prologue
         writeln("  push %%rbp");
         writeln("  mov %%rsp, %%rbp");
-        writeln("  sub $32, %%rsp"); // HACK: fix main segfault
 
         // print local variables
         List* locals = build_reversed_var_list(fn->locals);

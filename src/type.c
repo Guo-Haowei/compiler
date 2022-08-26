@@ -163,8 +163,11 @@ void add_type(Node* node)
     for (Node* n = node->body; n; n = n->next) {
         add_type(n);
     }
-    for (Node* n = node->args; n; n = n->next) {
-        add_type(n);
+    if (node->args) {
+        for (int i = 0; i < node->args->len; ++i) {
+            Node* n = array_at(Node, node->args, i);
+            add_type(n);
+        }
     }
 
     switch (node->eNodeKind) {
@@ -191,9 +194,8 @@ void add_type(Node* node)
         node->type = node->lhs->type;
         return;
     case ND_NEG: {
-        Type* ty = get_common_type(long_type(), node->lhs->type);
         // @TODO: fix this
-        // Type* ty = get_common_type(g_int_type, node->lhs->type);
+        Type* ty = get_common_type(long_type(), node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
         node->type = ty;
         return;

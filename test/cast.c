@@ -1,4 +1,5 @@
 #include "test.h"
+#include <string.h>
 
 int main()
 {
@@ -29,10 +30,7 @@ int main()
             char a[64];
         } b;
 
-        // @TODO: use string copy to set "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        for (int i = 0; i < 26; i = i + 1) {
-            b.a[i] = i + 65;
-        }
+        strcpy(b.a, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
         A* p = (A*)&b;
         ASSERT(1145258561, p->a);

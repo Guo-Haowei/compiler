@@ -205,23 +205,3 @@ void debug_print_tokens(List* toks)
         debug_print_token(tok);
     }
 }
-
-// @TODO: fix this
-char* read_file(char* path)
-{
-    FILE* fp = fopen(path, "r");
-    if (!fp) {
-        error("cannot open '%s'\n", path);
-    }
-
-    fseek(fp, 0, SEEK_END);
-    int size = (int)ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    char* buf = calloc(1, ALIGN(size + 1, 16));
-    size_t read = fread(buf, 1, size, fp);
-    fclose(fp);
-
-    buf[read] = 0;
-    return buf;
-}

@@ -14,8 +14,6 @@ int sum1(int x, ...)
     }
 }
 
-// @TODO: more args
-
 int main()
 {
     ASSERT(28, sum1(1, 8, 19, 0));

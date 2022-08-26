@@ -956,12 +956,9 @@ static Node* parse_funccall(ParserState* state)
     Type* paramType = sc->var->type->params;
 
     expect(state, "(");
-    Node head;
-    ZERO_MEMORY(head);
-    Node* cur = &head;
-    int argc = 0;
-    for (; !consume(state, ")"); ++argc) {
-        if (argc) {
+    Array* args = array_new(sizeof(Node), 8);
+    while (!consume(state, ")")) {
+        if (args->len > 0) {
             expect(state, ",");
         }
         Node* arg = parse_assign(state);
@@ -980,7 +977,8 @@ static Node* parse_funccall(ParserState* state)
             arg = new_cast(arg, paramType, tok);
             paramType = paramType->next;
         }
-        cur = cur->next = arg;
+
+        _array_push_back(args, arg);
     }
 
     if (paramType) {
@@ -990,8 +988,7 @@ static Node* parse_funccall(ParserState* state)
     Node* node = new_node(ND_FUNCCALL, start);
     assert(start->raw);
     node->funcname = strdup(start->raw);
-    node->args = head.next;
-    node->argc = argc;
+    node->args = args;
     node->type = type->retType;
     return node;
 }
