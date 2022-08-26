@@ -103,7 +103,7 @@ struct Token {
     Type* type;
     char* str;
 
-    bool isFirstTok;
+    int isFirstTok;
     Token* expandedFrom;
 };
 
@@ -114,10 +114,10 @@ struct Obj {
     Obj* next;
     Type* type;
 
-    bool isLocal;
-    bool isFunc;
-    bool isDefinition;
-    bool isStatic;
+    int isLocal;
+    int isFunc;
+    int isDefinition;
+    int isStatic;
 
     // variable
     int offset;
@@ -233,7 +233,7 @@ struct Type {
     // @TODO: make it array instead
     Type* params;
     Type* next;
-    bool isVariadic;
+    int isVariadic;
 };
 
 // Struct member

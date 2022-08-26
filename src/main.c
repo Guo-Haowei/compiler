@@ -70,6 +70,7 @@ static void compile_one(char* input)
     assert(ext);
     ext[1] = 's';
     ext[2] = 0;
+
     gen(prog, input, output);
 }
 

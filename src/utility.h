@@ -1,8 +1,6 @@
 #ifndef __UTILITY_H__
 #define __UTILITY_H__
 
-#include <stdbool.h>
-// #include <stdint.h>
 #include <string.h>
 
 #include "generic/common.h"

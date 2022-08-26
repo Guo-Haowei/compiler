@@ -257,9 +257,9 @@ static VarScope* find_var(ParserState* state, Token* tok)
     return NULL;
 }
 
+static int s_id;
 static char* new_unique_name()
 {
-    static int s_id = 0;
     return format(".L.anon.%d", s_id++);
 }
 
@@ -1244,7 +1244,7 @@ static bool is_type_name(ParserState* state, Token* tok)
         }
     }
 
-    return find_typedef(state, tok);
+    return find_typedef(state, tok) != NULL;
 }
 
 // compound-stmt = (typedef | declaration | stmt)* "}"
@@ -1910,6 +1910,5 @@ Obj* parse(List* tokens)
 
     leave_scope(&state);
     assert(state.scopes.len == 0);
-
     return s_globals;
 }
