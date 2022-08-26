@@ -19,6 +19,7 @@ typedef struct {
 } FILE;
 
 int printf(char* fmt, ...);
+int fprintf(void* stream, char* __format, ...);
 int sprintf(char* buf, char* fmt, ...);
 int snprintf(char* buf, int n, char* fmt, ...);
 

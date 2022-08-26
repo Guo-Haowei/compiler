@@ -10,15 +10,71 @@ enum {
     I64
 };
 
-// @TODO: refactor
-static int s_depth = 0;
-static char* s_argreg8[4] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char* s_argreg16[4] = { "%cx", "%dx", "%r8w", "%r9w" };
-static char* s_argreg32[4] = { "%ecx", "%edx", "%r8d", "%r9d" };
-static char* s_argreg64[4] = { "%rcx", "%rdx", "%r8", "%r9" };
+// @TODO: Support global initializer
+// static char* s_argreg8[4] = { "%cl", "%dl", "%r8b", "%r9b" };
+// static char* s_argreg16[4] = { "%cx", "%dx", "%r8w", "%r9w" };
+// static char* s_argreg32[4] = { "%ecx", "%edx", "%r8d", "%r9d" };
+// static char* s_argreg64[4] = { "%rcx", "%rdx", "%r8", "%r9" };
+static char* s_argreg8[4];
+static char* s_argreg16[4];
+static char* s_argreg32[4];
+static char* s_argreg64[4];
 
+static int s_depth;
 static Obj* s_current_fn;
 static FILE* s_output;
+
+// The table for type casts
+// static char* s_i32i8 = "movsbl %al, %eax";
+// static char* s_i32i16 = "movswl %ax, %eax";
+// static char* s_i32i64 = "movsxd %eax, %rax";
+static char* s_i32i8;
+static char* s_i32i16;
+static char* s_i32i64;
+
+// static char* s_cast_table[4][4] = {
+//     { NULL, NULL, NULL, s_i32i64 },        // i8
+//     { s_i32i8, NULL, NULL, s_i32i64 },     // i16
+//     { s_i32i8, s_i32i16, NULL, s_i32i64 }, // i32
+//     { s_i32i8, s_i32i16, NULL, NULL },     // i64
+// };
+static char* s_cast_table[4][4];
+
+static void dummysetup()
+{
+    s_argreg8[0] = "%cl";
+    s_argreg8[1] = "%dl",
+    s_argreg8[2] = "%r8b";
+    s_argreg8[3] = "%r9b";
+
+    s_argreg16[0] = "%cx";
+    s_argreg16[1] = "%dx",
+    s_argreg16[2] = "%r8w";
+    s_argreg16[3] = "%r9w";
+
+    s_argreg32[0] = "%ecx";
+    s_argreg32[1] = "%edx",
+    s_argreg32[2] = "%r8d";
+    s_argreg32[3] = "%r9d";
+
+    s_argreg64[0] = "%rcx";
+    s_argreg64[1] = "%rdx",
+    s_argreg64[2] = "%r8";
+    s_argreg64[3] = "%r9";
+
+    s_i32i8 = "movsbl %al, %eax";
+    s_i32i16 = "movswl %ax, %eax";
+    s_i32i64 = "movsxd %eax, %rax";
+
+    s_cast_table[0][3] = s_i32i64;
+    s_cast_table[1][0] = s_i32i8;
+    s_cast_table[1][3] = s_i32i64;
+    s_cast_table[2][0] = s_i32i8;
+    s_cast_table[2][1] = s_i32i16;
+    s_cast_table[2][3] = s_i32i64;
+    s_cast_table[3][0] = s_i32i8;
+    s_cast_table[3][1] = s_i32i16;
+}
 
 #define println(...)                    \
     {                                   \
@@ -144,13 +200,13 @@ static void gen_addr(Node* node)
 
 static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax)
 {
-    static char* s_cmds[] = {
+    char* s_cmds[6] = {
         "sete",
         "setne",
         "setl",
         "setle",
         "setg",
-        "setge",
+        "setge"
     };
 
     int index = eNodeKind - ND_EQ;
@@ -174,18 +230,6 @@ static int get_type_id(Type* ty)
         return I64;
     }
 }
-
-// The table for type casts
-static char s_i32i8[] = "movsbl %al, %eax";
-static char s_i32i16[] = "movswl %ax, %eax";
-static char s_i32i64[] = "movsxd %eax, %rax";
-
-static char* s_cast_table[4][4] = {
-    { NULL, NULL, NULL, s_i32i64 },        // i8
-    { s_i32i8, NULL, NULL, s_i32i64 },     // i16
-    { s_i32i8, s_i32i16, NULL, s_i32i64 }, // i32
-    { s_i32i8, s_i32i16, NULL, NULL },     // i64
-};
 
 static void gen_cast(Type* from, Type* to)
 {
@@ -268,7 +312,7 @@ static void gen_expr(Node* node)
         }
 
         // shadow
-        println("  sub $32, %%rsp"); // HACK: fix main segfault
+        println("  sub $32, %%rsp");
         println("  call %s", node->funcname);
 
         int stackArgs = MAX(node->args->len - 4, 0);
@@ -509,16 +553,6 @@ static void gen_stmt(Node* node)
     error_tok(node->tok, "invalid statement");
 }
 
-static List* build_reversed_var_list(Obj* var)
-{
-    List* list = list_new();
-    for (Obj* c = var; c; c = c->next) {
-        size_t ptr = (size_t)c;
-        list_push_front(list, ptr);
-    }
-    return list;
-}
-
 // Assign offsets to local variables.
 static void assign_lvar_offsets(Obj* prog)
 {
@@ -556,8 +590,8 @@ static void emit_data(Obj* prog)
 
         if (var->initData) {
             for (int i = 0; i < var->type->size; i++) {
-                uint32_t c = (unsigned char)(var->initData[i]);
-                println("  .byte %u", c);
+                int c = 0xFF & (var->initData[i]);
+                println("  .byte %d", c);
             }
         } else {
             println("  .zero %d", var->type->size);
@@ -602,15 +636,6 @@ static void emit_text(Obj* prog)
         // Prologue
         println("  push %%rbp");
         println("  mov %%rsp, %%rbp");
-
-        // print local variables
-        List* locals = build_reversed_var_list(fn->locals);
-        for (ListNode* c = locals->front; c; c = c->next) {
-            Obj* var = *(Obj**)(c + 1);
-            println("  # var %s [%d]", var->name, var->offset);
-        }
-        list_delete(locals);
-
         println("  sub $%d, %%rsp", fn->stackSize);
         // Emit code
 
@@ -659,6 +684,9 @@ static void emit_text(Obj* prog)
 
 void gen(Obj* prog, char* srcname, char* asmname)
 {
+    // @TODO: remove
+    dummysetup();
+
     s_output = fopen(asmname, "w");
 
     assign_lvar_offsets(prog);
