@@ -46,6 +46,8 @@ typedef struct {
     char* cntLabel;
 
     Node* currentSwitch;
+    Obj* locals;
+    Obj* globals;
 } ParserState;
 
 // This struct represents a variable initializer. Since initializers
@@ -105,9 +107,6 @@ static void expect(ParserState* state, char* symbol)
 
 // All local variable instances created during parsing are
 // accumulated to this list.
-// @TODO: move to ParserState
-static Obj* s_locals;
-static Obj* s_globals;
 
 static void enter_scope(ParserState* state)
 {
@@ -137,8 +136,7 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
     Scope* scope = list_back(Scope, &(state->scopes));
     TagScope sc;
     ZERO_MEMORY(sc);
-    // @TODO: remove
-    sc.name = strdup(tok->raw);
+    sc.name = tok->raw;
     sc.ty = ty;
     list_push_back(&(scope->tags), sc);
     return _list_back(&(scope->tags));
@@ -149,9 +147,7 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
  */
 static Node* new_node(NodeKind eNodeKind, Token* tok)
 {
-    static int s_id = 0;
     Node* node = calloc(1, ALIGN(sizeof(Node), 16));
-    node->id = s_id++;
     node->tok = tok;
     node->eNodeKind = eNodeKind;
     return node;
@@ -201,9 +197,8 @@ Node* new_cast(Node* expr, Type* type, Token* tok)
 
 static Obj* new_variable(ParserState* state, char* name, Type* type)
 {
-    static int s_id = 0;
     Obj* var = calloc(1, ALIGN(sizeof(Obj), 16));
-    var->id = s_id++;
+    var->id = unique_id();
     var->name = name;
     var->type = type;
     push_var_scope(state, name)->var = var;
@@ -214,17 +209,17 @@ static Obj* new_lvar(ParserState* state, char* name, Type* type)
 {
     Obj* var = new_variable(state, name, type);
     var->isLocal = true;
-    var->next = s_locals;
-    s_locals = var;
+    var->next = state->locals;
+    state->locals = var;
     return var;
 }
 
 static Obj* new_gvar(ParserState* state, char* name, Type* type)
 {
     Obj* var = new_variable(state, name, type);
-    var->next = s_globals;
+    var->next = state->globals;
     var->isDefinition = true;
-    s_globals = var;
+    state->globals = var;
     return var;
 }
 
@@ -257,10 +252,9 @@ static VarScope* find_var(ParserState* state, Token* tok)
     return NULL;
 }
 
-static int s_id;
 static char* new_unique_name()
 {
-    return format(".L.anon.%d", s_id++);
+    return format(".L.anon.%d", unique_id());
 }
 
 static Obj* new_anon_gvar(ParserState* state, Type* ty)
@@ -281,8 +275,7 @@ static char* get_ident(Token* tok)
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected an identifier");
     }
-    // @TODO: remove
-    return strdup(tok->raw);
+    return (tok->raw);
 }
 
 static Type* parse_enum_specifier(ParserState* state);
@@ -326,7 +319,7 @@ static Initializer* new_initializer(Type* ty)
 {
     Initializer* init = calloc(1, ALIGN(sizeof(Initializer), 16));
     init->type = ty;
-    if (ty->eTypeKind == TY_ARRAY) {
+    if (ty->kind == TY_ARRAY) {
         int size = ty->arrayLen * sizeof(Initializer);
         size = ALIGN(size, 16);
         init->children = calloc(1, size);
@@ -370,7 +363,7 @@ static Node* parse_primary(ParserState* state)
         expect(state, "(");
         Type* ty = parse_type_name(state);
         expect(state, ")");
-        if (is_integer(ty) || ty->eTypeKind == TY_PTR) {
+        if (is_integer(ty) || ty->kind == TY_PTR) {
             return new_num(0, tok);
         }
         return new_num(2, tok);
@@ -519,7 +512,7 @@ static Type* parse_struct_union_decl(ParserState* state)
 static Type* parse_struct_decl(ParserState* state)
 {
     Type* ty = parse_struct_union_decl(state);
-    ty->eTypeKind = TY_STRUCT;
+    ty->kind = TY_STRUCT;
 
     // Assign offsets within the struct to members.
     int offset = 0;
@@ -539,7 +532,7 @@ static Type* parse_struct_decl(ParserState* state)
 static Type* parse_union_decl(ParserState* state)
 {
     Type* ty = parse_struct_union_decl(state);
-    ty->eTypeKind = TY_UNION;
+    ty->kind = TY_UNION;
     for (Member* mem = ty->members; mem; mem = mem->next) {
         ty->align = MAX(ty->align, mem->type->align);
         ty->size = MAX(ty->size, mem->type->size);
@@ -563,7 +556,7 @@ static Member* get_struct_member(Type* ty, Token* tok)
 static Node* struct_ref(Node* lhs, Token* tok)
 {
     add_type(lhs);
-    TypeKind k = lhs->type->eTypeKind;
+    TypeKind k = lhs->type->kind;
     if (k != TY_STRUCT && k != TY_UNION) {
         error_tok(lhs->tok, "not a struct or union");
     }
@@ -949,7 +942,7 @@ static Node* parse_funccall(ParserState* state)
     if (!sc) {
         error_tok(start, "implicit declaration of function '%s'", start->raw);
     }
-    if (!sc->var || sc->var->type->eTypeKind != TY_FUNC) {
+    if (!sc->var || sc->var->type->kind != TY_FUNC) {
         error_tok(start, "called object '%s' is not a function", start->raw);
     }
     Type* type = sc->var->type;
@@ -970,7 +963,7 @@ static Node* parse_funccall(ParserState* state)
         }
 
         if (paramType) {
-            if (arg->type->eTypeKind == TY_STRUCT) {
+            if (arg->type->kind == TY_STRUCT) {
                 error_tok(arg->tok, "passing struct to function call is not supported");
             }
 
@@ -1495,7 +1488,7 @@ static Type* parse_enum_specifier(ParserState* state)
         if (!ty) {
             error_tok(tag, "'%s' is not enum", tag->raw);
         }
-        if (ty->eTypeKind != TY_ENUM) {
+        if (ty->kind != TY_ENUM) {
             error_tok(tag, "'%s' defined as wrong kind of tag", tag->raw);
         }
         return ty;
@@ -1630,7 +1623,7 @@ static Node* parse_decl(ParserState* state, Type* baseType)
         }
 
         Type* type = parse_declarator(state, baseType);
-        if (type->eTypeKind == TY_VOID) {
+        if (type->kind == TY_VOID) {
             error_tok(type->name, "variable or field '%s' declared void", type->name->raw);
         }
 
@@ -1729,11 +1722,11 @@ static void array_initializer(ParserState* state, Initializer* init)
 static void initializer2(ParserState* state, Initializer* init)
 {
     Token* start = peek(state);
-    if (init->type->eTypeKind == TY_ARRAY && start->kind == TK_STR) {
+    if (init->type->kind == TY_ARRAY && start->kind == TK_STR) {
         string_initializer(state, init);
         return;
     }
-    if (init->type->eTypeKind == TY_ARRAY) {
+    if (init->type->kind == TY_ARRAY) {
         array_initializer(state, init);
         return;
     }
@@ -1760,7 +1753,7 @@ static Node* init_desg_expr(InitDesg* desg, Token* tok)
 
 static Node* create_lvar_init(Initializer* init, Type* ty, InitDesg* desg, Token* tok)
 {
-    if (ty->eTypeKind == TY_ARRAY) {
+    if (ty->kind == TY_ARRAY) {
         Node* node = new_node(ND_NULL_EXPR, tok);
         for (int i = 0; i < ty->arrayLen; i++) {
             InitDesg desg2;
@@ -1843,19 +1836,19 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
         return fn;
     }
 
-    s_locals = NULL;
+    state->locals = NULL;
     state->currentFunc = fn;
 
     enter_scope(state);
 
     create_param_lvars(state, type->params);
-    fn->params = s_locals;
+    fn->params = state->locals;
     if (type->isVariadic) {
         fn->vaArea = new_lvar(state, "__va_area__", array_of(char_type(), 136));
     }
     expect(state, "{");
     fn->body = parse_compound_stmt(state);
-    fn->locals = s_locals;
+    fn->locals = state->locals;
 
     leave_scope(state);
     resolve_goto_labels(state);
@@ -1872,7 +1865,7 @@ static bool is_function(ParserState* state)
 
     Type dummy;
     Type* type = parse_declarator(state, &dummy);
-    return type->eTypeKind == TY_FUNC;
+    return type->kind == TY_FUNC;
 }
 
 // program = (typedef | function-definition | global-variable)*
@@ -1885,7 +1878,7 @@ Obj* parse(List* tokens)
 
     enter_scope(&state);
 
-    s_globals = NULL;
+    state.globals = NULL;
     while (peek(&state)->kind != TK_EOF) {
         VarAttrib attrib;
         ZERO_MEMORY(attrib);
@@ -1910,5 +1903,5 @@ Obj* parse(List* tokens)
 
     leave_scope(&state);
     assert(state.scopes.len == 0);
-    return s_globals;
+    return state.globals;
 }

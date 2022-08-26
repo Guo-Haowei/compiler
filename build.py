@@ -7,7 +7,7 @@ src_files = [
     'generic/array.c',
     'generic/list.c',
     'file_cache.c',
-    'codegen.c',
+    'gen.c',
     'lexer.c',
     'main.c',
     'parser.c',

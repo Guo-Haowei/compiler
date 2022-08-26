@@ -29,7 +29,6 @@ static void verror_at(int level, char* file, char* source, int sourceLen, int li
     assert(col);
     assert(span);
 
-    // fprintf(stderr, "debug verror_at(): span: %d\n", span);
     char* color = NULL;
     char* label = NULL;
     switch (level) {
@@ -172,36 +171,4 @@ void error_tok(Token* tok, char* fmt, ...)
 
     // @TODO: exit with error code
     exit(-1);
-}
-
-void debug_print_token(Token* tok)
-{
-    if (tok->isFirstTok) {
-        fprintf(stderr, "line: %d\n", tok->line);
-    }
-
-    fprintf(stderr, "  %s:%d:%d:[%d]",
-        tok->sourceInfo->file,
-        tok->line,
-        tok->col,
-        tok->kind);
-    if (tok->raw) {
-        fprintf(stderr, " '%s'", tok->raw);
-    } else {
-        fprintf(stderr, " '%.*s'", tok->len, tok->p);
-    }
-    Token* macro = tok->expandedFrom;
-    if (macro) {
-        fprintf(stderr, "expanded from macro (%.*s:%d:%d)", tok->len, tok->p, macro->line, macro->col);
-    }
-    fprintf(stderr, "\n");
-}
-
-void debug_print_tokens(List* toks)
-{
-    fprintf(stderr, "*** tokens ***\n");
-    for (ListNode* c = toks->front; c; c = c->next) {
-        Token* tok = (Token*)(c + 1);
-        debug_print_token(tok);
-    }
 }

@@ -8,6 +8,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static int s_id;
+
+int unique_id()
+{
+    return s_id++;
+}
+
 bool streq(char* a, char* b)
 {
     assert(a && b);
@@ -81,7 +88,6 @@ int path_simplify(char* inputPath, char* buf)
         _list_push_back(newParts, part, sizeof(StringView));
     }
 
-    // @TODO: prevent overflow
     int offset = 0;
     for (ListNode* c = newParts->front; c; c = c->next) {
         StringView* part = list_node_get(StringView, c);

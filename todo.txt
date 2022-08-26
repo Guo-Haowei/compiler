@@ -1,0 +1,4 @@
+1. do while
+2. __VA_ARGS__
+3. pass struct
+4. va_list

@@ -12,7 +12,7 @@ static Type s_long;
 Type* void_type()
 {
     if (s_void.size == 0) {
-        s_void.eTypeKind = TY_VOID;
+        s_void.kind = TY_VOID;
         s_void.size = s_void.align = 1;
     }
     return &s_void;
@@ -21,7 +21,7 @@ Type* void_type()
 Type* char_type()
 {
     if (s_char.size == 0) {
-        s_char.eTypeKind = TY_CHAR;
+        s_char.kind = TY_CHAR;
         s_char.size = s_char.align = 1;
     }
     return &s_char;
@@ -30,7 +30,7 @@ Type* char_type()
 Type* short_type()
 {
     if (s_short.size == 0) {
-        s_short.eTypeKind = TY_SHORT;
+        s_short.kind = TY_SHORT;
         s_short.size = s_short.align = 2;
     }
     return &s_short;
@@ -39,7 +39,7 @@ Type* short_type()
 Type* int_type()
 {
     if (s_int.size == 0) {
-        s_int.eTypeKind = TY_INT;
+        s_int.kind = TY_INT;
         s_int.size = s_int.align = 4;
     }
     return &s_int;
@@ -48,7 +48,7 @@ Type* int_type()
 Type* long_type()
 {
     if (s_long.size == 0) {
-        s_long.eTypeKind = TY_LONG;
+        s_long.kind = TY_LONG;
         s_long.size = s_long.align = 8;
     }
     return &s_long;
@@ -57,7 +57,7 @@ Type* long_type()
 static Type* new_type(TypeKind kind, int size, int align)
 {
     Type* ty = calloc(1, ALIGN(sizeof(Type), 16));
-    ty->eTypeKind = kind;
+    ty->kind = kind;
     ty->size = size;
     ty->align = align;
     return ty;
@@ -65,7 +65,7 @@ static Type* new_type(TypeKind kind, int size, int align)
 
 bool is_integer(Type* type)
 {
-    switch (type->eTypeKind) {
+    switch (type->kind) {
     case TY_CHAR:
     case TY_INT:
     case TY_SHORT:
@@ -80,7 +80,7 @@ bool is_integer(Type* type)
 Type* pointer_to(Type* base)
 {
     Type* ty = new_type(TY_PTR, 8, 8);
-    ty->eTypeKind = TY_PTR;
+    ty->kind = TY_PTR;
     ty->size = 8;
     ty->base = base;
     return ty;
@@ -98,7 +98,7 @@ Type* array_of(Type* base, int len)
 Type* func_type(Type* retType)
 {
     Type* type = calloc(1, ALIGN(sizeof(Type), 16));
-    type->eTypeKind = TY_FUNC;
+    type->kind = TY_FUNC;
     type->retType = retType;
     return type;
 }
@@ -201,7 +201,7 @@ void add_type(Node* node)
         return;
     }
     case ND_ASSIGN: {
-        TypeKind kind = node->lhs->type->eTypeKind;
+        TypeKind kind = node->lhs->type->kind;
         if (kind == TY_ARRAY) {
             error_tok(node->lhs->tok, "not an lvalue");
         }
@@ -227,7 +227,7 @@ void add_type(Node* node)
         node->type = node->var->type;
         return;
     case ND_TERNARY:
-        if (node->then->type->eTypeKind == TY_VOID || node->els->type->eTypeKind == TY_VOID) {
+        if (node->then->type->kind == TY_VOID || node->els->type->kind == TY_VOID) {
             node->type = void_type();
         } else {
             usual_arith_conv(&node->then, &node->els);
@@ -238,7 +238,7 @@ void add_type(Node* node)
         node->type = node->rhs->type;
         return;
     case ND_ADDR:
-        if (node->lhs->type->eTypeKind == TY_ARRAY) {
+        if (node->lhs->type->kind == TY_ARRAY) {
             node->type = pointer_to(node->lhs->type->base);
         } else {
             node->type = pointer_to(node->lhs->type);
@@ -246,9 +246,9 @@ void add_type(Node* node)
         return;
     case ND_DEREF:
         if (!node->lhs->type->base) {
-            error_tok(node->tok, "invalid pointer dereference, %d", node->lhs->type->eTypeKind);
+            error_tok(node->tok, "invalid pointer dereference, %d", node->lhs->type->kind);
         }
-        if (node->lhs->type->base->eTypeKind == TY_VOID) {
+        if (node->lhs->type->base->kind == TY_VOID) {
             error_tok(node->tok, "dereferencing a void pointer");
         }
         node->type = node->lhs->type->base;

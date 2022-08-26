@@ -1,7 +1,7 @@
 add_executable(minic
     generic/array.c
     generic/list.c
-    codegen.c
+    gen.c
     file_cache.c
     lexer.c
     main.c

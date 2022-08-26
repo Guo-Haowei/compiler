@@ -136,7 +136,6 @@ struct Obj {
 
 // AST node
 struct Node {
-    uint32_t id;
     NodeKind eNodeKind;
     Node* next;
     Type* type;
@@ -206,8 +205,7 @@ typedef enum {
 } TypeKind;
 
 struct Type {
-    // @TODO: change to kind
-    TypeKind eTypeKind;
+    TypeKind kind;
     int size;  // sizeof() value
     int align; // alignment
 
@@ -293,13 +291,11 @@ bool tr_equal(TokenReader* reader, char* symbol);
 bool tr_consume(TokenReader* reader, char* symbol);
 void tr_expect(TokenReader* reader, char* symbol);
 
+int unique_id();
+
 /**
  * misc
  */
 char* format(char* fmt, ...);
-
-// DEBUG
-void debug_print_token(Token* tok);
-void debug_print_tokens(List* toks);
 
 #endif
