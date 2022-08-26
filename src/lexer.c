@@ -116,33 +116,33 @@ static void add_int(Lexer* lexer, Array* arr)
         if (l && u) {
             assert(0);
         } else if (l) {
-            ty = g_long_type;
+            ty = long_type();
         } else if (u) {
             assert(0);
             // ty = (val >> 32) ? ty_ulong : ty_uint;
         } else {
-            ty = (val >> 31) ? g_long_type : g_int_type;
+            ty = (val >> 31) ? long_type() : int_type();
         }
     } else {
         if (l && u) {
             // ty = ty_ulong;
-            ty = g_long_type;
+            ty = long_type();
         } else if (l) {
             // ty = (val >> 63) ? ty_ulong : ty_long;
-            ty = (val >> 63) ? g_long_type : g_long_type;
+            ty = (val >> 63) ? long_type() : long_type();
         } else if (u) {
             // ty = (val >> 32) ? ty_ulong : ty_uint;
-            ty = (val >> 32) ? g_long_type : g_int_type;
+            ty = (val >> 32) ? long_type() : int_type();
         } else if (val >> 63) {
             // ty = ty_ulong;
-            ty = g_long_type;
+            ty = long_type();
         } else if (val >> 32) {
-            ty = g_long_type;
+            ty = long_type();
         } else if (val >> 31) {
             // ty = ty_uint;
-            ty = g_int_type;
+            ty = int_type();
         } else {
-            ty = g_int_type;
+            ty = int_type();
         }
     }
 
@@ -253,7 +253,7 @@ static void add_char(Lexer* lexer, Array* arr)
     tok.len = end - start;
     tok.sourceInfo = lexer->sourceInfo;
     tok.val = c;
-    tok.type = g_int_type;
+    tok.type = int_type();
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -289,7 +289,7 @@ static void add_string(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    tok.type = array_of(g_char_type, len);
+    tok.type = array_of(char_type(), len);
     tok.str = buf;
 
     array_push_back(Token, arr, tok);

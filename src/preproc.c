@@ -197,7 +197,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             stringToken.raw[0] = '"';
             stringToken.raw[len + 1] = '"';                    // add "
             stringToken.len = len + 2;                         // include quotes
-            stringToken.type = array_of(g_char_type, len + 1); // include '\0'
+            stringToken.type = array_of(char_type(), len + 1); // include '\0'
 
             list_push_back(tmp, stringToken);
             n = n->next;
@@ -242,7 +242,7 @@ static void handle_macro(PreprocState* state, Token* macroName_)
         char buf[128];
         snprintf(buf, sizeof(buf), "%lld", macroName.val);
         macroName.raw = strncopy(buf, (int)strlen(buf));
-        macroName.type = g_int_type;
+        macroName.type = int_type();
         list_push_back(state->processed, macroName);
         return;
     }
@@ -253,7 +253,7 @@ static void handle_macro(PreprocState* state, Token* macroName_)
         char buf[MAX_OSPATH];
         snprintf(buf, MAX_OSPATH, "\"%s\"", macroName.str);
         macroName.raw = strdup(buf);
-        macroName.type = array_of(g_char_type, strlen(macroName.sourceInfo->file) + 1);
+        macroName.type = array_of(char_type(), strlen(macroName.sourceInfo->file) + 1);
         list_push_back(state->processed, macroName);
         return;
     }

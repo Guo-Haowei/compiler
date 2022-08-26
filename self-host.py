@@ -30,7 +30,7 @@ def test_main():
     test.setup('self-host')
     # build compiler with minic
     build_with_minic = []
-    build_with_gcc = ['parser.c', 'type.c', 'codegen.c', 'misc.c']
+    build_with_gcc = ['parser.c', 'codegen.c', 'misc.c']
     build_with_gcc2 = []
     for f in build.src_files:
         if not f in build_with_gcc:

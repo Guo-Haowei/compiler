@@ -3,11 +3,56 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEFINE_BASE_TYPE(name, kind, sz, al)                                      \
-    static Type s_##name##_type = { .eTypeKind = kind, .size = sz, .align = al }; \
-    Type* g_##name##_type = &s_##name##_type;
-#include "base_type.inl"
-#undef DEFINE_BASE_TYPE
+static Type s_void;
+static Type s_char;
+static Type s_short;
+static Type s_int;
+static Type s_long;
+
+Type* void_type()
+{
+    if (s_void.size == 0) {
+        s_void.eTypeKind = TY_VOID;
+        s_void.size = s_void.align = 1;
+    }
+    return &s_void;
+}
+
+Type* char_type()
+{
+    if (s_char.size == 0) {
+        s_char.eTypeKind = TY_CHAR;
+        s_char.size = s_char.align = 1;
+    }
+    return &s_char;
+}
+
+Type* short_type()
+{
+    if (s_short.size == 0) {
+        s_short.eTypeKind = TY_SHORT;
+        s_short.size = s_short.align = 2;
+    }
+    return &s_short;
+}
+
+Type* int_type()
+{
+    if (s_int.size == 0) {
+        s_int.eTypeKind = TY_INT;
+        s_int.size = s_int.align = 4;
+    }
+    return &s_int;
+}
+
+Type* long_type()
+{
+    if (s_long.size == 0) {
+        s_long.eTypeKind = TY_LONG;
+        s_long.size = s_long.align = 8;
+    }
+    return &s_long;
+}
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
@@ -82,10 +127,10 @@ static Type* get_common_type(Type* ty1, Type* ty2)
     }
 
     if (ty1->size == 8 || ty2->size == 8) {
-        return g_long_type;
+        return long_type();
     }
 
-    return g_int_type;
+    return int_type();
 }
 
 // For many binary operators, we implicitly promote operands so that
@@ -127,7 +172,7 @@ void add_type(Node* node)
     case ND_NOT:
     case ND_LOGOR:
     case ND_LOGAND:
-        node->type = g_int_type;
+        node->type = int_type();
         return;
     case ND_SHL:
     case ND_SHR:
@@ -146,7 +191,7 @@ void add_type(Node* node)
         node->type = node->lhs->type;
         return;
     case ND_NEG: {
-        Type* ty = get_common_type(g_long_type, node->lhs->type);
+        Type* ty = get_common_type(long_type(), node->lhs->type);
         // @TODO: fix this
         // Type* ty = get_common_type(g_int_type, node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
@@ -171,17 +216,17 @@ void add_type(Node* node)
     case ND_GT:
     case ND_GE:
         usual_arith_conv(&node->lhs, &node->rhs);
-        node->type = g_int_type;
+        node->type = int_type();
         return;
     case ND_FUNCCALL:
-        node->type = g_long_type;
+        node->type = long_type();
         return;
     case ND_VAR:
         node->type = node->var->type;
         return;
     case ND_TERNARY:
         if (node->then->type->eTypeKind == TY_VOID || node->els->type->eTypeKind == TY_VOID) {
-            node->type = g_void_type;
+            node->type = void_type();
         } else {
             usual_arith_conv(&node->then, &node->els);
             node->type = node->then->type;

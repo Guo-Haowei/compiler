@@ -126,7 +126,7 @@ struct Obj {
     Obj* params;
     Node* body;
     Obj* locals;
-    Obj *vaArea;
+    Obj* vaArea;
     int stackSize;
 
     // Global variable
@@ -244,11 +244,11 @@ struct Member {
     int offset;
 };
 
-extern Type* g_void_type;
-extern Type* g_char_type;
-extern Type* g_short_type;
-extern Type* g_int_type;
-extern Type* g_long_type;
+Type* void_type();
+Type* char_type();
+Type* short_type();
+Type* int_type();
+Type* long_type();
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);

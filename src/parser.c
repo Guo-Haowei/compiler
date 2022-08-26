@@ -702,7 +702,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     // ptr - ptr, which returns how many elements are between the two.
     if (lhs->type->base && rhs->type->base) {
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
-        node->type = g_int_type;
+        node->type = int_type();
         return new_binary(ND_DIV, node, new_num(lhs->type->base->size, tok), tok);
     }
 
@@ -1372,7 +1372,7 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
     };
 
     Token* tok = NULL;
-    Type* ty = g_int_type;
+    Type* ty = int_type();
     int counter = 0;
 
     for (;;) {
@@ -1441,23 +1441,23 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 
         switch (counter) {
         case VOID:
-            ty = g_void_type;
+            ty = void_type();
             break;
         case CHAR:
-            ty = g_char_type;
+            ty = char_type();
             break;
         case SHORT:
         case SHORT + INT:
-            ty = g_short_type;
+            ty = short_type();
             break;
         case INT:
-            ty = g_int_type;
+            ty = int_type();
             break;
         case LONG:
         case LONG + INT:
         case LONG + LONG:
         case LONG + LONG + INT:
-            ty = g_long_type;
+            ty = long_type();
             break;
         default:
             error_tok(tok, "invalid type specifer");
@@ -1844,7 +1844,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
     create_param_lvars(state, type->params);
     fn->params = s_locals;
     if (type->isVariadic) {
-        fn->vaArea = new_lvar(state, "__va_area__", array_of(g_char_type, 136));
+        fn->vaArea = new_lvar(state, "__va_area__", array_of(char_type(), 136));
     }
     expect(state, "{");
     fn->body = parse_compound_stmt(state);
