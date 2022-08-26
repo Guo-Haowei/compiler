@@ -911,7 +911,8 @@ static Node* parse_funccall(ParserState* state)
     if (!sc->var || sc->var->type->eTypeKind != TY_FUNC) {
         error_tok(start, "called object '%s' is not a function", start->raw);
     }
-    Type* type = sc->var->type->retType;
+    Type* type = sc->var->type;
+    Type* paramType = sc->var->type->params;
 
     expect(state, "(");
     Node head = { .next = NULL };
@@ -923,17 +924,33 @@ static Node* parse_funccall(ParserState* state)
         }
         Node* arg = parse_assign(state);
         add_type(arg);
-        if (arg->type->eTypeKind == TY_STRUCT) {
-            error_tok(arg->tok, "passing struct to function call is not supported");
+
+        Token* tok = peek(state);
+        if (!paramType && !type->isVariadic) {
+            error_tok(tok, "too many arguments");
+        }
+
+        if (paramType) {
+            if (arg->type->eTypeKind == TY_STRUCT) {
+                error_tok(arg->tok, "passing struct to function call is not supported");
+            }
+
+            arg = new_cast(arg, paramType, tok);
+            paramType = paramType->next;
         }
         cur = cur->next = arg;
     }
+
+    if (paramType) {
+        error_tok(peek(state), "too few arguments");
+    }
+
     Node* node = new_node(ND_FUNCCALL, start);
     assert(start->raw);
     node->funcname = strdup(start->raw);
     node->args = head.next;
     node->argc = argc;
-    node->type = type;
+    node->type = type->retType;
     return node;
 }
 
@@ -1789,6 +1806,9 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
 
     create_param_lvars(state, type->params);
     fn->params = s_locals;
+    if (type->isVariadic) {
+        fn->vaArea = new_lvar(state, "__va_area__", array_of(g_char_type, 136));
+    }
     expect(state, "{");
     fn->body = parse_compound_stmt(state);
     fn->locals = s_locals;

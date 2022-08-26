@@ -10,10 +10,10 @@ enum { I8, I16, I32, I64 };
 
 // @TODO: refactor
 static int s_depth = 0;
-static char s_argreg8[4][8] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char s_argreg16[4][8] = { "%cx", "%dx", "%r8w", "%r9w" };
-static char s_argreg32[4][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
-static char s_argreg64[4][8] = { "%rcx", "%rdx", "%r8", "%r9" };
+static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char* s_argreg16[] = { "%cx", "%dx", "%r8w", "%r9w" };
+static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
+static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static Obj* s_current_fn;
 static FILE* s_output;
@@ -262,6 +262,7 @@ static void gen_expr(Node* node)
         }
         assert(arg == NULL);
 
+        assert(node->argc <= 4);
         for (int i = node->argc - 1; i >= 0; --i) {
             pop(s_argreg64[i]);
         }
@@ -610,6 +611,35 @@ static void emit_text(Obj* prog)
 
         writeln("  sub $%d, %%rsp", fn->stackSize);
         // Emit code
+
+        // Save arg registers if function is variadic
+        if (fn->vaArea) {
+            int gp = 0;
+            for (Obj* var = fn->params; var; var = var->next) {
+                gp++;
+            }
+            int off = fn->vaArea->offset;
+            // va_elem
+            writeln("  movl $%d, %d(%%rbp)", gp * 8, off);
+            writeln("  movl $0, %d(%%rbp)", off + 4);
+            writeln("  movq %%rbp, %d(%%rbp)", off + 16);
+            writeln("  addq $%d, %d(%%rbp)", off + 24, off + 16);
+            // __reg_save_area__
+            writeln("  movq %%rdi, %d(%%rbp)", off + 24);
+            writeln("  movq %%rsi, %d(%%rbp)", off + 32);
+            writeln("  movq %%rdx, %d(%%rbp)", off + 40);
+            writeln("  movq %%rcx, %d(%%rbp)", off + 48);
+            writeln("  movq %%r8, %d(%%rbp)", off + 56);
+            writeln("  movq %%r9, %d(%%rbp)", off + 64);
+            writeln("  movsd %%xmm0, %d(%%rbp)", off + 72);
+            writeln("  movsd %%xmm1, %d(%%rbp)", off + 80);
+            writeln("  movsd %%xmm2, %d(%%rbp)", off + 88);
+            writeln("  movsd %%xmm3, %d(%%rbp)", off + 96);
+            writeln("  movsd %%xmm4, %d(%%rbp)", off + 104);
+            writeln("  movsd %%xmm5, %d(%%rbp)", off + 112);
+            writeln("  movsd %%xmm6, %d(%%rbp)", off + 120);
+            writeln("  movsd %%xmm7, %d(%%rbp)", off + 128);
+        }
 
         // Save passed-by-register arguments to the stack
         int i = 0;

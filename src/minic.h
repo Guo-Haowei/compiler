@@ -83,6 +83,7 @@ struct Obj {
     Obj* params;
     Node* body;
     Obj* locals;
+    Obj *vaArea;
     int stackSize;
 
     // Global variable
@@ -184,6 +185,7 @@ struct Type {
 
     // function
     Type* retType;
+    // @TODO: make it array instead
     Type* params;
     Type* next;
     bool isVariadic;
