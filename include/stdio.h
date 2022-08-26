@@ -1,5 +1,6 @@
 #ifndef __STDIO_H__
 #define __STDIO_H__
+#include <stdarg.h>
 
 #define SEEK_CUR 1
 #define SEEK_END 2
@@ -26,5 +27,7 @@ int fseek(FILE* file, long offset, int origin);
 long ftell(FILE* file);
 int fread(void* dest, int size, int n, FILE* f);
 int fclose(FILE* file);
+
+int vsnprintf(char* stream, long n, char* format, __builtin_va_list ap);
 
 #endif

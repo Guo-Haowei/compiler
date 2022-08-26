@@ -629,20 +629,18 @@ static void emit_text(Obj* prog)
             writeln("  movq %%rbp, %d(%%rbp)", off + 16);
             writeln("  addq $%d, %d(%%rbp)", off + 24, off + 16);
             // __reg_save_area__
-            writeln("  movq %%rdi, %d(%%rbp)", off + 24);
-            writeln("  movq %%rsi, %d(%%rbp)", off + 32);
-            writeln("  movq %%rdx, %d(%%rbp)", off + 40);
-            writeln("  movq %%rcx, %d(%%rbp)", off + 48);
-            writeln("  movq %%r8, %d(%%rbp)", off + 56);
-            writeln("  movq %%r9, %d(%%rbp)", off + 64);
-            writeln("  movsd %%xmm0, %d(%%rbp)", off + 72);
-            writeln("  movsd %%xmm1, %d(%%rbp)", off + 80);
-            writeln("  movsd %%xmm2, %d(%%rbp)", off + 88);
-            writeln("  movsd %%xmm3, %d(%%rbp)", off + 96);
-            writeln("  movsd %%xmm4, %d(%%rbp)", off + 104);
-            writeln("  movsd %%xmm5, %d(%%rbp)", off + 112);
-            writeln("  movsd %%xmm6, %d(%%rbp)", off + 120);
-            writeln("  movsd %%xmm7, %d(%%rbp)", off + 128);
+            writeln("  movq %%rcx, %d(%%rbp)", off + 24);
+            writeln("  movq %%rdx, %d(%%rbp)", off + 32);
+            writeln("  movq %%r8, %d(%%rbp)", off + 40);
+            writeln("  movq %%r9, %d(%%rbp)", off + 48);
+            writeln("  movsd %%xmm0, %d(%%rbp)", off + 56);
+            writeln("  movsd %%xmm1, %d(%%rbp)", off + 64);
+            writeln("  movsd %%xmm2, %d(%%rbp)", off + 72);
+            writeln("  movsd %%xmm3, %d(%%rbp)", off + 80);
+            writeln("  movsd %%xmm4, %d(%%rbp)", off + 88);
+            writeln("  movsd %%xmm5, %d(%%rbp)", off + 96);
+            writeln("  movsd %%xmm6, %d(%%rbp)", off + 104);
+            writeln("  movsd %%xmm7, %d(%%rbp)", off + 112);
         }
 
         // Save passed-by-register arguments to the stack

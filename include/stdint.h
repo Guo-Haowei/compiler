@@ -3,7 +3,7 @@
 
 typedef long long int64_t;
 
-// HACK
+// @TODO: fix HACK
 typedef char uint8_t;
 typedef short uint16_t;
 typedef int uint32_t;

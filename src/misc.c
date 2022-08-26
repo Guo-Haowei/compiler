@@ -143,6 +143,19 @@ void warn_tok(Token* tok, char* fmt, ...)
     }
 }
 
+// @TODO: pass struct as parameter
+char* format(char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    int size = vsnprintf(NULL, 0, fmt, ap);
+    char* buffer = calloc(1, ALIGN(size + 1, 16));
+    vsnprintf(buffer, size + 1, fmt, ap);
+    va_end(ap);
+
+    return buffer;
+}
+
 void error_tok(Token* tok, char* fmt, ...)
 {
     va_list args;
@@ -191,18 +204,6 @@ void debug_print_tokens(List* toks)
         Token* tok = (Token*)(c + 1);
         debug_print_token(tok);
     }
-}
-
-char* format(char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    int size = vsnprintf(NULL, 0, fmt, ap);
-    char* buffer = calloc(1, ALIGN(size + 1, 16));
-    vsnprintf(buffer, size + 1, fmt, ap);
-    va_end(ap);
-
-    return buffer;
 }
 
 // @TODO: fix this

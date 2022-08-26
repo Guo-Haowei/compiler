@@ -366,6 +366,16 @@ static Node* parse_primary(ParserState* state)
         return new_num(node->type->size, tok);
     }
 
+    if (consume(state, "__builtin_reg_class")) {
+        expect(state, "(");
+        Type* ty = parse_type_name(state);
+        expect(state, ")");
+        if (is_integer(ty) || ty->eTypeKind == TY_PTR) {
+            return new_num(0, tok);
+        }
+        return new_num(2, tok);
+    }
+
     if (tok->kind == TK_NUM) {
         Node* node = new_num(tok->val, tok);
         node->type = tok->type;

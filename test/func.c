@@ -75,25 +75,6 @@ static char int_to_char(int x)
 static char char_fn() { return (2 << 8) + 3; }
 static short short_fn() { return (2 << 16) + 5; }
 
-typedef struct {
-    int gp_offset;
-    int fp_offset;
-    void *overflow_arg_area;
-    void *reg_save_area;
-} __va_elem;
-
-typedef __va_elem va_list[1];
-
-int add_all(int n, ...);
-int sprintf(char *buf, char *fmt, ...);
-int vsprintf(char *buf, char *fmt, va_list ap);
-
-char *fmt(char *buf, char *fmt, ...) {
-    va_list ap;
-    *ap = *(__va_elem *)__va_area__;
-    vsprintf(buf, fmt, ap);
-}
-
 int main()
 {
     ASSERT(8, ret8());
@@ -118,17 +99,6 @@ int main()
     ASSERT(1, s_int);
     ASSERT(3, char_fn());
     ASSERT(5, short_fn());
-
-    char buf[128];
-    snprintf(buf, sizeof(buf), "HHHH %s", "AAAA");
-    ASSERT(0, strcmp(buf, "HHHH AAAA"));
-
-    {
-        // @TODO: handle more than 4 args
-        char buf[100];
-        fmt(buf, "%d %s", 12, "foo");
-        printf("%s\n", buf);
-    }
 
     printf("OK\n");
     return 0;

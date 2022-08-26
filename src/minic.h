@@ -207,6 +207,7 @@ typedef enum {
 } TypeKind;
 
 struct Type {
+    // @TODO: change to kind
     TypeKind eTypeKind;
     int size;  // sizeof() value
     int align; // alignment
