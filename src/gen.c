@@ -10,71 +10,26 @@ enum {
     I64
 };
 
-// @TODO: Support global initializer
-// static char* s_argreg8[4] = { "%cl", "%dl", "%r8b", "%r9b" };
-// static char* s_argreg16[4] = { "%cx", "%dx", "%r8w", "%r9w" };
-// static char* s_argreg32[4] = { "%ecx", "%edx", "%r8d", "%r9d" };
-// static char* s_argreg64[4] = { "%rcx", "%rdx", "%r8", "%r9" };
-static char* s_argreg8[4];
-static char* s_argreg16[4];
-static char* s_argreg32[4];
-static char* s_argreg64[4];
+static char s_argreg8[4][8] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char s_argreg16[4][8] = { "%cx", "%dx", "%r8w", "%r9w" };
+static char s_argreg32[4][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
+static char s_argreg64[4][8] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static int s_depth;
 static Obj* s_current_fn;
 static FILE* s_output;
 
 // The table for type casts
-// static char* s_i32i8 = "movsbl %al, %eax";
-// static char* s_i32i16 = "movswl %ax, %eax";
-// static char* s_i32i64 = "movsxd %eax, %rax";
-static char* s_i32i8;
-static char* s_i32i16;
-static char* s_i32i64;
+#define I32I8 "movsbl %al, %eax"
+#define I32I16 "movswl %ax, %eax"
+#define I32I64 "movsxd %eax, %rax"
 
-// static char* s_cast_table[4][4] = {
-//     { NULL, NULL, NULL, s_i32i64 },        // i8
-//     { s_i32i8, NULL, NULL, s_i32i64 },     // i16
-//     { s_i32i8, s_i32i16, NULL, s_i32i64 }, // i32
-//     { s_i32i8, s_i32i16, NULL, NULL },     // i64
-// };
-static char* s_cast_table[4][4];
-
-static void dummysetup()
-{
-    s_argreg8[0] = "%cl";
-    s_argreg8[1] = "%dl",
-    s_argreg8[2] = "%r8b";
-    s_argreg8[3] = "%r9b";
-
-    s_argreg16[0] = "%cx";
-    s_argreg16[1] = "%dx",
-    s_argreg16[2] = "%r8w";
-    s_argreg16[3] = "%r9w";
-
-    s_argreg32[0] = "%ecx";
-    s_argreg32[1] = "%edx",
-    s_argreg32[2] = "%r8d";
-    s_argreg32[3] = "%r9d";
-
-    s_argreg64[0] = "%rcx";
-    s_argreg64[1] = "%rdx",
-    s_argreg64[2] = "%r8";
-    s_argreg64[3] = "%r9";
-
-    s_i32i8 = "movsbl %al, %eax";
-    s_i32i16 = "movswl %ax, %eax";
-    s_i32i64 = "movsxd %eax, %rax";
-
-    s_cast_table[0][3] = s_i32i64;
-    s_cast_table[1][0] = s_i32i8;
-    s_cast_table[1][3] = s_i32i64;
-    s_cast_table[2][0] = s_i32i8;
-    s_cast_table[2][1] = s_i32i16;
-    s_cast_table[2][3] = s_i32i64;
-    s_cast_table[3][0] = s_i32i8;
-    s_cast_table[3][1] = s_i32i16;
-}
+static char s_cast_table[4][4][24] = {
+    { "", "", "", I32I64 },        // I8
+    { I32I8, "", "", I32I64 },     // I16
+    { I32I8, I32I16, "", I32I64 }, // I32
+    { I32I8, I32I16, "", "" }      // I64
+};
 
 #define println(...)                    \
     {                                   \
@@ -239,7 +194,7 @@ static void gen_cast(Type* from, Type* to)
 
     int t1 = get_type_id(from);
     int t2 = get_type_id(to);
-    if (s_cast_table[t1][t2]) {
+    if (s_cast_table[t1][t2][0] != '\0') {
         println("  %s", s_cast_table[t1][t2]);
     }
 }
@@ -684,9 +639,6 @@ static void emit_text(Obj* prog)
 
 void gen(Obj* prog, char* srcname, char* asmname)
 {
-    // @TODO: remove
-    dummysetup();
-
     s_output = fopen(asmname, "w");
 
     assign_lvar_offsets(prog);

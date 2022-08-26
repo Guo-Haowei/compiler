@@ -586,11 +586,12 @@ static void preproc2(PreprocState* state)
     }
 }
 
+static char s_keywords[27][12] = {
+    "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
+};
+
 static void postprocess(List* tokens)
 {
-    char s_keywords[27][12] = {
-        "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
-    };
 
     for (ListNode* c = tokens->front; c; c = c->next) {
         Token* tok = (Token*)(c + 1);

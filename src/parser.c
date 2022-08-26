@@ -308,6 +308,7 @@ static bool is_type_name(ParserState* state, Token* tok);
 static Type* parse_type_name(ParserState* state);
 static Type* parse_type_suffix(ParserState* state, Type* type);
 static int64_t parse_constexpr(ParserState* state);
+static Initializer* parse_initializer(ParserState* state, Type* ty);
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
@@ -1214,25 +1215,24 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
+static char s_typenames[11][12] = {
+    "char",
+    "enum",
+    "extern",
+    "int",
+    "long",
+    "short",
+    "static",
+    "struct",
+    "typedef",
+    "union",
+    "void"
+};
+
 static bool is_type_name(ParserState* state, Token* tok)
 {
-    char* typenames[12] = {
-        "char",
-        "enum",
-        "extern",
-        "int",
-        "long",
-        "short",
-        "static",
-        "struct",
-        "typedef",
-        "union",
-        "void",
-        NULL
-    };
-
-    for (char** p = typenames; *p; ++p) {
-        if (is_token_equal(tok, *p)) {
+    for (size_t i = 0; i < ARRAY_COUNTER(s_typenames); ++i) {
+        if (is_token_equal(tok, s_typenames[i])) {
             return true;
         }
     }
@@ -1665,6 +1665,49 @@ static void create_param_lvars(ParserState* state, Type* param)
     }
 }
 
+static void write_buf(char* buf, uint64_t val, int sz)
+{
+    if (sz == 1) {
+        *buf = val;
+    } else if (sz == 2) {
+        *(uint16_t*)buf = val;
+    } else if (sz == 4) {
+
+        *(uint32_t*)buf = val;
+    } else if (sz == 8) {
+
+        *(uint64_t*)buf = val;
+    } else {
+        assert(0);
+    }
+}
+
+static void write_gvar_data(Initializer* init, Type* ty, char* buf, int offset)
+{
+    if (ty->kind == TY_ARRAY) {
+        int sz = ty->base->size;
+        for (int i = 0; i < ty->arrayLen; i++) {
+            write_gvar_data(init->children[i], ty->base, buf, offset + sz * i);
+        }
+        return;
+    }
+    if (init->expr) {
+        write_buf(buf + offset, eval(init->expr), ty->size);
+    }
+}
+
+// Initializers for global variables are evaluated at compile-time and
+// embedded to .data section. This function serializes Initializer
+// objects to a flat byte array. It is a compile error if an
+// initializer list contains a non-constant expression.
+static void parse_gvar_initializer(ParserState* state, Obj* var)
+{
+    Initializer* init = parse_initializer(state, var->type);
+    char* buf = calloc(1, var->type->size);
+    write_gvar_data(init, var->type, buf, 0);
+    var->initData = buf;
+}
+
 static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* attrib)
 {
     int i = 0;
@@ -1677,6 +1720,10 @@ static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* a
         Obj* obj = new_gvar(state, get_ident(type->name), type);
         obj->isStatic = attrib->isStatic;
         obj->isDefinition = !attrib->isExtern;
+
+        if (consume(state, "=")) {
+            parse_gvar_initializer(state, obj);
+        }
     }
 }
 
