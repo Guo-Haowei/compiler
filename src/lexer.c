@@ -489,3 +489,136 @@ Array* lex(char* file)
 
     return lex_source_info(sourceInfo);
 }
+
+/// Error handling
+#define EMPTYLINE "                                                                                "
+#define UNDERLINE "^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+#define KRESET "\033[0m"
+#define KRED "\033[0;31m"
+#define KYEL "\033[0;33m"
+#define KBLU "\033[0;34m"
+#define KMAG "\033[0;35m"
+
+typedef struct {
+    int level;
+    char* file;
+    char* source;
+    int sourceLen;
+    int line;
+    int col;
+    int span;
+} ErrorMeta;
+
+void _error(char* msg)
+{
+    printf(msg);
+    exit(1);
+}
+
+static void verror_at(ErrorMeta* e, char* msg)
+{
+    assert(e->file);
+    assert(e->source);
+    assert(e->sourceLen);
+    assert(e->line);
+    assert(e->col);
+    assert(e->span);
+
+    char* color = NULL;
+    char* label = NULL;
+    switch (e->level) {
+    case LEVEL_NOTE:
+        color = KBLU;
+        label = "note:";
+        break;
+    case LEVEL_WARN:
+        color = KMAG;
+        label = "warn:";
+        break;
+    case LEVEL_ERROR:
+        color = KRED;
+        label = "error:";
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
+    printf("%s:%d:%d: %s%s%s ", e->file, e->line, e->col, color, label, KRESET);
+    printf("%s\n", msg);
+
+    // print line
+    char* lineStart = e->source;
+    for (int curLine = 1; curLine < e->line; ++curLine) {
+        lineStart = strchr(lineStart, '\n');
+        if (lineStart) {
+            ++lineStart;
+        } else {
+            lineStart = e->source;
+        }
+    }
+
+    char* lineEnd = lineStart;
+    if ((lineEnd = strchr(lineEnd, '\n')) == NULL) {
+        lineEnd = e->source + e->sourceLen;
+    }
+
+    int lineLen = (int)(lineEnd - lineStart);
+    printf("%5d | ", e->line);
+    int len1 = e->col - 1;
+    int len2 = e->span;
+    printf("%.*s", len1, lineStart);
+    printf("%s%.*s%s", color, len2, lineStart + len1, KRESET);
+    printf("%.*s\n", lineLen - len1 - len2, lineStart + len1 + len2);
+
+    printf("      |%s%.*s%.*s%s\n", color, e->col, EMPTYLINE, e->span, UNDERLINE, KRESET);
+}
+
+void _error_lex(Lexer* lexer, char* msg)
+{
+    ErrorMeta e;
+    e.level = LEVEL_ERROR;
+    e.line = lexer->line;
+    e.col = lexer->col;
+    e.file = lexer->sourceInfo->file;
+    e.source = lexer->sourceInfo->start;
+    e.sourceLen = lexer->sourceInfo->len;
+    e.span = 1;
+    verror_at(&e, msg);
+    exit(-1);
+}
+
+static void verror_tok_internal(int level, Token* tok, char* msg)
+{
+    ErrorMeta e;
+    e.level = level;
+    e.line = tok->line;
+    e.col = tok->col;
+    e.file = tok->sourceInfo->file;
+    e.source = tok->sourceInfo->start;
+    e.sourceLen = tok->sourceInfo->len;
+    e.span = tok->kind == TK_EOF ? 1 : tok->len;
+    verror_at(&e, msg);
+}
+
+void _info_tok(Token* tok, char* msg)
+{
+    verror_tok_internal(LEVEL_NOTE, tok, msg);
+}
+
+void _error_tok(int level, Token* tok, char* msg)
+{
+    verror_tok_internal(level, tok, msg);
+
+    Token* macro = tok->expandedFrom;
+    if (macro) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), "in expansion of macro '%s'", macro->raw);
+        verror_tok_internal(LEVEL_NOTE, tok->expandedFrom, buffer);
+    }
+
+    if (level == LEVEL_ERROR) {
+        exit(-1);
+    }
+}

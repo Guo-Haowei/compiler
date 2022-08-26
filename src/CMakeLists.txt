@@ -5,7 +5,6 @@ add_executable(minic
     file_cache.c
     lexer.c
     main.c
-    misc.c
     parser.c
     preproc.c
     type.c

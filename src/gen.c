@@ -625,7 +625,11 @@ static void emit_text(Obj* prog)
         int i = 0;
         for (Obj* var = fn->params; var; var = var->next) {
             store_gp(i++, var->offset, var->type->size);
+            if (i == 4) {
+                break;
+            }
         }
+        // Save passed-by-stack arguments to the stack
 
         gen_stmt(fn->body);
         assert(s_depth == 0);

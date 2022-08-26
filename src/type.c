@@ -194,7 +194,6 @@ void add_type(Node* node)
         node->type = node->lhs->type;
         return;
     case ND_NEG: {
-        // @TODO: fix this
         Type* ty = get_common_type(long_type(), node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
         node->type = ty;

@@ -19,7 +19,7 @@ typedef struct {
 } FILE;
 
 int printf(char* fmt, ...);
-int fprintf(void* stream, char* __format, ...);
+int fprintf(void* stream, char* fmt, ...);
 int sprintf(char* buf, char* fmt, ...);
 int snprintf(char* buf, int n, char* fmt, ...);
 
@@ -29,6 +29,6 @@ long ftell(FILE* file);
 int fread(void* dest, int size, int n, FILE* f);
 int fclose(FILE* file);
 
-int vsnprintf(char* stream, long n, char* format, __builtin_va_list ap);
+int vsnprintf(char* stream, long n, char* fmt, __builtin_va_list ap);
 
 #endif

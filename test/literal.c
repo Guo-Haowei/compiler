@@ -66,6 +66,8 @@ int main()
     ASSERT(165 - 256, "\xA5"[0]);
     ASSERT(255 - 256, "\x00ff"[0]);
 
+    ASSERT(27, "\033[0;35m"[0]);
+
     printf("OK\n");
     return 0;
 }

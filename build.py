@@ -12,7 +12,6 @@ src_files = [
     'main.c',
     'parser.c',
     'preproc.c',
-    'misc.c',
     'type.c',
     'utility.c',
 ]

@@ -254,7 +254,9 @@ static VarScope* find_var(ParserState* state, Token* tok)
 
 static char* new_unique_name()
 {
-    return format(".L.anon.%d", unique_id());
+    char buf[128];
+    snprintf(buf, sizeof(buf), ".L.anon.%d", unique_id());
+    return strdup(buf);
 }
 
 static Obj* new_anon_gvar(ParserState* state, Type* ty)

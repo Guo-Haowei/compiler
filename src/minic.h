@@ -269,11 +269,59 @@ Obj* parse(List* toks);
 
 void gen(Obj* prog, char* srcname, char* asmname);
 
-void error(char* fmt, ...);
-void error_lex(Lexer* lexer, char* fmt, ...);
-void error_tok(Token* token, char* fmt, ...);
-void warn_tok(Token* token, char* fmt, ...);
-void info_tok(Token* tok, char* fmt, ...);
+/**
+ * lexer
+ */
+enum {
+    LEVEL_NOTE,
+    LEVEL_WARN,
+    LEVEL_ERROR,
+};
+
+void _error(char* msg);
+void _error_lex(Lexer* lexer, char* msg);
+void _error_tok(int level, Token* token, char* msg);
+void _info_tok(Token* tok, char* msg);
+
+#define error(...)                               \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error(buf);                             \
+    }                                            \
+    (void)0
+
+#define error_lex(LEXER, ...)                    \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_lex(LEXER, buf);                  \
+    }                                            \
+    (void)0
+
+#define error_tok(TOK, ...)                      \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_tok(LEVEL_ERROR, TOK, buf);       \
+    }                                            \
+    (void)0
+
+#define warn_tok(TOK, ...)                       \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_tok(LEVEL_WARN, TOK, buf);        \
+    }                                            \
+    (void)0
+
+#define info_tok(TOK, ...)                       \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _info_tok(TOK, buf);                     \
+    }                                            \
+    (void)0
 
 /**
  *  utility
@@ -292,10 +340,5 @@ bool tr_consume(TokenReader* reader, char* symbol);
 void tr_expect(TokenReader* reader, char* symbol);
 
 int unique_id();
-
-/**
- * misc
- */
-char* format(char* fmt, ...);
 
 #endif

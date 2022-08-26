@@ -17,7 +17,6 @@ typedef __va_elem va_list[1];
 static void* __va_arg_gp(__va_elem* ap)
 {
     void* r = (char*)ap->reg_save_area + ap->gp_offset;
-    // void* r = (char*)ap->reg_save_area + (ap->gp_offset += 8);
     ap->gp_offset += 8;
     return r;
 }

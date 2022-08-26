@@ -28,16 +28,11 @@ sh_exe_name = 'minic2'
 
 def test_main():
     test.setup('self-host')
+
     # build compiler with minic
     build_with_minic = []
-    build_with_gcc = ['misc.c']
-    build_with_gcc2 = []
     for f in build.src_files:
-        if not f in build_with_gcc:
-            build_with_minic.append(f)
-
-    for f in build_with_gcc:
-        build_with_gcc2.append(f'../src/{f}')
+        build_with_minic.append(f)
 
     minic_src = ''
     minic_asm = ''
@@ -48,7 +43,7 @@ def test_main():
     safe_subprocess(f'./{build.exe_name} {include_flag} {minic_src}')
 
     safe_run(
-        f'gcc {build.boundary} {minic_asm} {" ".join(build_with_gcc2)} -o {sh_exe_name}')
+        f'gcc {build.boundary} {minic_asm} -o {sh_exe_name}')
     safe_run(f'rm {build.exe_name}')
 
     testcases = test.get_test_list()
