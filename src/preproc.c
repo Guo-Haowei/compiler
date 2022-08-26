@@ -13,8 +13,9 @@ typedef struct {
     List* expandTo;
 
     // function
-    bool isFunc;
     List* args;
+    bool isFunc;
+    bool isVararg;
 } Macro;
 
 typedef struct {
@@ -107,9 +108,6 @@ static void pop_to(List* tokens, ListNode* node)
 
 static void expand_token(Token* input, Token* original, Token* macroToken)
 {
-    if (original->expandedFrom) {
-        //assert(0);
-    }
     input->len = original->len;
     input->line = original->line;
     input->col = original->col;
@@ -130,7 +128,6 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     }
 
     int numBrackets = 1;
-    int numBraces = 0;
     for (;;) {
         Token* tok = tr_read(&tr);
         if (is_token_equal(tok, "(")) {
@@ -140,12 +137,8 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             if (numBrackets == 0) {
                 break;
             }
-        } else if (is_token_equal(tok, "{")) {
-            ++numBraces;
-        } else if (is_token_equal(tok, "}")) {
-            --numBraces;
         } else if (is_token_equal(tok, ",")) {
-            if (numBrackets == 1 && numBraces == 0) {
+            if (numBrackets == 1) {
                 _array_push_back(args, list_new());
                 continue;
             }
@@ -158,7 +151,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
 
     pop_to(state->unprocessed, tr.cursor);
 
-    if (args->len != macro->args->len) {
+    if (args->len != macro->args->len && !macro->isVararg) {
         error_tok(tr_peek(&tr), "macro \"%s\" passed %d arguments, but takes %d", macro->token.raw, args->len, macro->args->len);
     }
 
@@ -166,7 +159,32 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     for (ListNode* n = macro->expandTo->front; n;) {
         Token token = *list_node_get(Token, n);
         if (is_token_equal(&token, "##")) {
-            assert(0 && "## no supported");
+            error_tok(&token, "## not supported");
+            continue;
+        }
+
+        if (is_token_equal(&token, "__VA_ARGS__")) {
+            bool isFirst = true;
+            for (int i = macro->args->len; i < args->len; ++i) {
+                if (!isFirst) {
+                    Token comma;
+                    ZERO_MEMORY(comma);
+                    comma.raw = ",";
+                    comma.kind = TK_PUNCT;
+                    expand_token(&comma, macroName, &macro->token);
+                    list_push_back(tmp, comma);
+                }
+                isFirst = false;
+
+                List* argList = array_at(List, args, i);
+                assert(argList);
+                for (ListNode* argNode = argList->front; argNode; argNode = argNode->next) {
+                    Token token = *list_node_get(Token, argNode);
+                    expand_token(&token, macroName, &macro->token);
+                    list_push_back(tmp, token);
+                }
+            }
+            n = n->next;
             continue;
         }
 
@@ -219,6 +237,12 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
         n = n->next;
     }
 
+    // for (ListNode* n = tmp->front; n; n = n->next) {
+    //     Token* tok = list_node_get(Token, n);
+    //     printf("%s ", tok->raw);
+    // }
+    // printf("\n");
+
     List* newList = list_append(tmp, state->unprocessed);
     free(state->unprocessed);
     state->unprocessed = newList;
@@ -256,7 +280,6 @@ static void handle_macro(PreprocState* state, Token* macroName_)
         return;
     }
 
-    // assert(!macroName.expandedFrom);
     Macro* macro = find_macro(state, &macroName);
     if (!macro) {
         list_push_back(state->processed, macroName);
@@ -336,8 +359,14 @@ static void define(PreprocState* state, List* preprocLine)
         }
 
         Token* arg = tr_read(&tr);
+        if (is_token_equal(arg, "...")) {
+            tr_expect(&tr, ")");
+            macro.isVararg = true;
+            break;
+        }
+
         if (arg->kind != TK_IDENT) {
-            assert(0 && "TODO: handle error");
+            error_tok(arg, "expected parameter name, found \"%s\"", arg->raw);
         }
         _list_push_back(macro.args, arg, sizeof(Token));
     }

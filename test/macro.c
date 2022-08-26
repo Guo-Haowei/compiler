@@ -58,6 +58,13 @@ int main()
 #define ABC ("ABC")
     ASSERT('A', ABC[0]);
 
-    printf("OK\n");
+#define PRINTLN(...)         \
+    {                        \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    }                        \
+    (void)0
+
+    PRINTLN("%c%c", 'O', 'K');
     return 0;
 }

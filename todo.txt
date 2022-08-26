@@ -2,3 +2,4 @@
 2. __VA_ARGS__
 3. pass struct
 4. va_list
+5. string concat

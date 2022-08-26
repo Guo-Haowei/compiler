@@ -35,11 +35,11 @@ static void list_eq(List* list, int arrLen, int* arr)
     }
 }
 
-#define LIST_EQ(LIST, LEN, INIT)     \
-    {                                \
-        int __array[LEN] = INIT;     \
-        list_eq(LIST, LEN, __array); \
-    }                                \
+#define LIST_EQ(LIST, LEN, ...)         \
+    {                                   \
+        int __array[LEN] = __VA_ARGS__; \
+        list_eq(LIST, LEN, __array);    \
+    }                                   \
     ((void)0)
 
 int list_test()
@@ -54,7 +54,6 @@ int list_test()
     list_push_back(l, arr[1]);
     list_push_back(l, arr[2]);
 
-    // @TODO: use __VA_ARGS__ instead
     LIST_EQ(l, 3, { 0, 1, 2 });
 
     list_push_front(l, arr[3]);
