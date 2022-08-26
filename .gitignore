@@ -12,6 +12,6 @@ tmp/
 *.asm
 dummy.c
 
-minic
+cc*
 list-test
 tmp*

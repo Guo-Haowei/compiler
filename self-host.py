@@ -23,27 +23,27 @@ def safe_run(cmdList):
 
 
 include_flag = '-I ../include'
-sh_exe_name = 'minic2'
+sh_exe_name = 'cc2'
 
 
 def test_main():
     test.setup('self-host')
 
-    # build compiler with minic
-    build_with_minic = []
+    # build compiler with cc
+    build_with_cc = []
     for f in build.src_files:
-        build_with_minic.append(f)
+        build_with_cc.append(f)
 
-    minic_src = ''
-    minic_asm = ''
-    for f in build_with_minic:
-        minic_src += f'../src/{f} '
-        minic_asm += f'{os.path.basename(f.replace(".c", ".s"))} '
+    cc_src = ''
+    cc_asm = ''
+    for f in build_with_cc:
+        cc_src += f'../src/{f} '
+        cc_asm += f'{os.path.basename(f.replace(".c", ".s"))} '
 
-    safe_subprocess(f'./{build.exe_name} {include_flag} {minic_src}')
+    safe_subprocess(f'./{build.exe_name} {include_flag} {cc_src}')
 
     safe_run(
-        f'gcc {build.boundary} {minic_asm} -o {sh_exe_name}')
+        f'gcc {build.boundary} {cc_asm} -o {sh_exe_name}')
     safe_run(f'rm {build.exe_name}')
 
     testcases = test.get_test_list()

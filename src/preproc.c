@@ -2,7 +2,7 @@
 /// pass1: lex source to an array of tokens, cache for reuse
 /// pass2: preprocess, such as #include, #if...
 /// pass3: cleanup and check if keywords
-#include "minic.h"
+#include "cc.h"
 
 typedef struct {
     bool active;

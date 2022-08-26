@@ -1,4 +1,4 @@
-#include "minic.h"
+#include "cc.h"
 
 #include <stdio.h>
 #include <string.h>

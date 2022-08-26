@@ -1,5 +1,5 @@
-#ifndef __MINIC_H__
-#define __MINIC_H__
+#ifndef __CC_H__
+#define __CC_H__
 #include <assert.h>
 #include <ctype.h>
 #include <stdint.h>

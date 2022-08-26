@@ -1,4 +1,4 @@
-#include "minic.h"
+#include "cc.h"
 
 typedef struct {
     char path[MAX_OSPATH];

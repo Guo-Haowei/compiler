@@ -1,7 +1,4 @@
-#include "minic.h"
-
-#include <stdio.h>
-#include <string.h>
+#include "cc.h"
 
 typedef struct {
     char* input;

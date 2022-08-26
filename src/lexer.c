@@ -1,9 +1,4 @@
-#include "minic.h"
-
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "cc.h"
 
 static bool is_ident1(char c)
 {

@@ -1,4 +1,4 @@
-add_executable(minic
+add_executable(cc
     generic/array.c
     generic/list.c
     gen.c

@@ -2,7 +2,7 @@ import os
 
 boundary = '-mpreferred-stack-boundary=3'
 
-exe_name = 'minic'
+exe_name = 'cc'
 src_files = [
     'generic/array.c',
     'generic/list.c',

@@ -1,7 +1,4 @@
-#include "minic.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "cc.h"
 
 static Type s_void;
 static Type s_char;
