@@ -4,6 +4,8 @@
 typedef long long int64_t;
 
 // HACK
+typedef char uint8_t;
+typedef short uint16_t;
 typedef int uint32_t;
 typedef long long uint64_t;
 typedef int size_t;

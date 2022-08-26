@@ -105,6 +105,7 @@ static void expect(ParserState* state, char* symbol)
 
 // All local variable instances created during parsing are
 // accumulated to this list.
+// @TODO: move to ParserState
 static Obj* s_locals;
 static Obj* s_globals;
 
@@ -226,8 +227,6 @@ static Obj* new_gvar(ParserState* state, char* name, Type* type)
     s_globals = var;
     return var;
 }
-
-typedef Node* (*ParseBinaryFn)(ParserState*);
 
 // Find a local variable by name.
 static Type* find_tag(ParserState* state, Token* tok)
@@ -444,7 +443,8 @@ static Node* parse_unary(ParserState* state)
 // struct-members = (declspec declarator (","  declarator)* ";")*
 static void parse_struct_members(ParserState* state, Type* ty)
 {
-    Member head = { .next = NULL };
+    Member head;
+    ZERO_MEMORY(head);
     Member* cur = &head;
 
     while (!consume(state, "}")) {
@@ -628,49 +628,30 @@ static Node* parse_cast(ParserState* state)
     return parse_unary(state);
 }
 
-// @TODO: remove this
-static NodeKind to_binary_node_kind(char* symbol)
+// mul = cast ("*" cast | "/" cast | "%" cast)*
+static Node* parse_mul(ParserState* state)
 {
-#define DEFINE_NODE(NAME, BINOP, UNARYOP) \
-    if (BINOP && streq(symbol, BINOP))    \
-        return NAME;
-#include "node.inl"
-#undef DEFINE_NODE
-    return ND_INVALID;
-}
-
-// @TODO: use macro instead
-static Node* parse_binary_internal(ParserState* state, char** symbols, ParseBinaryFn fp)
-{
-    Node* node = fp(state);
-
+    Node* node = parse_cast(state);
     for (;;) {
-        bool found = false;
-        for (char** p = symbols; *p; ++p) {
-            Token* tok = peek(state);
-            if (is_token_equal(tok, *p)) {
-                read(state);
-                NodeKind kind = to_binary_node_kind(*p);
-                assert(kind != ND_INVALID);
-                node = new_binary(kind, node, fp(state), tok);
-                found = true;
-                break;
-            }
+        Token* tok = peek(state);
+        if (is_token_equal(tok, "*")) {
+            read(state);
+            node = new_binary(ND_MUL, node, parse_cast(state), tok);
+            continue;
         }
-
-        if (found) {
+        if (is_token_equal(tok, "/")) {
+            read(state);
+            node = new_binary(ND_DIV, node, parse_cast(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, "%")) {
+            read(state);
+            node = new_binary(ND_MOD, node, parse_cast(state), tok);
             continue;
         }
 
         return node;
     }
-}
-
-// mul = cast ("*" cast | "/" cast | "%" cast)*
-static Node* parse_mul(ParserState* state)
-{
-    static char* s_symbols[] = { "*", "/", "%", NULL };
-    return parse_binary_internal(state, s_symbols, parse_cast);
 }
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok)
@@ -753,22 +734,72 @@ static Node* parse_add(ParserState* state)
 // shift = add ("<<" add | ">>" add)*
 static Node* parse_shift(ParserState* state)
 {
-    static char* s_symbols[] = { ">>", "<<", NULL };
-    return parse_binary_internal(state, s_symbols, parse_add);
+    Node* node = parse_add(state);
+    for (;;) {
+        Token* tok = peek(state);
+        if (is_token_equal(tok, ">>")) {
+            read(state);
+            node = new_binary(ND_SHR, node, parse_add(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, "<<")) {
+            read(state);
+            node = new_binary(ND_SHL, node, parse_add(state), tok);
+            continue;
+        }
+
+        return node;
+    }
 }
 
 // relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node* parse_relational(ParserState* state)
 {
-    static char* s_symbols[] = { "<", "<=", ">", ">=", NULL };
-    return parse_binary_internal(state, s_symbols, parse_shift);
+    Node* node = parse_shift(state);
+    for (;;) {
+        Token* tok = peek(state);
+        if (is_token_equal(tok, "<")) {
+            read(state);
+            node = new_binary(ND_LT, node, parse_shift(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, "<=")) {
+            read(state);
+            node = new_binary(ND_LE, node, parse_shift(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, ">")) {
+            read(state);
+            node = new_binary(ND_GT, node, parse_shift(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, ">=")) {
+            read(state);
+            node = new_binary(ND_GE, node, parse_shift(state), tok);
+            continue;
+        }
+        return node;
+    }
 }
 
 // equality = relational ("==" relational | "!=" relational)*
 static Node* parse_equality(ParserState* state)
 {
-    static char* s_symbols[] = { "==", "!=", NULL };
-    return parse_binary_internal(state, s_symbols, parse_relational);
+    Node* node = parse_relational(state);
+    for (;;) {
+        Token* tok = peek(state);
+        if (is_token_equal(tok, "==")) {
+            read(state);
+            node = new_binary(ND_EQ, node, parse_relational(state), tok);
+            continue;
+        }
+        if (is_token_equal(tok, "!=")) {
+            read(state);
+            node = new_binary(ND_NE, node, parse_relational(state), tok);
+            continue;
+        }
+        return node;
+    }
 }
 
 // Convert `A op= B` to `tmp = &A, *tmp = *tmp op B`
@@ -915,7 +946,8 @@ static Node* parse_funccall(ParserState* state)
     Type* paramType = sc->var->type->params;
 
     expect(state, "(");
-    Node head = { .next = NULL };
+    Node head;
+    ZERO_MEMORY(head);
     Node* cur = &head;
     int argc = 0;
     for (; !consume(state, ")"); ++argc) {
@@ -1182,25 +1214,24 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
-static char* s_typenames[12] = {
-    "char",
-    "enum",
-    "extern",
-    "int",
-    "long",
-    "short",
-    "static",
-    "struct",
-    "typedef",
-    "union",
-    "void",
-    NULL,
-};
-
 static bool is_type_name(ParserState* state, Token* tok)
 {
+    char* typenames[12] = {
+        "char",
+        "enum",
+        "extern",
+        "int",
+        "long",
+        "short",
+        "static",
+        "struct",
+        "typedef",
+        "union",
+        "void",
+        NULL
+    };
 
-    for (char** p = s_typenames; *p; ++p) {
+    for (char** p = typenames; *p; ++p) {
         if (is_token_equal(tok, *p)) {
             return true;
         }
@@ -1213,7 +1244,8 @@ static bool is_type_name(ParserState* state, Token* tok)
 static Node* parse_compound_stmt(ParserState* state)
 {
     Token* compoundTok = peek_n(state, -1);
-    Node head = { .next = NULL };
+    Node head;
+    ZERO_MEMORY(head);
     Node* cur = &head;
 
     enter_scope(state);
@@ -1516,7 +1548,8 @@ static Type* parse_type_name(ParserState* state)
 // param       = declspec declarator
 static Type* parse_func_params(ParserState* state, Type* type)
 {
-    Type head = { .next = NULL };
+    Type head;
+    ZERO_MEMORY(head);
     Type* cur = &head;
     bool isVaridadic = false;
     while (!consume(state, ")")) {
@@ -1580,7 +1613,8 @@ static Type* parse_declarator(ParserState* state, Type* type)
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 static Node* parse_decl(ParserState* state, Type* baseType)
 {
-    Node head = { .next = NULL };
+    Node head;
+    ZERO_MEMORY(head);
     Node* cur = &head;
     int i = 0;
     while (!consume(state, ";")) {
@@ -1754,7 +1788,10 @@ static Node* parse_lvar_initializer(ParserState* state, Obj* var)
 {
     Token* tok = peek(state);
     Initializer* init = parse_initializer(state, var->type);
-    InitDesg desg = { NULL, 0, var };
+    InitDesg desg;
+    desg.idx = 0;
+    desg.next = NULL;
+    desg.var = var;
 
     // If a partial initializer list is given, the standard requires
     // that unspecified elements are set to 0. Here, we simply

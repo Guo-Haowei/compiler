@@ -161,30 +161,17 @@ void error_tok(Token* tok, char* fmt, ...)
     exit(-1);
 }
 
-char* token_kind_to_string(TokenKind eTokenKind)
-{
-    ASSERT_IDX(eTokenKind, TK_COUNT);
-
-    static char* s_names[] = {
-#define DEFINE_TOKEN(NAME) #NAME,
-#include "token.inl"
-#undef DEFINE_TOKEN
-    };
-
-    return s_names[eTokenKind];
-}
-
 void debug_print_token(Token* tok)
 {
     if (tok->isFirstTok) {
         fprintf(stderr, "line: %d\n", tok->line);
     }
 
-    fprintf(stderr, "  %s:%d:%d:[%s]",
+    fprintf(stderr, "  %s:%d:%d:[%d]",
         tok->sourceInfo->file,
         tok->line,
         tok->col,
-        token_kind_to_string(tok->kind));
+        tok->kind);
     if (tok->raw) {
         fprintf(stderr, " '%s'", tok->raw);
     } else {

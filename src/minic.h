@@ -19,16 +19,59 @@ Array* fcache_get(char* absPath);
 bool fcache_add(char* absPath, Array* toks);
 
 typedef enum token_kind_t {
-#define DEFINE_TOKEN(NAME) NAME,
-#include "token.inl"
-#undef DEFINE_TOKEN
+    TK_IDENT,   // Identifiers
+    TK_PUNCT,   // Punctuators
+    TK_KEYWORD, // Keywords
+    TK_NUM,     // Numeric literals
+    TK_STR,     // String literals
+    TK_EOF,     // End-of-file markers
     TK_COUNT,
 } TokenKind;
 
 typedef enum node_kind_t {
-#define DEFINE_NODE(NAME, BINOP, UNARYOP) NAME,
-#include "node.inl"
-#undef DEFINE_NODE
+    ND_INVALID,
+    ND_NULL_EXPR, // null expr
+    ND_ADD,       // +
+    ND_SUB,       // -
+    ND_MUL,       // *
+    ND_DIV,       // /
+    ND_MOD,       // %
+    ND_NEG,       // unary -
+    ND_ADDR,      // unary &
+    ND_DEREF,     // unary *
+    ND_NOT,       // unary !
+    ND_BITNOT,    // unary ~
+    ND_EQ,        // ==
+    ND_NE,        // !=
+    ND_LT,        // <
+    ND_LE,        // <=
+    ND_GT,        // >
+    ND_GE,        // >=
+    ND_BITAND,    // &
+    ND_BITOR,     // |
+    ND_BITXOR,    // |
+    ND_LOGAND,    // &&
+    ND_LOGOR,     // ||
+    ND_SHL,       // <<
+    ND_SHR,       // >>
+    ND_ASSIGN,    // =
+    ND_TERNARY,   // ?:
+    ND_COMMA,     // ,
+    ND_MEMBER,    // . (struct member access)
+    ND_IF,        // "if"
+    ND_FOR,       // "for" or "while"
+    ND_RETURN,    // "return"
+    ND_BLOCK,     // { ... }
+    ND_GOTO,      // "goto"
+    ND_LABEL,     // label
+    ND_SWITCH,    // "switch"
+    ND_CASE,      // "case"
+    ND_FUNCCALL,  // function call
+    ND_EXPR_STMT, // expression statement
+    ND_VAR,       // variable
+    ND_NUM,       // number literal
+    ND_CAST,      // cast
+    ND_MEMZERO,   // zero-clear a stack variable
     ND_COUNT,
 } NodeKind;
 
@@ -150,9 +193,11 @@ typedef struct lexer_t {
 // type
 typedef enum {
     TY_INVALID,
-#define DEFINE_BASE_TYPE(name, kind, sz, al) kind,
-#include "base_type.inl"
-#undef DEFINE_BASE_TYPE
+    TY_VOID,
+    TY_CHAR,
+    TY_SHORT,
+    TY_INT,
+    TY_LONG,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -251,7 +296,6 @@ void tr_expect(TokenReader* reader, char* symbol);
 /**
  * misc
  */
-char* token_kind_to_string(TokenKind eTokenKind);
 char* format(char* fmt, ...);
 char* read_file(char* path);
 
