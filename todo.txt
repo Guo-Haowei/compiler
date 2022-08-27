@@ -1,2 +1,3 @@
 * string concat
-* #if constexpr
+* omit array size with initializer
+* -D option

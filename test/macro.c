@@ -65,6 +65,20 @@ int main()
     }                        \
     (void)0
 
+#if 0 + 1 + 2
+    ASSERT(0, 0);
+#endif
+
+#if 100 - 4 * 25
+    ASSERT(0, 1);
+#else
+#if !(10 > 20)
+    ASSERT(0, 0);
+#else
+    ASSERT(1, 0);
+#endif
+#endif
+
     PRINTLN("%c%c", 'O', 'K');
     return 0;
 }

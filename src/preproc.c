@@ -18,19 +18,6 @@ typedef struct {
     bool isVararg;
 } Macro;
 
-// static void printMacros(Dict* dict)
-// {
-//     printf("%d macros\n", dict->size);
-//     int cnt = 0;
-//     for (int i = 0; i < dict->bucketSize; ++i) {
-//         for (DictEntry* e = dict->bucket[i]; e; e = e->next) {
-//             printf("%d: macro %s\n", cnt, e->key);
-//             ++cnt;
-//         }
-//     }
-//     assert(cnt == dict->size);
-// }
-
 typedef struct {
     List* conditions;
     List* processed;
@@ -38,6 +25,15 @@ typedef struct {
     Dict* macros;
     char* includepath;
 } PreprocState;
+
+static Token* new_eof()
+{
+    Token* eof = calloc(1, sizeof(Token));
+    eof->kind = TK_EOF;
+    eof->raw = eof->p = "<eof>";
+    eof->len = (int)strlen(eof->raw);
+    return eof;
+}
 
 bool is_token_equal(Token* token, char* symbol)
 {
@@ -418,8 +414,30 @@ static void if_defined(PreprocState* state, List* preprocLine)
         active = (found && isIfdef) || (!found && !isIfdef);
     }
 
-    CondIf cond;
-    cond.active = active;
+    CondIf cond = { active };
+    list_push_back(state->conditions, cond);
+}
+
+static void if_clause(PreprocState* state, List* preprocLine)
+{
+    Token* start = list_front(Token, preprocLine);
+    if (list_len(preprocLine) < 2) {
+        error_tok(start, "#if with no expression");
+    }
+
+    list_pop_front(preprocLine); // pop #if
+
+    // parse contexpr
+    _list_push_back(preprocLine, new_eof(), sizeof(Token)); // add eof for guarding
+    ParserState parserState;
+    ZERO_MEMORY(parserState);
+    parserState.reader.tokens = preprocLine;
+    parserState.reader.cursor = preprocLine->front;
+
+    int val = parse_constexpr(&parserState);
+    bool active = is_active(state) && (val != 0);
+
+    CondIf cond = { active };
     list_push_back(state->conditions, cond);
 }
 
@@ -565,6 +583,11 @@ static void preproc2(PreprocState* state)
             continue;
         }
 
+        if (is_token_equal(directive, "if")) {
+            if_clause(state, preprocLine);
+            continue;
+        }
+
         if (!is_active(state)) {
             continue;
         }
@@ -628,14 +651,7 @@ List* preproc(Array* toks, char* includepath)
     postprocess(state.processed);
 
     // add eof
-    Token* last = list_back(Token, state.processed);
-    Token* eof = calloc(1, ALIGN(sizeof(Token), 16));
-    eof->kind = TK_EOF;
-    eof->line = last->line;
-    eof->col = last->col + last->len;
-    eof->p = eof->raw = "<eof>";
-    eof->len = (int)strlen(eof->raw);
-    eof->sourceInfo = last->sourceInfo;
+    Token* eof = new_eof();
     _list_push_back(state.processed, eof, sizeof(Token));
     return state.processed;
 }

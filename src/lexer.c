@@ -278,7 +278,7 @@ static void add_string(Lexer* lexer, Array* arr)
     char* start = lexer->p;
     char* end = find_string_end(lexer);
     int maxStringLen = (int)(end - start);
-    char* buf = calloc(1, ALIGN(maxStringLen, 16));
+    char* buf = calloc(1, maxStringLen);
 
     int len = 0;
     for (char* p = start + 1; *p != 34 /* quote */;) {
@@ -381,7 +381,7 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
         return cached;
     }
 
-    Array* tokArray = calloc(1, ALIGN(sizeof(Array), 16));
+    Array* tokArray = calloc(1, sizeof(Array));
     array_init(tokArray, sizeof(Token), 128);
 
     Lexer lexer;
@@ -480,7 +480,7 @@ static char* read_file(char* path)
     int size = (int)ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
-    char* buf = calloc(1, ALIGN(size + 1, 16));
+    char* buf = calloc(1, (size + 1));
     size_t read = fread(buf, 1, size, fp);
     fclose(fp);
 
@@ -490,7 +490,7 @@ static char* read_file(char* path)
 
 Array* lex(char* file)
 {
-    SourceInfo* sourceInfo = calloc(1, ALIGN(sizeof(SourceInfo), 16));
+    SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
 
     path_simplify(file, sourceInfo->file);
     sourceInfo->start = read_file(file);

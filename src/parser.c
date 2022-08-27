@@ -29,23 +29,6 @@ typedef struct Scope {
     Dict* tags;
 } Scope;
 
-typedef struct {
-    TokenReader reader;
-    List scopes;
-    Obj* currentFunc;
-
-    // lists of all goto statements and labels in the curent function.
-    Node* gotos;
-    Node* labels;
-
-    char* brkLabel;
-    char* cntLabel;
-
-    Node* currentSwitch;
-    Obj* locals;
-    Obj* globals;
-} ParserState;
-
 // This struct represents a variable initializer. Since initializers
 // can be nested (e.g. `int x[2][2] = {{1, 2}, {3, 4}}`), this struct
 // is a tree data structure.
@@ -144,7 +127,7 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
  */
 static Node* new_node(NodeKind kind, Token* tok)
 {
-    Node* node = calloc(1, ALIGN(sizeof(Node), 16));
+    Node* node = calloc(1, sizeof(Node));
     node->tok = tok;
     node->kind = kind;
     return node;
@@ -201,7 +184,7 @@ Node* new_cast(Node* expr, Type* type, Token* tok)
 
 static Obj* new_variable(ParserState* state, char* name, Type* type)
 {
-    Obj* var = calloc(1, ALIGN(sizeof(Obj), 16));
+    Obj* var = calloc(1, sizeof(Obj));
     var->id = unique_id();
     var->name = name;
     var->type = type;
@@ -310,9 +293,7 @@ static void parse_typedef(ParserState* state, Type* baseType);
 static bool is_type_name(ParserState* state, Token* tok);
 static Type* parse_type_name(ParserState* state);
 static Type* parse_type_suffix(ParserState* state, Type* type);
-static int64_t parse_constexpr(ParserState* state);
 static Initializer* parse_initializer(ParserState* state, Type* ty);
-
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 static Node* to_assign(ParserState* state, Node* binary);
@@ -450,7 +431,7 @@ static void parse_struct_members(ParserState* state, Type* ty)
             }
             first = false;
 
-            Member* mem = calloc(1, ALIGN(sizeof(Member), 16));
+            Member* mem = calloc(1, sizeof(Member));
             mem->type = parse_declarator(state, basety);
             mem->name = mem->type->name;
             mem->idx = idx++;
@@ -1366,7 +1347,7 @@ static int64_t eval(Node* node)
     return 0;
 }
 
-static int64_t parse_constexpr(ParserState* state)
+int64_t parse_constexpr(ParserState* state)
 {
     Node* node = parse_ternary(state);
     return eval(node);
@@ -1809,7 +1790,7 @@ static Initializer* new_initializer(Type* ty, bool flex)
 {
     (void)flex;
 
-    Initializer* init = calloc(1, ALIGN(sizeof(Initializer), 16));
+    Initializer* init = calloc(1, sizeof(Initializer));
     init->type = ty;
     if (ty->kind == TY_ARRAY) {
         int size = ty->arrayLen * sizeof(Initializer);
@@ -2064,7 +2045,7 @@ static bool is_function(ParserState* state)
 Obj* parse(List* tokens)
 {
     ParserState state;
-    memset(&state, 0, sizeof(ParserState));
+    ZERO_MEMORY(state);
     state.reader.tokens = tokens;
     state.reader.cursor = tokens->front;
 

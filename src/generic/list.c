@@ -8,7 +8,7 @@
 
 static ListNode* _list_node_new(int size)
 {
-    ListNode* node = calloc(1, sizeof(ListNode) + ALIGN(size, 16));
+    ListNode* node = calloc(1, sizeof(ListNode) + size);
     node->prev = NULL;
     node->next = NULL;
     return node;
@@ -16,7 +16,7 @@ static ListNode* _list_node_new(int size)
 
 List* list_new()
 {
-    List* list = calloc(1, ALIGN(sizeof(List), 16));
+    List* list = calloc(1, sizeof(List));
     list->front = NULL;
     list->back = NULL;
     list->len = 0;

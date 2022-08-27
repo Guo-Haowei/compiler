@@ -12,7 +12,7 @@ Type g_ulong_type = { TY_LONG, 8, 8, true };
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
-    Type* ty = calloc(1, ALIGN(sizeof(Type), 16));
+    Type* ty = calloc(1, sizeof(Type));
     ty->kind = kind;
     ty->size = size;
     ty->align = align;
@@ -54,7 +54,7 @@ Type* array_of(Type* base, int len)
 
 Type* func_type(Type* retType)
 {
-    Type* type = calloc(1, ALIGN(sizeof(Type), 16));
+    Type* type = calloc(1, sizeof(Type));
     type->kind = TY_FUNC;
     type->retType = retType;
     return type;
@@ -67,7 +67,7 @@ Type* enum_type()
 
 Type* copy_type(Type* type)
 {
-    Type* ret = calloc(1, ALIGN(sizeof(Type), 16));
+    Type* ret = calloc(1, sizeof(Type));
     *ret = *type;
     return ret;
 }

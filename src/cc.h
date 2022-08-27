@@ -261,7 +261,6 @@ bool is_token_equal(Token* token, char* symbol);
 
 void dump_preproc(List* toks);
 Node* new_cast(Node* expr, Type* type, Token* tok);
-Obj* parse(List* toks);
 
 void gen(Obj* prog, char* srcname, char* asmname);
 
@@ -333,5 +332,29 @@ Token* tr_read(TokenReader* reader);
 bool tr_equal(TokenReader* reader, char* symbol);
 bool tr_consume(TokenReader* reader, char* symbol);
 void tr_expect(TokenReader* reader, char* symbol);
+
+/**
+ * preproc.c
+ */
+
+typedef struct {
+    TokenReader reader;
+    List scopes;
+    Obj* currentFunc;
+
+    // lists of all goto statements and labels in the curent function.
+    Node* gotos;
+    Node* labels;
+
+    char* brkLabel;
+    char* cntLabel;
+
+    Node* currentSwitch;
+    Obj* locals;
+    Obj* globals;
+} ParserState;
+
+int64_t parse_constexpr(ParserState* state);
+Obj* parse(List* toks);
 
 #endif
