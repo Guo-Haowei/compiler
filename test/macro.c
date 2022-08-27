@@ -65,6 +65,10 @@ int main()
     }                        \
     (void)0
 
+#define CONCAT(a, b, c) __var_##a##_##b##_##c##__
+    int CONCAT(dummy, hello, world) = 10;
+    ASSERT(10, __var_dummy_hello_world__);
+
 #if 0 + 1 + 2
     ASSERT(0, 0);
 #endif

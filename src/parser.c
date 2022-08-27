@@ -301,6 +301,33 @@ static Node* to_assign(ParserState* state, Node* binary);
 static Initializer* new_initializer(Type* ty, bool flex);
 static void initializer2(ParserState* state, Initializer* init);
 
+#define PARSE_BINARY(NAME, PARSE_FUNC, COUNT, ...)                                         \
+    static Node* parse_##NAME(ParserState* state)                                          \
+    {                                                                                      \
+        typedef struct {                                                                   \
+            char* symbol;                                                                  \
+            int kind;                                                                      \
+        } Symbol;                                                                          \
+        Symbol symbols[COUNT] = __VA_ARGS__;                                               \
+        Node* node = parse_##PARSE_FUNC(state);                                            \
+        for (;;) {                                                                         \
+            bool found = false;                                                            \
+            for (size_t i = 0; i < ARRAY_COUNTER(symbols); ++i) {                          \
+                Symbol* symbol = &symbols[i];                                              \
+                Token* tok = peek(state);                                                  \
+                if (is_token_equal(tok, symbol->symbol)) {                                 \
+                    read(state);                                                           \
+                    node = new_binary(symbol->kind, node, parse_##PARSE_FUNC(state), tok); \
+                    found = true;                                                          \
+                    break;                                                                 \
+                }                                                                          \
+            }                                                                              \
+            if (!found) {                                                                  \
+                return node;                                                               \
+            }                                                                              \
+        }                                                                                  \
+    }
+
 // primary = "(" expr ")"
 //         | "sizeof" "(" type-name ")"
 //         | "sizeof" unary
@@ -606,30 +633,7 @@ static Node* parse_cast(ParserState* state)
 }
 
 // mul = cast ("*" cast | "/" cast | "%" cast)*
-static Node* parse_mul(ParserState* state)
-{
-    Node* node = parse_cast(state);
-    for (;;) {
-        Token* tok = peek(state);
-        if (is_token_equal(tok, "*")) {
-            read(state);
-            node = new_binary(ND_MUL, node, parse_cast(state), tok);
-            continue;
-        }
-        if (is_token_equal(tok, "/")) {
-            read(state);
-            node = new_binary(ND_DIV, node, parse_cast(state), tok);
-            continue;
-        }
-        if (is_token_equal(tok, "%")) {
-            read(state);
-            node = new_binary(ND_MOD, node, parse_cast(state), tok);
-            continue;
-        }
-
-        return node;
-    }
-}
+PARSE_BINARY(mul, cast, 3, { { "*", ND_MUL }, { "/", ND_DIV }, { "%", ND_MOD } });
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok)
 {
@@ -707,25 +711,7 @@ static Node* parse_add(ParserState* state)
 }
 
 // shift = add ("<<" add | ">>" add)*
-static Node* parse_shift(ParserState* state)
-{
-    Node* node = parse_add(state);
-    for (;;) {
-        Token* tok = peek(state);
-        if (is_token_equal(tok, ">>")) {
-            read(state);
-            node = new_binary(ND_SHR, node, parse_add(state), tok);
-            continue;
-        }
-        if (is_token_equal(tok, "<<")) {
-            read(state);
-            node = new_binary(ND_SHL, node, parse_add(state), tok);
-            continue;
-        }
-
-        return node;
-    }
-}
+PARSE_BINARY(shift, add, 2, { { ">>", ND_SHR }, { "<<", ND_SHL } });
 
 // relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node* parse_relational(ParserState* state)
@@ -758,24 +744,7 @@ static Node* parse_relational(ParserState* state)
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-static Node* parse_equality(ParserState* state)
-{
-    Node* node = parse_relational(state);
-    for (;;) {
-        Token* tok = peek(state);
-        if (is_token_equal(tok, "==")) {
-            read(state);
-            node = new_binary(ND_EQ, node, parse_relational(state), tok);
-            continue;
-        }
-        if (is_token_equal(tok, "!=")) {
-            read(state);
-            node = new_binary(ND_NE, node, parse_relational(state), tok);
-            continue;
-        }
-        return node;
-    }
-}
+PARSE_BINARY(equality, relational, 2, { { "==", ND_EQ }, { "!=", ND_NE } });
 
 // Convert `A op= B` to `tmp = &A, *tmp = *tmp op B`
 // where tmp is a fresh pointer variable.
@@ -797,59 +766,19 @@ static Node* to_assign(ParserState* state, Node* binary)
 }
 
 // bitor = bitxor ("|" bitxor)*
-static Node* parse_bitor(ParserState* state)
-{
-    Node* node = parse_bitxor(state);
-    while (equal(state, "|")) {
-        Token* start = read(state);
-        node = new_binary(ND_BITOR, node, parse_bitxor(state), start);
-    }
-    return node;
-}
+PARSE_BINARY(bitor, bitxor, 1, { { "|", ND_BITOR } });
 
 // bitxor = bitand ("^" bitand)*
-static Node* parse_bitxor(ParserState* state)
-{
-    Node* node = parse_bitand(state);
-    while (equal(state, "^")) {
-        Token* start = read(state);
-        node = new_binary(ND_BITXOR, node, parse_bitand(state), start);
-    }
-    return node;
-}
+PARSE_BINARY(bitxor, bitand, 1, { { "^", ND_BITXOR } });
 
 // bitand = equality ("&" equality)*
-static Node* parse_bitand(ParserState* state)
-{
-    Node* node = parse_equality(state);
-    while (equal(state, "&")) {
-        Token* start = read(state);
-        node = new_binary(ND_BITAND, node, parse_equality(state), start);
-    }
-    return node;
-}
+PARSE_BINARY(bitand, equality, 1, { { "&", ND_BITAND } });
 
 // logand = bitor ("&&" bitor)*
-static Node* parse_logand(ParserState* state)
-{
-    Node* node = parse_bitor(state);
-    while (equal(state, "&&")) {
-        Token* start = read(state);
-        node = new_binary(ND_LOGAND, node, parse_bitor(state), start);
-    }
-    return node;
-}
+PARSE_BINARY(logand, bitor, 1, { { "&&", ND_LOGAND } });
 
 // logor = logand ("||" logand)*
-static Node* parse_logor(ParserState* state)
-{
-    Node* node = parse_logand(state);
-    while (equal(state, "||")) {
-        Token* start = read(state);
-        node = new_binary(ND_LOGOR, node, parse_logand(state), start);
-    }
-    return node;
-}
+PARSE_BINARY(logor, logand, 1, { { "||", ND_LOGOR } });
 
 // ternary = logor ("?" expr ":" conditional)?
 static Node* parse_ternary(ParserState* state)

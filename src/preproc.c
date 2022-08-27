@@ -156,7 +156,21 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     for (ListNode* n = macro->expandTo->front; n;) {
         Token token = *list_node_get(Token, n);
         if (is_token_equal(&token, "##")) {
-            error_tok(&token, "## not supported");
+            n = n->next;
+            Token* paste = list_node_get(Token, n);
+            int idx = is_node_arg(macro, paste);
+            if (idx != -1) {
+                List* argList = array_at(List, args, idx);
+                assert(argList->len == 1);
+                assert(tmp->len);
+                paste = list_front(Token, argList);
+            }
+            Token* back = list_back(Token, tmp);
+            int backLen = (int)strlen(back->raw);
+            char* str = calloc(1, backLen + paste->len + 1);
+            sprintf(str, "%s%s", back->raw, paste->raw);
+            back->raw = str;
+            n = n->next;
             continue;
         }
 
