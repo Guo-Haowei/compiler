@@ -136,7 +136,7 @@ void add_type(Node* node)
         }
     }
 
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_NUM:
     case ND_NOT:
     case ND_LOGOR:

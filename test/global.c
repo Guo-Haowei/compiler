@@ -10,6 +10,14 @@ long g6 = 6;
 char g7[2][3] = { "AB", "CD" };
 char g8[3][3][3] = { { "A", "B", "C" }, { "D", "E", "F" }, { "G", "H", "I" } };
 
+static int counter()
+{
+    static int i = 0;
+    static int j = 0;
+    int a = (++i) + (j += 2);
+    return a * i;
+}
+
 int main()
 {
     ASSERT(0, x);
@@ -37,6 +45,10 @@ int main()
     ASSERT('A', g7[0][0]);
     ASSERT('D', g7[1][1]);
     ASSERT('E', g8[1][1][0]);
+
+    ASSERT(3, counter());
+    ASSERT(12, counter());
+    ASSERT(27, counter());
 
     printf("OK\n");
     return 0;

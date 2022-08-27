@@ -134,14 +134,13 @@ struct Obj {
 
 // AST node
 struct Node {
-    // @TODO: rename
-    NodeKind eNodeKind;
+    NodeKind kind;
     Node* next;
     Type* type;
     Node* lhs;
     Node* rhs;
-    Obj* var;    // Used if eNodeKind == ND_VAR
-    int64_t val; // Used if eNodeKind == ND_NUM
+    Obj* var;    // Used if kind == ND_VAR
+    int64_t val; // Used if kind == ND_NUM
 
     Token* tok; // Representative token
 

@@ -172,13 +172,6 @@ static int from_hex(char c)
     return c - 'A' + 10;
 }
 
-static char s_escape[26] = {
-    '\a', '\b', 'c', 'd', 27, '\f', 'g',
-    'h', 'i', 'j', 'k', 'l', 'm', '\n',
-    'o', 'p', 'q', '\r', 's', '\t',
-    'u', '\v', 'w', 'x', 'y', 'z'
-};
-
 static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
 {
     if ('0' <= *p && *p <= '7') {
@@ -211,6 +204,12 @@ static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
     *new_pos = p + 1;
 
     if (islower(*p)) {
+        static char s_escape[26] = {
+            '\a', '\b', 'c', 'd', 27, '\f', 'g',
+            'h', 'i', 'j', 'k', 'l', 'm', '\n',
+            'o', 'p', 'q', '\r', 's', '\t',
+            'u', '\v', 'w', 'x', 'y', 'z'
+        };
         return s_escape[*p - 'a'];
     }
 
@@ -312,20 +311,19 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
     array_push_back(Token, arr, tok);
 }
 
-static char s_multi_char_puncts[23][4] = {
-    "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
-    ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
-};
-
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
+    static char s_puncts[23][4] = {
+        "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
+        ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
+    };
 
-    for (size_t i = 0; i < ARRAY_COUNTER(s_multi_char_puncts); ++i) {
-        if (begin_with(lexer->p, s_multi_char_puncts[i])) {
+    for (size_t i = 0; i < ARRAY_COUNTER(s_puncts); ++i) {
+        if (begin_with(lexer->p, s_puncts[i])) {
             Token tok;
             lexer_fill_tok(lexer, &tok);
             tok.kind = TK_PUNCT;
-            tok.len = (int)strlen(s_multi_char_puncts[i]);
+            tok.len = (int)strlen(s_puncts[i]);
             lexer_shift(lexer, tok.len);
             array_push_back(Token, arr, tok);
             return true;

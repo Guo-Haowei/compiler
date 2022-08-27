@@ -137,7 +137,7 @@ static void store(Type* type)
 // It's an error if a given node does not reside in memory.
 static void gen_addr(Node* node)
 {
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_VAR:
         if (node->var->isLocal) {
             // local
@@ -165,7 +165,7 @@ static void gen_addr(Node* node)
     error_tok(node->tok, "not an lvalue");
 }
 
-static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax, bool isUnsigned)
+static void gen_cmp_expr(NodeKind kind, char* di, char* ax, bool isUnsigned)
 {
     char* s_compares[4][2] = {
         { "sete", "sete" },
@@ -174,7 +174,7 @@ static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax, bool isUnsigned
         { "setle", "setbe" }
     };
 
-    int index = eNodeKind - ND_EQ;
+    int index = kind - ND_EQ;
     ASSERT_IDX(index, ARRAY_COUNTER(s_compares));
 
     println("  cmp %s, %s", di, ax);
@@ -213,7 +213,7 @@ static void gen_cast(Type* from, Type* to)
 
 static void gen_expr(Node* node)
 {
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_NULL_EXPR:
         return;
     case ND_NUM:
@@ -386,7 +386,7 @@ static void gen_expr(Node* node)
     bool isLhsUnsigned = node->lhs->type->isUnsigned;
     bool isRhsUnsigned = node->rhs->type->isUnsigned;
 
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_ADD:
         println("  add %s, %s", di, ax);
         return;
@@ -409,7 +409,7 @@ static void gen_expr(Node* node)
             }
             println("  idiv %s", di);
         }
-        if (node->eNodeKind == ND_MOD)
+        if (node->kind == ND_MOD)
             println("  mov %%rdx, %%rax");
         return;
     case ND_BITAND:
@@ -425,7 +425,7 @@ static void gen_expr(Node* node)
     case ND_NE:
     case ND_LT:
     case ND_LE:
-        gen_cmp_expr(node->eNodeKind, di, ax, isLhsUnsigned || isRhsUnsigned);
+        gen_cmp_expr(node->kind, di, ax, isLhsUnsigned || isRhsUnsigned);
         return;
     case ND_SHL:
         println("  mov %%rdi, %%rcx");
@@ -446,7 +446,7 @@ static void gen_stmt(Node* node)
 {
     println("  .loc 1 %d", node->tok->line);
 
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_IF: {
         int c = unique_id();
         gen_expr(node->cond);

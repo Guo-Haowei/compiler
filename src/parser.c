@@ -142,18 +142,18 @@ static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
 /**
  * Create Node API
  */
-static Node* new_node(NodeKind eNodeKind, Token* tok)
+static Node* new_node(NodeKind kind, Token* tok)
 {
     Node* node = calloc(1, ALIGN(sizeof(Node), 16));
     node->tok = tok;
-    node->eNodeKind = eNodeKind;
+    node->kind = kind;
     return node;
 }
 
 static Node* new_num(int64_t val, Token* tok)
 {
     Node* node = new_node(ND_NUM, tok);
-    node->eNodeKind = ND_NUM;
+    node->kind = ND_NUM;
     node->val = val;
     return node;
 }
@@ -172,18 +172,18 @@ static Node* new_var(Obj* var, Token* tok)
     return node;
 }
 
-static Node* new_binary(NodeKind eNodeKind, Node* lhs, Node* rhs, Token* tok)
+static Node* new_binary(NodeKind kind, Node* lhs, Node* rhs, Token* tok)
 {
-    Node* node = new_node(eNodeKind, tok);
+    Node* node = new_node(kind, tok);
     node->isBinary = true;
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
 }
 
-static Node* new_unary(NodeKind eNodeKind, Node* expr, Token* tok)
+static Node* new_unary(NodeKind kind, Node* expr, Token* tok)
 {
-    Node* node = new_node(eNodeKind, tok);
+    Node* node = new_node(kind, tok);
     node->isUnary = true;
     node->lhs = expr;
     return node;
@@ -305,9 +305,10 @@ static Node* parse_funccall(ParserState* state);
 static Node* parse_expr(ParserState* state);
 static Node* parse_expr_stmt(ParserState* state);
 static Node* parse_compound_stmt(ParserState* state);
-static Node* parse_decl(ParserState* state, Type* baseType);
+static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* attrib);
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib);
 static Type* parse_declarator(ParserState* state, Type* type);
+static void parse_gvar_initializer(ParserState* state, Obj* var);
 static Node* parse_lvar_initializer(ParserState* state, Obj* var);
 static void parse_typedef(ParserState* state, Type* baseType);
 static bool is_type_name(ParserState* state, Token* tok);
@@ -809,7 +810,7 @@ static Node* to_assign(ParserState* state, Node* binary)
     Obj* tmp = new_lvar(state, "", pointer_to(binary->lhs->type));
     Node* expr1 = new_binary(ND_ASSIGN, new_var(tmp, tok), new_unary(ND_ADDR, binary->lhs, tok), tok);
     Node* derefTmp = new_unary(ND_DEREF, new_var(tmp, tok), tok);
-    Node* op = new_binary(binary->eNodeKind, new_unary(ND_DEREF, new_var(tmp, tok), tok), binary->rhs, tok);
+    Node* op = new_binary(binary->kind, new_unary(ND_DEREF, new_var(tmp, tok), tok), binary->rhs, tok);
     Node* expr2 = new_binary(ND_ASSIGN, derefTmp, op, tok);
     return new_binary(ND_COMMA, expr1, expr2, tok);
 }
@@ -1061,7 +1062,7 @@ static Node* parse_stmt(ParserState* state)
 
         if (is_type_name(state, peek(state))) {
             Type* baseType = parse_declspec(state, NULL);
-            node->init = parse_decl(state, baseType);
+            node->init = parse_declaration(state, baseType, NULL);
         } else {
             node->init = parse_expr_stmt(state);
         }
@@ -1208,24 +1209,12 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
-static char s_typenames[13][12] = {
-    "char",
-    "enum",
-    "extern",
-    "int",
-    "long",
-    "short",
-    "signed",
-    "static",
-    "struct",
-    "typedef",
-    "union",
-    "unsigned",
-    "void"
-};
-
 static bool is_type_name(ParserState* state, Token* tok)
 {
+    static char s_typenames[13][12] = {
+        "char", "enum", "extern", "int", "long", "short", "signed", "static", "struct", "typedef", "union", "unsigned", "void"
+    };
+
     for (size_t i = 0; i < ARRAY_COUNTER(s_typenames); ++i) {
         if (is_token_equal(tok, s_typenames[i])) {
             return true;
@@ -1262,7 +1251,8 @@ static Node* parse_compound_stmt(ParserState* state)
                 parse_typedef(state, baseType);
                 continue;
             }
-            cur = cur->next = parse_decl(state, baseType);
+
+            cur = cur->next = parse_declaration(state, baseType, &attrib);
         } else {
             cur = cur->next = parse_stmt(state);
         }
@@ -1280,7 +1270,7 @@ static Node* parse_compound_stmt(ParserState* state)
 static int64_t eval(Node* node)
 {
     add_type(node);
-    switch (node->eNodeKind) {
+    switch (node->kind) {
     case ND_ADD:
         return eval(node->lhs) + eval(node->rhs);
     case ND_SUB:
@@ -1643,7 +1633,7 @@ static Type* parse_declarator(ParserState* state, Type* type)
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-static Node* parse_decl(ParserState* state, Type* baseType)
+static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* attrib)
 {
     Node head;
     ZERO_MEMORY(head);
@@ -1657,6 +1647,16 @@ static Node* parse_decl(ParserState* state, Type* baseType)
         Type* type = parse_declarator(state, baseType);
         if (type->kind == TY_VOID) {
             error_tok(type->name, "variable or field '%s' declared void", type->name->raw);
+        }
+
+        if (attrib && attrib->isStatic) {
+            // static local variable
+            Obj* var = new_anon_gvar(state, type);
+            push_var_scope(state, get_ident(type->name))->var = var;
+            if (consume(state, "=")) {
+                parse_gvar_initializer(state, var);
+            }
+            continue;
         }
 
         Obj* var = new_lvar(state, get_ident(type->name), type);

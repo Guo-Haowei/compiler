@@ -237,12 +237,6 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
         n = n->next;
     }
 
-    // for (ListNode* n = tmp->front; n; n = n->next) {
-    //     Token* tok = list_node_get(Token, n);
-    //     printf("%s ", tok->raw);
-    // }
-    // printf("\n");
-
     List* newList = list_append(tmp, state->unprocessed);
     free(state->unprocessed);
     state->unprocessed = newList;
@@ -586,12 +580,11 @@ static void preproc2(PreprocState* state)
     }
 }
 
-static char s_keywords[28][12] = {
-    "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
-};
-
 static void postprocess(List* tokens)
 {
+    static char s_keywords[28][12] = {
+        "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
+    };
 
     for (ListNode* c = tokens->front; c; c = c->next) {
         Token* tok = (Token*)(c + 1);

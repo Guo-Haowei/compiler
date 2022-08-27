@@ -8,10 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static int s_id;
-
 int unique_id()
 {
+    static int s_id;
     return s_id++;
 }
 
