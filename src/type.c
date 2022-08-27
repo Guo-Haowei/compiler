@@ -5,50 +5,65 @@ static Type s_char;
 static Type s_short;
 static Type s_int;
 static Type s_long;
+static Type s_uchar;
+static Type s_ushort;
+static Type s_uint;
+static Type s_ulong;
+
+static Type* init_type(Type* type, int kind, int size, bool isUnsigned)
+{
+    if (type->size == 0) {
+        type->kind = kind;
+        type->size = type->align = size;
+        type->isUnsigned = isUnsigned;
+    }
+
+    return type;
+}
 
 Type* void_type()
 {
-    if (s_void.size == 0) {
-        s_void.kind = TY_VOID;
-        s_void.size = s_void.align = 1;
-    }
-    return &s_void;
+    return init_type(&s_void, TY_VOID, 1, false);
 }
 
 Type* char_type()
 {
-    if (s_char.size == 0) {
-        s_char.kind = TY_CHAR;
-        s_char.size = s_char.align = 1;
-    }
-    return &s_char;
+    return init_type(&s_char, TY_CHAR, 1, false);
 }
 
 Type* short_type()
 {
-    if (s_short.size == 0) {
-        s_short.kind = TY_SHORT;
-        s_short.size = s_short.align = 2;
-    }
-    return &s_short;
+    return init_type(&s_short, TY_SHORT, 2, false);
 }
 
 Type* int_type()
 {
-    if (s_int.size == 0) {
-        s_int.kind = TY_INT;
-        s_int.size = s_int.align = 4;
-    }
-    return &s_int;
+    return init_type(&s_int, TY_INT, 4, false);
 }
 
 Type* long_type()
 {
-    if (s_long.size == 0) {
-        s_long.kind = TY_LONG;
-        s_long.size = s_long.align = 8;
-    }
-    return &s_long;
+    return init_type(&s_long, TY_LONG, 8, false);
+}
+
+Type* uchar_type()
+{
+    return init_type(&s_uchar, TY_CHAR, 1, true);
+}
+
+Type* ushort_type()
+{
+    return init_type(&s_ushort, TY_SHORT, 2, true);
+}
+
+Type* uint_type()
+{
+    return init_type(&s_uint, TY_INT, 4, true);
+}
+
+Type* ulong_type()
+{
+    return init_type(&s_ulong, TY_LONG, 8, true);
 }
 
 static Type* new_type(TypeKind kind, int size, int align)
@@ -80,6 +95,7 @@ Type* pointer_to(Type* base)
     ty->kind = TY_PTR;
     ty->size = 8;
     ty->base = base;
+    ty->isUnsigned = true;
     return ty;
 }
 
@@ -123,11 +139,20 @@ static Type* get_common_type(Type* ty1, Type* ty2)
         return pointer_to(ty1->base);
     }
 
-    if (ty1->size == 8 || ty2->size == 8) {
-        return long_type();
+    if (ty1->size < 4) {
+        ty1 = int_type();
+    }
+    if (ty2->size < 4) {
+        ty2 = int_type();
     }
 
-    return int_type();
+    if (ty1->size != ty2->size) {
+        return (ty1->size < ty2->size) ? ty2 : ty1;
+    }
+    if (ty2->isUnsigned) {
+        return ty2;
+    }
+    return ty1;
 }
 
 // For many binary operators, we implicitly promote operands so that
@@ -191,7 +216,7 @@ void add_type(Node* node)
         node->type = node->lhs->type;
         return;
     case ND_NEG: {
-        Type* ty = get_common_type(long_type(), node->lhs->type);
+        Type* ty = get_common_type(int_type(), node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
         node->type = ty;
         return;
@@ -211,8 +236,6 @@ void add_type(Node* node)
     case ND_NE:
     case ND_LT:
     case ND_LE:
-    case ND_GT:
-    case ND_GE:
         usual_arith_conv(&node->lhs, &node->rhs);
         node->type = int_type();
         return;

@@ -22,6 +22,7 @@ int main()
     {
         int x = 3;
         int y = 5;
+        ASSERT(5, *(&x + 1));
         ASSERT(5, *(&x - (-1)));
     }
     {

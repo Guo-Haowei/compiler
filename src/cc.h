@@ -45,8 +45,6 @@ typedef enum node_kind_t {
     ND_NE,        // !=
     ND_LT,        // <
     ND_LE,        // <=
-    ND_GT,        // >
-    ND_GE,        // >=
     ND_BITAND,    // &
     ND_BITOR,     // |
     ND_BITXOR,    // |
@@ -136,6 +134,7 @@ struct Obj {
 
 // AST node
 struct Node {
+    // @TODO: rename
     NodeKind eNodeKind;
     Node* next;
     Type* type;
@@ -206,8 +205,9 @@ typedef enum {
 
 struct Type {
     TypeKind kind;
-    int size;  // sizeof() value
-    int align; // alignment
+    int size;        // sizeof() value
+    int align;       // alignment
+    bool isUnsigned; // unsigned
 
     // Pointer-to or array-of type. We intentionally use the same member
     // to represent pointer/array duality in C.
@@ -247,6 +247,10 @@ Type* char_type();
 Type* short_type();
 Type* int_type();
 Type* long_type();
+Type* uchar_type();
+Type* ushort_type();
+Type* uint_type();
+Type* ulong_type();
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);
@@ -259,8 +263,6 @@ Type* enum_type();
 
 bool is_token_equal(Token* token, char* symbol);
 
-Array* lex(char* filename);
-
 List* preproc(Array* toks, char* includepath);
 
 void dump_preproc(List* toks);
@@ -270,8 +272,10 @@ Obj* parse(List* toks);
 void gen(Obj* prog, char* srcname, char* asmname);
 
 /**
- * lexer
+ * lexer.c
  */
+Array* lex(char* filename);
+
 enum {
     LEVEL_NOTE,
     LEVEL_WARN,
@@ -304,14 +308,6 @@ void _info_tok(Token* tok, char* msg);
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error_tok(LEVEL_ERROR, TOK, buf);       \
-    }                                            \
-    (void)0
-
-#define warn_tok(TOK, ...)                       \
-    {                                            \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _error_tok(LEVEL_WARN, TOK, buf);        \
     }                                            \
     (void)0
 

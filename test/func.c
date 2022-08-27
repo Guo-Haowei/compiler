@@ -1,4 +1,5 @@
 #include "test.h"
+#include <stdio.h>
 #include <string.h>
 
 static int s_int;

@@ -157,6 +157,13 @@ static Node* new_num(int64_t val, Token* tok)
     return node;
 }
 
+static Node* new_ulong(int64_t val, Token* tok)
+{
+    Node* node = new_num(val, tok);
+    node->type = ulong_type();
+    return node;
+}
+
 static Node* new_var(Obj* var, Token* tok)
 {
     Node* node = new_node(ND_VAR, tok);
@@ -350,12 +357,12 @@ static Node* parse_primary(ParserState* state)
             expect(state, "(");
             Type* type = parse_type_name(state);
             expect(state, ")");
-            return new_num(type->size, tok);
+            return new_ulong(type->size, tok);
         }
 
         Node* node = parse_unary(state);
         add_type(node);
-        return new_num(node->type->size, tok);
+        return new_ulong(node->type->size, tok);
     }
 
     if (consume(state, "__builtin_reg_class")) {
@@ -696,15 +703,13 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     // ptr - num
     if (lhs->type->base && is_integer(rhs->type)) {
         rhs = new_binary(ND_MUL, rhs, new_num(lhs->type->base->size, tok), tok);
-        add_type(rhs);
-        Node* node = new_binary(ND_SUB, lhs, rhs, tok);
-        node->type = lhs->type;
-        return node;
+        return new_binary(ND_SUB, lhs, rhs, tok);
     }
+
     // ptr - ptr, which returns how many elements are between the two.
     if (lhs->type->base && rhs->type->base) {
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
-        node->type = int_type();
+        node->type = long_type();
         return new_binary(ND_DIV, node, new_num(lhs->type->base->size, tok), tok);
     }
 
@@ -772,12 +777,12 @@ static Node* parse_relational(ParserState* state)
         }
         if (is_token_equal(tok, ">")) {
             read(state);
-            node = new_binary(ND_GT, node, parse_shift(state), tok);
+            node = new_binary(ND_LT, parse_shift(state), node, tok);
             continue;
         }
         if (is_token_equal(tok, ">=")) {
             read(state);
-            node = new_binary(ND_GE, node, parse_shift(state), tok);
+            node = new_binary(ND_LE, parse_shift(state), node, tok);
             continue;
         }
         return node;
@@ -1213,17 +1218,19 @@ static Type* find_typedef(ParserState* state, Token* tok)
     return NULL;
 }
 
-static char s_typenames[11][12] = {
+static char s_typenames[13][12] = {
     "char",
     "enum",
     "extern",
     "int",
     "long",
     "short",
+    "signed",
     "static",
     "struct",
     "typedef",
     "union",
+    "unsigned",
     "void"
 };
 
@@ -1291,6 +1298,9 @@ static int64_t eval(Node* node)
     case ND_MUL:
         return eval(node->lhs) * eval(node->rhs);
     case ND_DIV:
+        if (node->type->isUnsigned) {
+            return (uint64_t)eval(node->lhs) / eval(node->rhs);
+        }
         return eval(node->lhs) / eval(node->rhs);
     case ND_NEG:
         return -eval(node->lhs);
@@ -1356,17 +1366,21 @@ static int64_t parse_constexpr(ParserState* state)
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
+//             | "signed" | "unsigned"
 //             | struct-decl | union-decl | typedef-name
 //             | enum-specifier)+
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 {
     enum {
         VOID = 1 << 0,
-        CHAR = 1 << 2,
-        SHORT = 1 << 4,
-        INT = 1 << 6,
-        LONG = 1 << 8,
-        OTHER = 1 << 10,
+        BOOL = 1 << 2,
+        CHAR = 1 << 4,
+        SHORT = 1 << 6,
+        INT = 1 << 8,
+        LONG = 1 << 10,
+        OTHER = 1 << 12,
+        SIGNED = 1 << 13,
+        UNSIGNED = 1 << 14,
     };
 
     Token* tok = NULL;
@@ -1433,6 +1447,10 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
             counter += INT;
         } else if (consume(state, "long")) {
             counter += LONG;
+        } else if (consume(state, "signed")) {
+            counter |= SIGNED;
+        } else if (consume(state, "unsigned")) {
+            counter |= UNSIGNED;
         } else {
             assert(0);
         }
@@ -1442,20 +1460,46 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
             ty = void_type();
             break;
         case CHAR:
+        case SIGNED + CHAR:
             ty = char_type();
             break;
+        case UNSIGNED + CHAR:
+            ty = uchar_type();
+            break;
         case SHORT:
+        case SIGNED + SHORT:
         case SHORT + INT:
+        case SIGNED + SHORT + INT:
             ty = short_type();
             break;
+        case UNSIGNED + SHORT:
+        case UNSIGNED + SHORT + INT:
+            ty = ushort_type();
+            break;
         case INT:
+        case SIGNED:
+        case SIGNED + INT:
             ty = int_type();
+            break;
+        case UNSIGNED:
+        case UNSIGNED + INT:
+            ty = uint_type();
             break;
         case LONG:
         case LONG + INT:
         case LONG + LONG:
         case LONG + LONG + INT:
+        case SIGNED + LONG:
+        case SIGNED + LONG + INT:
+        case SIGNED + LONG + LONG:
+        case SIGNED + LONG + LONG + INT:
             ty = long_type();
+            break;
+        case UNSIGNED + LONG:
+        case UNSIGNED + LONG + INT:
+        case UNSIGNED + LONG + LONG:
+        case UNSIGNED + LONG + LONG + INT:
+            ty = ulong_type();
             break;
         default:
             error_tok(tok, "invalid type specifer");

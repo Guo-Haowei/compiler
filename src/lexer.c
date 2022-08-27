@@ -109,33 +109,27 @@ static void add_int(Lexer* lexer, Array* arr)
     Type* ty = NULL;
     if (base == 10) {
         if (l && u) {
-            assert(0);
+            ty = ulong_type();
         } else if (l) {
             ty = long_type();
         } else if (u) {
-            assert(0);
-            // ty = (val >> 32) ? ty_ulong : ty_uint;
+            ty = (val >> 32) ? ulong_type() : uint_type();
         } else {
             ty = (val >> 31) ? long_type() : int_type();
         }
     } else {
         if (l && u) {
-            // ty = ty_ulong;
-            ty = long_type();
+            ty = ulong_type();
         } else if (l) {
-            // ty = (val >> 63) ? ty_ulong : ty_long;
-            ty = (val >> 63) ? long_type() : long_type();
+            ty = (val >> 63) ? ulong_type() : long_type();
         } else if (u) {
-            // ty = (val >> 32) ? ty_ulong : ty_uint;
-            ty = (val >> 32) ? long_type() : int_type();
+            ty = (val >> 32) ? ulong_type() : uint_type();
         } else if (val >> 63) {
-            // ty = ty_ulong;
-            ty = long_type();
+            ty = ulong_type();
         } else if (val >> 32) {
             ty = long_type();
         } else if (val >> 31) {
-            // ty = ty_uint;
-            ty = int_type();
+            ty = uint_type();
         } else {
             ty = int_type();
         }

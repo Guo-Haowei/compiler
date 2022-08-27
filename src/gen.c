@@ -3,12 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
-enum {
-    I8,
-    I16,
-    I32,
-    I64
-};
+// clang-format off
+enum { I8, I16, I32, I64, U8, U16, U32, U64 };
+// clang-format on
 
 static char s_argreg8[4][8] = { "%cl", "%dl", "%r8b", "%r9b" };
 static char s_argreg16[4][8] = { "%cx", "%dx", "%r8w", "%r9w" };
@@ -21,14 +18,24 @@ static FILE* s_output;
 
 // The table for type casts
 #define I32I8 "movsbl %al, %eax"
+#define I32U8 "movzbl %al, %eax"
 #define I32I16 "movswl %ax, %eax"
+#define I32U16 "movzwl %ax, %eax"
 #define I32I64 "movsxd %eax, %rax"
+#define U32I64 "mov %eax, %eax"
 
-static char s_cast_table[4][4][24] = {
-    { "", "", "", I32I64 },        // I8
-    { I32I8, "", "", I32I64 },     // I16
-    { I32I8, I32I16, "", I32I64 }, // I32
-    { I32I8, I32I16, "", "" }      // I64
+static char s_cast_table[8][8][24] = {
+    // i8   i16     i32   i64     u8     u16     u32   u64
+    // clang-format off
+    { ""   , ""    , "", I32I64, I32U8, I32U16, "", I32I64 }, // i8
+    { I32I8, ""    , "", I32I64, I32U8, I32U16, "", I32I64 }, // i16
+    { I32I8, I32I16, "", I32I64, I32U8, I32U16, "", I32I64 }, // i32
+    { I32I8, I32I16, "", ""    , I32U8, I32U16, "", ""     }, // i64
+    { I32I8, ""    , "", I32I64, ""   , ""    , "", I32I64 }, // u8
+    { I32I8, I32I16, "", I32I64, I32U8, ""    , "", I32I64 }, // u16
+    { I32I8, I32I16, "", U32I64, I32U8, I32U16, "", U32I64 }, // u32
+    { I32I8, I32I16, "", ""    , I32U8, I32U16, "", ""     }  // u64
+    // clang-format on
 };
 
 #define println(...)                    \
@@ -55,6 +62,8 @@ static void gen_expr(Node* node);
 // Load a value from where %rax is pointing to.
 static void load(Type* type)
 {
+    assert(type->size > 0);
+
     if (type->kind == TY_ARRAY || type->kind == TY_STRUCT) {
         // If it is an array, do not attempt to load a value to the
         // register because in general we can't load an entire array to a
@@ -70,12 +79,14 @@ static void load(Type* type)
     // a register always contains a valid value. The upper half of a
     // register for char, short and int may contain garbage. When we load
     // a long value to a register, it simply occupies the entire register.
+    char* insn = type->isUnsigned ? "movz" : "movs";
+
     switch (type->size) {
     case 1:
-        println("  movsbl (%%rax), %%eax");
+        println("  %sbl (%%rax), %%eax", insn);
         break;
     case 2:
-        println("  movswl (%%rax), %%eax");
+        println("  %swl (%%rax), %%eax", insn);
         break;
     case 4:
         println("  movsxd (%%rax), %%rax");
@@ -92,6 +103,7 @@ static void load(Type* type)
 // Store %rax to an address that the stack top is pointing to.
 static void store(Type* type)
 {
+    assert(type->size > 0);
     pop("%rdi");
 
     if (type->kind == TY_STRUCT) {
@@ -153,36 +165,36 @@ static void gen_addr(Node* node)
     error_tok(node->tok, "not an lvalue");
 }
 
-static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax)
+static void gen_cmp_expr(NodeKind eNodeKind, char* di, char* ax, bool isUnsigned)
 {
-    char* s_cmds[6] = {
-        "sete",
-        "setne",
-        "setl",
-        "setle",
-        "setg",
-        "setge"
+    char* s_compares[4][2] = {
+        { "sete", "sete" },
+        { "setne", "setne" },
+        { "setl", "setb" },
+        { "setle", "setbe" }
     };
 
     int index = eNodeKind - ND_EQ;
-    ASSERT_IDX(index, ARRAY_COUNTER(s_cmds));
+    ASSERT_IDX(index, ARRAY_COUNTER(s_compares));
 
     println("  cmp %s, %s", di, ax);
-    println("  %s %%al", s_cmds[index]);
+    println("  %s %%al", s_compares[index][!!isUnsigned]);
     println("  movzb %%al, %%rax");
 }
 
-static int get_type_id(Type* ty)
+static int get_type_id(Type* type)
 {
-    switch (ty->kind) {
+    switch (type->kind) {
     case TY_CHAR:
-        return I8;
+        return type->isUnsigned ? U8 : I8;
     case TY_SHORT:
-        return I16;
+        return type->isUnsigned ? U16 : I16;
     case TY_INT:
-        return I32;
+        return type->isUnsigned ? U32 : I32;
+    case TY_LONG:
+        return type->isUnsigned ? U64 : I64;
     default:
-        return I64;
+        return U64;
     }
 }
 
@@ -279,10 +291,19 @@ static void gen_expr(Node* node)
         // contain garbage if a function return type is short or bool/char,
         // respectively. We clear the upper bits here.
         int kind = node->type->kind;
+        bool isUnsigned = node->type->isUnsigned;
         if (kind == TY_CHAR) {
-            println("  movsbl %%al, %%eax");
+            if (isUnsigned) {
+                println("  movzbl %%al, %%eax");
+            } else {
+                println("  movsbl %%al, %%eax");
+            }
         } else if (kind == TY_SHORT) {
-            println("  movswl %%ax, %%eax");
+            if (isUnsigned) {
+                println("  movzwl %%ax, %%eax");
+            } else {
+                println("  movswl %%ax, %%eax");
+            }
         }
         return;
     }
@@ -351,14 +372,19 @@ static void gen_expr(Node* node)
     gen_expr(node->lhs);
     pop("%rdi");
 
-    char *ax = NULL, *di = NULL;
+    char *ax = NULL, *di = NULL, *dx = NULL;
     if (node->lhs->type->kind == TY_LONG || node->lhs->type->base) {
         ax = "%rax";
         di = "%rdi";
+        dx = "%rdx";
     } else {
         ax = "%eax";
         di = "%edi";
+        dx = "%edx";
     }
+
+    bool isLhsUnsigned = node->lhs->type->isUnsigned;
+    bool isRhsUnsigned = node->rhs->type->isUnsigned;
 
     switch (node->eNodeKind) {
     case ND_ADD:
@@ -372,15 +398,19 @@ static void gen_expr(Node* node)
         return;
     case ND_DIV:
     case ND_MOD:
-        if (node->lhs->type->size == 8) {
-            println("  cqo");
+        if (node->type->isUnsigned) {
+            println("  mov $0, %s", dx);
+            println("  div %s", di);
         } else {
-            println("  cdq");
+            if (node->lhs->type->size == 8) {
+                println("  cqo");
+            } else {
+                println("  cdq");
+            }
+            println("  idiv %s", di);
         }
-        println("  idiv %s", di);
-        if (node->eNodeKind == ND_MOD) {
+        if (node->eNodeKind == ND_MOD)
             println("  mov %%rdx, %%rax");
-        }
         return;
     case ND_BITAND:
         println("  and %%rdi, %%rax");
@@ -395,9 +425,7 @@ static void gen_expr(Node* node)
     case ND_NE:
     case ND_LT:
     case ND_LE:
-    case ND_GT:
-    case ND_GE:
-        gen_cmp_expr(node->eNodeKind, di, ax);
+        gen_cmp_expr(node->eNodeKind, di, ax, isLhsUnsigned || isRhsUnsigned);
         return;
     case ND_SHL:
         println("  mov %%rdi, %%rcx");
@@ -405,11 +433,7 @@ static void gen_expr(Node* node)
         return;
     case ND_SHR:
         println("  mov %%rdi, %%rcx");
-        if (node->type->size == 8) {
-            println("  sar %%cl, %s", ax);
-        } else {
-            println("  sar %%cl, %s", ax);
-        }
+        println("  %s %%cl, %s", isLhsUnsigned ? "shr" : "sar", ax);
         return;
     default:
         break;
@@ -518,6 +542,7 @@ static void assign_lvar_offsets(Obj* prog)
 
         int offset = 0;
         for (Obj* var = fn->locals; var; var = var->next) {
+            assert(var->type->size > 0);
             offset += var->type->size;
             offset = ALIGN(offset, var->type->align);
             var->offset = -offset;
@@ -624,6 +649,7 @@ static void emit_text(Obj* prog)
         // Save passed-by-register arguments to the stack
         int i = 0;
         for (Obj* var = fn->params; var; var = var->next) {
+            assert(var->type->size > 0);
             store_gp(i++, var->offset, var->type->size);
             if (i == 4) {
                 break;

@@ -59,12 +59,12 @@ int main()
         a[0] = 0;
         a[1] = 1;
         a[2] = 2;
-        int *p1 = a + 1;
+        int* p1 = a + 1;
         ASSERT(2, ++*p1);
     }
 
-    ASSERT(5, 17%6);
-    ASSERT(5, ((long)17)%6);
+    ASSERT(5, 17 % 6);
+    ASSERT(5, ((long)17) % 6);
     {
         int i = 10;
         ASSERT(2, i %= 4);
@@ -81,15 +81,15 @@ int main()
     ASSERT(-1, ~0);
     ASSERT(0, ~-1);
 
-    ASSERT(0, 0&1);
-    ASSERT(1, 3&1);
-    ASSERT(3, 7&3);
-    ASSERT(10, -1&10);
-    ASSERT(1, 0|1);
-    ASSERT(0b10011, 0b10000|0b00011);
-    ASSERT(0, 0^0);
-    ASSERT(0, 0b1111^0b1111);
-    ASSERT(0b110100, 0b111000^0b001100);
+    ASSERT(0, 0 & 1);
+    ASSERT(1, 3 & 1);
+    ASSERT(3, 7 & 3);
+    ASSERT(10, -1 & 10);
+    ASSERT(1, 0 | 1);
+    ASSERT(0b10011, 0b10000 | 0b00011);
+    ASSERT(0, 0 ^ 0);
+    ASSERT(0, 0b1111 ^ 0b1111);
+    ASSERT(0b110100, 0b111000 ^ 0b001100);
 
     {
         int i = 6;
@@ -105,24 +105,30 @@ int main()
     }
     {
         int a[3];
-        a[0]=0; a[1]=1; a[2]=2;
-        int *p=a+1; (*p++)--;
+        a[0] = 0;
+        a[1] = 1;
+        a[2] = 2;
+        int* p = a + 1;
+        (*p++)--;
         ASSERT(0, a[1]);
         ASSERT(p, a + 2);
     }
     {
         int a[3];
-        a[0]=0; a[1]=1; a[2]=2;
-        int *p=a+1; (*(p--))--;
+        a[0] = 0;
+        a[1] = 1;
+        a[2] = 2;
+        int* p = a + 1;
+        (*(p--))--;
         ASSERT(0, a[1]);
         ASSERT(p, a);
     }
 
-    ASSERT(1, 1<<0);
-    ASSERT(8, 1<<3);
-    ASSERT(10, 5<<1);
-    ASSERT(2, 5>>1);
-    ASSERT(-1, -1>>1);
+    ASSERT(1, 1 << 0);
+    ASSERT(8, 1 << 3);
+    ASSERT(10, 5 << 1);
+    ASSERT(2, 5 >> 1);
+    ASSERT(-1, -1 >> 1);
 
     {
         int i = 1;
@@ -146,17 +152,30 @@ int main()
         ASSERT(-1, i);
     }
 
-    ASSERT(2, 0?1:2);
-    ASSERT(1, 1?1:2);
-    ASSERT(-1, 0?-2:-1);
-    ASSERT(-2, 1?-2:-1);
-    ASSERT(4, sizeof(0?1:2));
-    ASSERT(8, sizeof(0?(long)1:(long)2));
-    ASSERT(-1, 0?(long)-2:-1);
-    ASSERT(-1, 0?-2:(long)-1);
-    ASSERT(-2, 1?(long)-2:-1);
-    ASSERT(-2, 1?-2:(long)-1);
+    ASSERT(2, 0 ? 1 : 2);
+    ASSERT(1, 1 ? 1 : 2);
+    ASSERT(-1, 0 ? -2 : -1);
+    ASSERT(-2, 1 ? -2 : -1);
+    ASSERT(4, sizeof(0 ? 1 : 2));
+    ASSERT(8, sizeof(0 ? (long)1 : (long)2));
+    ASSERT(-1, 0 ? (long)-2 : -1);
+    ASSERT(-1, 0 ? -2 : (long)-1);
+    ASSERT(-2, 1 ? (long)-2 : -1);
+    ASSERT(-2, 1 ? -2 : (long)-1);
     1 ? -2 : (void)-1;
+
+    {
+        int x;
+        int* p = &x;
+        ASSERT(20, p + 20 - p);
+        ASSERT(1, p + 20 - p > 0);
+        ASSERT(-20, p - 20 - p);
+        ASSERT(1, p - 20 - p < 0);
+    }
+
+    ASSERT(15, (char*)0xffffffffffffffff - (char*)0xfffffffffffffff0);
+    ASSERT(-15, (char*)0xfffffffffffffff0 - (char*)0xffffffffffffffff);
+    ASSERT(1, (void*)0xffffffffffffffff > (void*)0);
 
     printf("OK\n");
     return 0;
