@@ -11,7 +11,7 @@
 #ifdef ZERO_MEMORY
 #undef ZERO_MEMORY
 #endif
-#define ZERO_MEMORY(obj) memset(&obj, 0, sizeof(obj))
+#define ZERO_MEMORY(obj) memset(&(obj), 0, sizeof(obj))
 
 typedef struct {
     char* start;

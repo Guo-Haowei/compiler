@@ -239,18 +239,19 @@ struct Member {
     Member* next;
     Type* type;
     Token* name;
+    int idx;
     int offset;
 };
 
-Type* void_type();
-Type* char_type();
-Type* short_type();
-Type* int_type();
-Type* long_type();
-Type* uchar_type();
-Type* ushort_type();
-Type* uint_type();
-Type* ulong_type();
+extern Type g_void_type;
+extern Type g_char_type;
+extern Type g_short_type;
+extern Type g_int_type;
+extern Type g_long_type;
+extern Type g_uchar_type;
+extern Type g_ushort_type;
+extern Type g_uint_type;
+extern Type g_ulong_type;
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);
@@ -308,6 +309,14 @@ void _info_tok(Token* tok, char* msg);
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error_tok(LEVEL_ERROR, TOK, buf);       \
+    }                                            \
+    (void)0
+
+#define warn_tok(TOK, ...)                       \
+    {                                            \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_tok(LEVEL_WARN, TOK, buf);        \
     }                                            \
     (void)0
 

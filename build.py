@@ -34,6 +34,7 @@ def build_exe():
         '-Wall',
         '-Wextra',
         '-Wno-unused-local-typedefs',
+        '-Wno-missing-field-initializers',
         boundary
     ]
 

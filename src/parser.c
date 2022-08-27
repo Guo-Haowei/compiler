@@ -67,6 +67,7 @@ typedef struct InitDesg InitDesg;
 struct InitDesg {
     InitDesg* next;
     int idx;
+    Member* member;
     Obj* var;
 };
 
@@ -160,7 +161,7 @@ static Node* new_num(int64_t val, Token* tok)
 static Node* new_ulong(int64_t val, Token* tok)
 {
     Node* node = new_num(val, tok);
-    node->type = ulong_type();
+    node->type = &g_ulong_type;
     return node;
 }
 
@@ -319,22 +320,8 @@ static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 static Node* to_assign(ParserState* state, Node* binary);
 
+static Initializer* new_initializer(Type* ty, bool flex);
 static void initializer2(ParserState* state, Initializer* init);
-
-static Initializer* new_initializer(Type* ty)
-{
-    Initializer* init = calloc(1, ALIGN(sizeof(Initializer), 16));
-    init->type = ty;
-    if (ty->kind == TY_ARRAY) {
-        int size = ty->arrayLen * sizeof(Initializer);
-        size = ALIGN(size, 16);
-        init->children = calloc(1, size);
-        for (int i = 0; i < ty->arrayLen; ++i) {
-            init->children[i] = new_initializer(ty->base);
-        }
-    }
-    return init;
-}
 
 // primary = "(" expr ")"
 //         | "sizeof" "(" type-name ")"
@@ -455,19 +442,22 @@ static void parse_struct_members(ParserState* state, Type* ty)
     Member head;
     ZERO_MEMORY(head);
     Member* cur = &head;
+    int idx = 0;
 
     while (!consume(state, "}")) {
         Type* basety = parse_declspec(state, NULL);
-        int i = 0;
+        bool first = true;
         while (!consume(state, ";")) {
-            if (i++) {
+            if (!first) {
                 expect(state, ",");
             }
+            first = false;
 
-            Member* member = calloc(1, ALIGN(sizeof(Member), 16));
-            member->type = parse_declarator(state, basety);
-            member->name = member->type->name;
-            cur = cur->next = member;
+            Member* mem = calloc(1, ALIGN(sizeof(Member), 16));
+            mem->type = parse_declarator(state, basety);
+            mem->name = mem->type->name;
+            mem->idx = idx++;
+            cur = cur->next = mem;
         }
     }
     ty->members = head.next;
@@ -709,7 +699,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     // ptr - ptr, which returns how many elements are between the two.
     if (lhs->type->base && rhs->type->base) {
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
-        node->type = long_type();
+        node->type = &g_long_type;
         return new_binary(ND_DIV, node, new_num(lhs->type->base->size, tok), tok);
     }
 
@@ -1384,7 +1374,7 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
     };
 
     Token* tok = NULL;
-    Type* ty = int_type();
+    Type* ty = &g_int_type;
     int counter = 0;
 
     for (;;) {
@@ -1457,33 +1447,33 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 
         switch (counter) {
         case VOID:
-            ty = void_type();
+            ty = &g_void_type;
             break;
         case CHAR:
         case SIGNED + CHAR:
-            ty = char_type();
+            ty = &g_char_type;
             break;
         case UNSIGNED + CHAR:
-            ty = uchar_type();
+            ty = &g_uchar_type;
             break;
         case SHORT:
         case SIGNED + SHORT:
         case SHORT + INT:
         case SIGNED + SHORT + INT:
-            ty = short_type();
+            ty = &g_short_type;
             break;
         case UNSIGNED + SHORT:
         case UNSIGNED + SHORT + INT:
-            ty = ushort_type();
+            ty = &g_ushort_type;
             break;
         case INT:
         case SIGNED:
         case SIGNED + INT:
-            ty = int_type();
+            ty = &g_int_type;
             break;
         case UNSIGNED:
         case UNSIGNED + INT:
-            ty = uint_type();
+            ty = &g_uint_type;
             break;
         case LONG:
         case LONG + INT:
@@ -1493,13 +1483,13 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
         case SIGNED + LONG + INT:
         case SIGNED + LONG + LONG:
         case SIGNED + LONG + LONG + INT:
-            ty = long_type();
+            ty = &g_long_type;
             break;
         case UNSIGNED + LONG:
         case UNSIGNED + LONG + INT:
         case UNSIGNED + LONG + LONG:
         case UNSIGNED + LONG + LONG + INT:
-            ty = ulong_type();
+            ty = &g_ulong_type;
             break;
         default:
             error_tok(tok, "invalid type specifer");
@@ -1736,6 +1726,12 @@ static void write_gvar_data(Initializer* init, Type* ty, char* buf, int offset)
     if (init->expr) {
         write_buf(buf + offset, eval(init->expr), ty->size);
     }
+    if (ty->kind == TY_STRUCT) {
+        for (Member* mem = ty->members; mem; mem = mem->next) {
+            write_gvar_data(init->children[mem->idx], mem->type, buf, offset + mem->offset);
+        }
+        return;
+    }
 }
 
 // Initializers for global variables are evaluated at compile-time and
@@ -1771,6 +1767,7 @@ static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* a
 
 static void skip_excess_element(ParserState* state)
 {
+    warn_tok(peek(state), "excess elements in initializer");
     if (consume(state, "{")) {
         skip_excess_element(state);
         expect(state, "}");
@@ -1778,6 +1775,36 @@ static void skip_excess_element(ParserState* state)
     }
 
     parse_assign(state);
+}
+
+static Initializer* new_initializer(Type* ty, bool flex)
+{
+    (void)flex;
+
+    Initializer* init = calloc(1, ALIGN(sizeof(Initializer), 16));
+    init->type = ty;
+    if (ty->kind == TY_ARRAY) {
+        int size = ty->arrayLen * sizeof(Initializer);
+        size = ALIGN(size, 16);
+        init->children = calloc(1, size);
+        for (int i = 0; i < ty->arrayLen; ++i) {
+            init->children[i] = new_initializer(ty->base, false);
+        }
+    }
+
+    if (ty->kind == TY_STRUCT) {
+        // Count the number of struct members.
+        int len = 0;
+        for (Member* mem = ty->members; mem; mem = mem->next) {
+            len++;
+        }
+        init->children = calloc(len, sizeof(Initializer*));
+        for (Member* mem = ty->members; mem; mem = mem->next) {
+            init->children[mem->idx] = new_initializer(mem->type, false);
+        }
+        return init;
+    }
+    return init;
 }
 
 // string-initializer = string-literal
@@ -1807,16 +1834,51 @@ static void array_initializer(ParserState* state, Initializer* init)
     }
 }
 
+// struct-initializer = "{" initializer ("," initializer)* "}"
+static void struct_initializer(ParserState* state, Initializer* init)
+{
+    expect(state, "{");
+    Member* mem = init->type->members;
+    while (!consume(state, "}")) {
+        if (mem != init->type->members) {
+            expect(state, ",");
+        }
+        if (mem) {
+            initializer2(state, init->children[mem->idx]);
+            mem = mem->next;
+        } else {
+            skip_excess_element(state);
+        }
+    }
+}
+
 // initializer = string-initializer | array-initializer | assign
 static void initializer2(ParserState* state, Initializer* init)
 {
     Token* start = peek(state);
-    if (init->type->kind == TY_ARRAY && start->kind == TK_STR) {
+    int kind = init->type->kind;
+    if (kind == TY_ARRAY && start->kind == TK_STR) {
         string_initializer(state, init);
         return;
     }
-    if (init->type->kind == TY_ARRAY) {
+    if (kind == TY_ARRAY) {
         array_initializer(state, init);
+        return;
+    }
+    if (kind == TY_STRUCT) {
+        // A struct can be initialized with another struct. E.g.
+        // `struct T x = y;` where y is a variable of type `struct T`.
+        // Handle that case first.
+        if (!equal(state, "{")) {
+            Node* expr = parse_assign(state);
+            add_type(expr);
+            if (expr->type->kind == TY_STRUCT) {
+                init->expr = expr;
+                return;
+            }
+        }
+
+        struct_initializer(state, init);
         return;
     }
 
@@ -1825,7 +1887,7 @@ static void initializer2(ParserState* state, Initializer* init)
 
 static Initializer* parse_initializer(ParserState* state, Type* ty)
 {
-    Initializer* init = new_initializer(ty);
+    Initializer* init = new_initializer(ty, false);
     initializer2(state, init);
     return init;
 }
@@ -1835,6 +1897,13 @@ static Node* init_desg_expr(InitDesg* desg, Token* tok)
     if (desg->var) {
         return new_var(desg->var, tok);
     }
+
+    if (desg->member) {
+        Node* node = new_unary(ND_MEMBER, init_desg_expr(desg->next, tok), tok);
+        node->member = desg->member;
+        return node;
+    }
+
     Node* lhs = init_desg_expr(desg->next, tok);
     Node* rhs = new_num(desg->idx, tok);
     return new_unary(ND_DEREF, new_add(lhs, rhs, tok), tok);
@@ -1845,11 +1914,18 @@ static Node* create_lvar_init(Initializer* init, Type* ty, InitDesg* desg, Token
     if (ty->kind == TY_ARRAY) {
         Node* node = new_node(ND_NULL_EXPR, tok);
         for (int i = 0; i < ty->arrayLen; i++) {
-            InitDesg desg2;
-            ZERO_MEMORY(desg2);
-            desg2.next = desg;
-            desg2.idx = i;
+            InitDesg desg2 = { desg, i };
             Node* rhs = create_lvar_init(init->children[i], ty->base, &desg2, tok);
+            node = new_binary(ND_COMMA, node, rhs, tok);
+        }
+        return node;
+    }
+
+    if (ty->kind == TY_STRUCT && !init->expr) {
+        Node* node = new_node(ND_NULL_EXPR, tok);
+        for (Member* mem = ty->members; mem; mem = mem->next) {
+            InitDesg desg2 = { desg, 0, mem, NULL };
+            Node* rhs = create_lvar_init(init->children[mem->idx], mem->type, &desg2, tok);
             node = new_binary(ND_COMMA, node, rhs, tok);
         }
         return node;
@@ -1878,8 +1954,7 @@ static Node* parse_lvar_initializer(ParserState* state, Obj* var)
     Token* tok = peek(state);
     Initializer* init = parse_initializer(state, var->type);
     InitDesg desg;
-    desg.idx = 0;
-    desg.next = NULL;
+    ZERO_MEMORY(desg);
     desg.var = var;
 
     // If a partial initializer list is given, the standard requires
@@ -1933,7 +2008,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
     create_param_lvars(state, type->params);
     fn->params = state->locals;
     if (type->isVariadic) {
-        fn->vaArea = new_lvar(state, "__va_area__", array_of(char_type(), 136));
+        fn->vaArea = new_lvar(state, "__va_area__", array_of(&g_char_type, 136));
     }
     expect(state, "{");
     fn->body = parse_compound_stmt(state);

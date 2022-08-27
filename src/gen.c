@@ -553,7 +553,6 @@ static void assign_lvar_offsets(Obj* prog)
 
 static void emit_data(Obj* prog)
 {
-    println("  .data");
     for (Obj* var = prog; var; var = var->next) {
         if (var->isFunc || !var->isDefinition) {
             continue;
@@ -566,15 +565,19 @@ static void emit_data(Obj* prog)
         if (!var->isStatic) {
             println("  .globl %s", var->name);
         }
-        println("%s:", var->name);
 
-        if (var->initData) {
-            for (int i = 0; i < var->type->size; i++) {
-                int c = 0xFF & (var->initData[i]);
-                println("  .byte %d", c);
-            }
-        } else {
+        if (!var->initData) {
+            println("  .bss");
+            println("%s:", var->name);
             println("  .zero %d", var->type->size);
+            continue;
+        }
+
+        println("  .data");
+        println("%s:", var->name);
+        for (int i = 0; i < var->type->size; i++) {
+            int c = 0xFF & (var->initData[i]);
+            println("  .byte %d", c);
         }
     }
 }

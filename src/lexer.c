@@ -109,29 +109,29 @@ static void add_int(Lexer* lexer, Array* arr)
     Type* ty = NULL;
     if (base == 10) {
         if (l && u) {
-            ty = ulong_type();
+            ty = &g_ulong_type;
         } else if (l) {
-            ty = long_type();
+            ty = &g_long_type;
         } else if (u) {
-            ty = (val >> 32) ? ulong_type() : uint_type();
+            ty = (val >> 32) ? &g_ulong_type : &g_uint_type;
         } else {
-            ty = (val >> 31) ? long_type() : int_type();
+            ty = (val >> 31) ? &g_long_type : &g_int_type;
         }
     } else {
         if (l && u) {
-            ty = ulong_type();
+            ty = &g_ulong_type;
         } else if (l) {
-            ty = (val >> 63) ? ulong_type() : long_type();
+            ty = (val >> 63) ? &g_ulong_type : &g_long_type;
         } else if (u) {
-            ty = (val >> 32) ? ulong_type() : uint_type();
+            ty = (val >> 32) ? &g_ulong_type : &g_uint_type;
         } else if (val >> 63) {
-            ty = ulong_type();
+            ty = &g_ulong_type;
         } else if (val >> 32) {
-            ty = long_type();
+            ty = &g_long_type;
         } else if (val >> 31) {
-            ty = uint_type();
+            ty = &g_uint_type;
         } else {
-            ty = int_type();
+            ty = &g_int_type;
         }
     }
 
@@ -243,7 +243,7 @@ static void add_char(Lexer* lexer, Array* arr)
     tok.len = end - start;
     tok.sourceInfo = lexer->sourceInfo;
     tok.val = c;
-    tok.type = int_type();
+    tok.type = &g_int_type;
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -279,7 +279,7 @@ static void add_string(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    tok.type = array_of(char_type(), len);
+    tok.type = array_of(&g_char_type, len);
     tok.str = buf;
 
     array_push_back(Token, arr, tok);
@@ -381,6 +381,7 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
         // comment block
         if (strncmp(lexer.p, "/*", 2) == 0) {
             Lexer bak = lexer;
+
             lexer_shift(&lexer, 2); // skip /*
             // assume comment is always closed
             for (;;) {

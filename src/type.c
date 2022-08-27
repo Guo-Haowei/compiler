@@ -1,70 +1,14 @@
 #include "cc.h"
 
-static Type s_void;
-static Type s_char;
-static Type s_short;
-static Type s_int;
-static Type s_long;
-static Type s_uchar;
-static Type s_ushort;
-static Type s_uint;
-static Type s_ulong;
-
-static Type* init_type(Type* type, int kind, int size, bool isUnsigned)
-{
-    if (type->size == 0) {
-        type->kind = kind;
-        type->size = type->align = size;
-        type->isUnsigned = isUnsigned;
-    }
-
-    return type;
-}
-
-Type* void_type()
-{
-    return init_type(&s_void, TY_VOID, 1, false);
-}
-
-Type* char_type()
-{
-    return init_type(&s_char, TY_CHAR, 1, false);
-}
-
-Type* short_type()
-{
-    return init_type(&s_short, TY_SHORT, 2, false);
-}
-
-Type* int_type()
-{
-    return init_type(&s_int, TY_INT, 4, false);
-}
-
-Type* long_type()
-{
-    return init_type(&s_long, TY_LONG, 8, false);
-}
-
-Type* uchar_type()
-{
-    return init_type(&s_uchar, TY_CHAR, 1, true);
-}
-
-Type* ushort_type()
-{
-    return init_type(&s_ushort, TY_SHORT, 2, true);
-}
-
-Type* uint_type()
-{
-    return init_type(&s_uint, TY_INT, 4, true);
-}
-
-Type* ulong_type()
-{
-    return init_type(&s_ulong, TY_LONG, 8, true);
-}
+Type g_void_type = { TY_VOID, 1, 1 };
+Type g_char_type = { TY_CHAR, 1, 1 };
+Type g_short_type = { TY_SHORT, 2, 2 };
+Type g_int_type = { TY_INT, 4, 4 };
+Type g_long_type = { TY_LONG, 8, 8 };
+Type g_uchar_type = { TY_CHAR, 1, 1, true };
+Type g_ushort_type = { TY_SHORT, 2, 2, true };
+Type g_uint_type = { TY_INT, 4, 4, true };
+Type g_ulong_type = { TY_LONG, 8, 8, true };
 
 static Type* new_type(TypeKind kind, int size, int align)
 {
@@ -140,10 +84,10 @@ static Type* get_common_type(Type* ty1, Type* ty2)
     }
 
     if (ty1->size < 4) {
-        ty1 = int_type();
+        ty1 = &g_int_type;
     }
     if (ty2->size < 4) {
-        ty2 = int_type();
+        ty2 = &g_int_type;
     }
 
     if (ty1->size != ty2->size) {
@@ -197,7 +141,7 @@ void add_type(Node* node)
     case ND_NOT:
     case ND_LOGOR:
     case ND_LOGAND:
-        node->type = int_type();
+        node->type = &g_int_type;
         return;
     case ND_SHL:
     case ND_SHR:
@@ -216,7 +160,7 @@ void add_type(Node* node)
         node->type = node->lhs->type;
         return;
     case ND_NEG: {
-        Type* ty = get_common_type(int_type(), node->lhs->type);
+        Type* ty = get_common_type(&g_int_type, node->lhs->type);
         node->lhs = new_cast(node->lhs, ty, NULL);
         node->type = ty;
         return;
@@ -237,17 +181,17 @@ void add_type(Node* node)
     case ND_LT:
     case ND_LE:
         usual_arith_conv(&node->lhs, &node->rhs);
-        node->type = int_type();
+        node->type = &g_int_type;
         return;
     case ND_FUNCCALL:
-        node->type = long_type();
+        node->type = &g_long_type;
         return;
     case ND_VAR:
         node->type = node->var->type;
         return;
     case ND_TERNARY:
         if (node->then->type->kind == TY_VOID || node->els->type->kind == TY_VOID) {
-            node->type = void_type();
+            node->type = &g_void_type;
         } else {
             usual_arith_conv(&node->then, &node->els);
             node->type = node->then->type;
