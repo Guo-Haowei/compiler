@@ -20,6 +20,10 @@ rules = {
         'defines': [],
         'extra': ['src/generic/list.c']
     },
+    'unit.dict': {
+        'defines': [],
+        'extra': ['src/generic/dict.c']
+    },
     'extern': {
         'defines': [],
         'extra': ['test/extern2.c']

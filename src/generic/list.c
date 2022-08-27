@@ -23,13 +23,6 @@ List* list_new()
     return list;
 }
 
-void list_delete(List* plist)
-{
-    assert(plist);
-    list_clear(plist);
-    free(plist);
-}
-
 void list_clear(List* list)
 {
     assert(list);

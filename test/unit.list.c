@@ -83,7 +83,7 @@ int list_test()
     list_clear(l);
     assert(list_is_empty(l));
 
-    list_delete(l);
+    free(l);
 
     printf("list test passed\n");
     return 0;

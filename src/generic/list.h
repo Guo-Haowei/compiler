@@ -19,7 +19,6 @@ struct List {
 };
 
 List* list_new();
-void list_delete(List* plist);
 void list_clear(List* list);
 
 #define list_is_empty(l) (l->len == 0)
