@@ -25,8 +25,8 @@ typedef struct {
 typedef struct Scope {
     // C has two block scopes; one is for variables/typedefs and
     // the other is for struct/union/enum tags.
-    List vars;
-    List tags;
+    Dict* vars;
+    Dict* tags;
 } Scope;
 
 typedef struct {
@@ -109,6 +109,8 @@ static void enter_scope(ParserState* state)
 {
     Scope scope;
     memset(&scope, 0, sizeof(Scope));
+    scope.vars = dict_new();
+    scope.tags = dict_new();
     _list_push_back(&(state->scopes), &scope, sizeof(Scope));
 }
 
@@ -121,22 +123,20 @@ static void leave_scope(ParserState* state)
 static VarScope* push_var_scope(ParserState* state, char* name)
 {
     Scope* scope = list_back(Scope, &(state->scopes));
-    VarScope sc;
-    ZERO_MEMORY(sc);
-    sc.name = name;
-    list_push_back(&(scope->vars), sc);
-    return _list_back(&(scope->vars));
+    VarScope* sc = calloc(1, sizeof(VarScope));
+    sc->name = name;
+    dict_try_add(scope->vars, name, sc);
+    return sc;
 }
 
 static TagScope* push_tag_scope(ParserState* state, Token* tok, Type* ty)
 {
     Scope* scope = list_back(Scope, &(state->scopes));
-    TagScope sc;
-    ZERO_MEMORY(sc);
-    sc.name = tok->raw;
-    sc.ty = ty;
-    list_push_back(&(scope->tags), sc);
-    return _list_back(&(scope->tags));
+    TagScope* sc = calloc(1, sizeof(TagScope));
+    sc->name = tok->raw;
+    sc->ty = ty;
+    dict_try_add(scope->tags, tok->raw, sc);
+    return sc;
 }
 
 /**
@@ -232,11 +232,9 @@ static Type* find_tag(ParserState* state, Token* tok)
 {
     for (ListNode* s = state->scopes.back; s; s = s->prev) {
         Scope* scope = list_node_get(Scope, s);
-        for (ListNode* t = scope->tags.back; t; t = t->prev) {
-            TagScope* tag = list_node_get(TagScope, t);
-            if (streq(tok->raw, tag->name)) {
-                return tag->ty;
-            }
+        TagScope* tag = dict_get(scope->tags, tok->raw);
+        if (tag) {
+            return tag->ty;
         }
     }
     return NULL;
@@ -246,11 +244,9 @@ static VarScope* find_var(ParserState* state, Token* tok)
 {
     for (ListNode* s = state->scopes.back; s; s = s->prev) {
         Scope* scope = list_node_get(Scope, s);
-        for (ListNode* t = scope->vars.back; t; t = t->prev) {
-            VarScope* var = list_node_get(VarScope, t);
-            if (streq(tok->raw, var->name)) {
-                return var;
-            }
+        VarScope* var = dict_get(scope->vars, tok->raw);
+        if (var) {
+            return var;
         }
     }
     return NULL;
@@ -804,10 +800,14 @@ static Node* parse_equality(ParserState* state)
 // where tmp is a fresh pointer variable.
 static Node* to_assign(ParserState* state, Node* binary)
 {
+    static int s_counter;
+    char uniqueName[32];
+    snprintf(uniqueName, sizeof(uniqueName), "@to_assign%d", s_counter++);
+
     add_type(binary->lhs);
     add_type(binary->rhs);
     Token* tok = binary->tok;
-    Obj* tmp = new_lvar(state, "", pointer_to(binary->lhs->type));
+    Obj* tmp = new_lvar(state, strdup(uniqueName), pointer_to(binary->lhs->type));
     Node* expr1 = new_binary(ND_ASSIGN, new_var(tmp, tok), new_unary(ND_ADDR, binary->lhs, tok), tok);
     Node* derefTmp = new_unary(ND_DEREF, new_var(tmp, tok), tok);
     Node* op = new_binary(binary->kind, new_unary(ND_DEREF, new_var(tmp, tok), tok), binary->rhs, tok);
@@ -1211,14 +1211,22 @@ static Type* find_typedef(ParserState* state, Token* tok)
 
 static bool is_type_name(ParserState* state, Token* tok)
 {
-    static char s_typenames[13][12] = {
-        "char", "enum", "extern", "int", "long", "short", "signed", "static", "struct", "typedef", "union", "unsigned", "void"
-    };
+    static Dict* s_lookup;
+    if (!s_lookup) {
+        static char s_typenames[13][12] = {
+            "char", "enum", "extern", "int", "long", "short", "signed", "static", "struct", "typedef", "union", "unsigned", "void"
+        };
 
-    for (size_t i = 0; i < ARRAY_COUNTER(s_typenames); ++i) {
-        if (is_token_equal(tok, s_typenames[i])) {
-            return true;
+        s_lookup = dict_new();
+
+        for (size_t i = 0; i < ARRAY_COUNTER(s_typenames); ++i) {
+            bool ok = dict_try_add(s_lookup, s_typenames[i], NULL);
+            assert(ok);
         }
+    }
+
+    if (dict_has_key(s_lookup, tok->raw)) {
+        return true;
     }
 
     return find_typedef(state, tok) != NULL;

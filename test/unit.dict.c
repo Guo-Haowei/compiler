@@ -10,6 +10,9 @@ void print_dict(Dict* dict)
     int entries = 0;
     printf("Dict: size: %d, cap: %d\n", dict->size, dict->bucketSize);
     for (int i = 0; i < dict->bucketSize; ++i) {
+        if (!dict->bucket[i]) {
+            continue;
+        }
         printf("slot [%d]", i);
         for (DictEntry* e = dict->bucket[i]; e; e = e->next) {
             printf(" -> ('%s'(%u): %d)", e->key, e->hash, *((int*)(e->data)));

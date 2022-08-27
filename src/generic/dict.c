@@ -5,6 +5,7 @@
 
 #define INIT_SIZE 15
 #define HIGH_WATERMARK 70
+#define TOMBSTONE ((void*)-1) // deleted entry
 
 // https://stackoverflow.com/questions/7666509/hash-function-for-string
 static uint32_t hash_str(char* str)
@@ -27,6 +28,13 @@ Dict* dict_new()
 void dict_clear(Dict* dict)
 {
     assert(dict);
+    // for (int i = 0; i < dict->bucketSize; ++i) {
+    //     for (DictEntry* e = dict->bucket[i]; e;) {
+    //         DictEntry* tmp = e;
+    //         free(tmp);
+    //         e = e->next;
+    //     }
+    // }
     if (dict->bucket) {
         free(dict->bucket);
     }
@@ -49,19 +57,34 @@ static DictEntry* dict_get_internal(Dict* dict, char* key)
 void* dict_get(Dict* dict, char* key)
 {
     DictEntry* entry = dict_get_internal(dict, key);
-    return entry ? entry->data : NULL;
+    if (!entry) {
+        return NULL;
+    }
+    return entry->data == TOMBSTONE ? NULL : entry->data;
+}
+
+bool dict_has_key(Dict* dict, char* key)
+{
+    DictEntry* entry = dict_get_internal(dict, key);
+    if (!entry) {
+        return false;
+    }
+
+    return entry->data != TOMBSTONE;
 }
 
 bool dict_try_add(Dict* dict, char* key, void* data)
 {
     DictEntry* entry = dict_get_internal(dict, key);
-    if (entry) {
+    if (entry && entry->data != TOMBSTONE) {
         return false;
     }
 
     uint32_t hash = hash_str(key);
 
-    entry = calloc(1, sizeof(DictEntry));
+    if (!entry) {
+        entry = calloc(1, sizeof(DictEntry));
+    }
     entry->key = key;
     entry->data = data;
     entry->hash = hash;
@@ -101,5 +124,16 @@ bool dict_try_add(Dict* dict, char* key, void* data)
         dict->bucketSize = newBucketSize;
     }
 
+    return true;
+}
+
+bool dict_erase(Dict* dict, char* key)
+{
+    DictEntry* found = dict_get_internal(dict, key);
+    if (!found) {
+        return false;
+    }
+
+    found->data = TOMBSTONE;
     return true;
 }

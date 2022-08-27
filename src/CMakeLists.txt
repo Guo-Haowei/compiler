@@ -1,8 +1,8 @@
 add_executable(cc
     generic/array.c
     generic/list.c
+    generic/dict.c
     gen.c
-    file_cache.c
     lexer.c
     main.c
     parser.c

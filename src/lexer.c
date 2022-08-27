@@ -1,5 +1,27 @@
 #include "cc.h"
 
+// cache lexed files
+static Dict* s_filecache;
+
+static Array* fcache_get(char* path)
+{
+    if (!s_filecache) {
+        s_filecache = dict_new();
+    }
+
+    Array* found = dict_get(s_filecache, path);
+    return found;
+}
+
+static bool fcache_add(char* path, Array* toks)
+{
+    if (!s_filecache) {
+        s_filecache = dict_new();
+    }
+
+    return dict_try_add(s_filecache, path, toks);
+}
+
 static bool is_ident1(char c)
 {
     return isalpha(c) || c == '_';

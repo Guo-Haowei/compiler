@@ -18,11 +18,24 @@ typedef struct {
     bool isVararg;
 } Macro;
 
+// static void printMacros(Dict* dict)
+// {
+//     printf("%d macros\n", dict->size);
+//     int cnt = 0;
+//     for (int i = 0; i < dict->bucketSize; ++i) {
+//         for (DictEntry* e = dict->bucket[i]; e; e = e->next) {
+//             printf("%d: macro %s\n", cnt, e->key);
+//             ++cnt;
+//         }
+//     }
+//     assert(cnt == dict->size);
+// }
+
 typedef struct {
     List* conditions;
     List* processed;
     List* unprocessed;
-    Array* macros;
+    Dict* macros;
     char* includepath;
 } PreprocState;
 
@@ -44,19 +57,7 @@ static bool is_active(PreprocState* state)
 static Macro* find_macro(PreprocState* state, Token* token)
 {
     assert(token->raw);
-    Array* macros = state->macros;
-    for (int i = 0; i < macros->len; ++i) {
-        Macro* macro = array_at(Macro, macros, i);
-        assert(!macro->token.expandedFrom);
-        if (macro->token.len == 0) {
-            continue;
-        }
-        assert(macro->token.raw);
-        if (streq(token->raw, macro->token.raw)) {
-            return macro;
-        }
-    }
-    return NULL;
+    return dict_get(state->macros, token->raw);
 }
 
 static void preproc2(PreprocState* state);
@@ -312,7 +313,7 @@ static void define(PreprocState* state, List* preprocLine)
 
     Macro* found = find_macro(state, name);
     if (found) {
-        info_tok(&(found->token), "this is the location of the previous definition");
+        //info_tok(&(found->token), "this is the location of the previous definition");
         error_tok(name, "'%s' redefined", name->raw);
     }
 
@@ -321,55 +322,58 @@ static void define(PreprocState* state, List* preprocLine)
     reader.cursor = preprocLine->front->next; // skip name
     Token* tok = peek(&reader);
 
-    Macro macro;
-    macro.token = *name;
-    macro.isFunc = false;
+    Macro* macro = calloc(1, sizeof(Macro));
+    macro->token = *name;
+    macro->isFunc = false;
     list_pop_front(preprocLine); // remove name
 
     if (tok == NULL) {
-        macro.expandTo = NULL;
-        array_push_back(Macro, state->macros, macro);
+        macro->expandTo = NULL;
+        bool ok = dict_try_add(state->macros, macro->token.raw, macro);
+        assert(ok);
         return;
     }
 
     // check if there's a space, if so
     bool isBracket = is_token_equal(tok, "(");
-    bool noSpace = macro.token.p + macro.token.len == tok->p;
+    bool noSpace = macro->token.p + macro->token.len == tok->p;
     if (!(isBracket && noSpace)) {
-        macro.expandTo = preprocLine;
-        array_push_back(Macro, state->macros, macro);
+        macro->expandTo = preprocLine;
+        bool ok = dict_try_add(state->macros, macro->token.raw, macro);
+        assert(ok);
         return;
     }
 
     // read args
-    macro.args = list_new();
+    macro->args = list_new();
     TokenReader tr;
     tr.tokens = preprocLine;
     tr.cursor = preprocLine->front;
     tr_expect(&tr, "(");
     while (!tr_consume(&tr, ")")) {
-        if (list_len(macro.args)) {
+        if (list_len(macro->args)) {
             tr_expect(&tr, ",");
         }
 
         Token* arg = tr_read(&tr);
         if (is_token_equal(arg, "...")) {
             tr_expect(&tr, ")");
-            macro.isVararg = true;
+            macro->isVararg = true;
             break;
         }
 
         if (arg->kind != TK_IDENT) {
             error_tok(arg, "expected parameter name, found \"%s\"", arg->raw);
         }
-        _list_push_back(macro.args, arg, sizeof(Token));
+        _list_push_back(macro->args, arg, sizeof(Token));
     }
 
     pop_to(preprocLine, tr.cursor);
 
-    macro.expandTo = preprocLine;
-    macro.isFunc = true;
-    array_push_back(Macro, state->macros, macro);
+    macro->expandTo = preprocLine;
+    macro->isFunc = true;
+    bool ok = dict_try_add(state->macros, macro->token.raw, macro);
+    assert(ok);
 }
 
 static void undef(PreprocState* state, List* preprocLine)
@@ -389,7 +393,8 @@ static void undef(PreprocState* state, List* preprocLine)
         return;
     }
 
-    memset(found, 0, sizeof(Macro));
+    bool ok = dict_erase(state->macros, name->raw);
+    assert(ok);
 }
 
 static void if_defined(PreprocState* state, List* preprocLine)
@@ -610,7 +615,7 @@ List* preproc(Array* toks, char* includepath)
     state.processed = list_new();
     state.unprocessed = list_new();
     state.conditions = list_new();
-    state.macros = array_new(sizeof(Macro), 8);
+    state.macros = dict_new();
     state.includepath = includepath;
 
     // copy all tokens to unprocessed

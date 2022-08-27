@@ -22,6 +22,8 @@ Dict* dict_new();
 void dict_clear(Dict* dict);
 
 void* dict_get(Dict* dict, char* key);
+bool dict_has_key(Dict* dict, char* key);
 bool dict_try_add(Dict* dict, char* key, void* data);
+bool dict_erase(Dict* dict, char* key);
 
 #endif

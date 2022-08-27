@@ -8,15 +8,10 @@
 #include <string.h>
 
 #include "generic/array.h"
+#include "generic/dict.h"
 #include "generic/list.h"
 
 #include "utility.h"
-
-/**
- * file_cache.c
- */
-Array* fcache_get(char* absPath);
-bool fcache_add(char* absPath, Array* toks);
 
 typedef enum token_kind_t {
     TK_IDENT,   // Identifiers
