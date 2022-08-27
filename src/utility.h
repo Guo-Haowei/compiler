@@ -28,4 +28,6 @@ bool startswithcase(char* p, char* start);
 #define MAX_OSPATH 512
 int path_simplify(char* inputPath, char* buf);
 
+int unique_id();
+
 #endif // __UTILITY_H__

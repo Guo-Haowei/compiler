@@ -39,11 +39,10 @@ static char s_cast_table[8][8][24] = {
 };
 
 #define println(...)                    \
-    {                                   \
+    do {                                \
         fprintf(s_output, __VA_ARGS__); \
         fprintf(s_output, "\n");        \
-    }                                   \
-    (void)0
+    } while (0)
 
 static void push()
 {
@@ -503,6 +502,17 @@ static void gen_stmt(Node* node)
             gen_expr(node->inc);
         }
         println("  jmp .L.begin.%d", c);
+        println("%s:", node->brkLabel);
+        return;
+    }
+    case ND_DO: {
+        int c = unique_id();
+        println(".L.begin.%d:", c);
+        gen_stmt(node->then);
+        println("%s:", node->cntLabel);
+        gen_expr(node->cond);
+        println("  cmp $0, %%rax");
+        println("  jne .L.begin.%d", c);
         println("%s:", node->brkLabel);
         return;
     }

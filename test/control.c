@@ -1,6 +1,7 @@
 #include "test.h"
 
-static int test_switch(int a) {
+static int test_switch(int a)
+{
     int i = 0;
     switch (a % 8) {
     case 7:
@@ -41,7 +42,8 @@ int main()
     }
     {
         int counter = 0;
-        for (int i = 10, j = 0; i > j; i--, j += 1, counter++);
+        for (int i = 10, j = 0; i > j; i--, j += 1, counter++)
+            ;
         ASSERT(5, counter);
     }
     {
@@ -51,23 +53,23 @@ int main()
         ASSERT(1, i);
     }
     {
-        int i=0;
-        for(; i<10; i++) {
+        int i = 0;
+        for (; i < 10; i++) {
             if (i == 3)
                 break;
         }
         ASSERT(3, i);
     }
     {
-        int i=0;
+        int i = 0;
         while (1)
             if (i++ == 3)
                 break;
         ASSERT(4, i);
     }
     {
-        int i=0;
-        for(; i < 10; i++) {
+        int i = 0;
+        for (; i < 10; i++) {
             for (;;)
                 break;
             if (i == 3)
@@ -76,9 +78,9 @@ int main()
         ASSERT(3, i);
     }
     {
-        int i=0;
+        int i = 0;
         while (1) {
-            while(1)
+            while (1)
                 break;
             if (i++ == 3)
                 break;
@@ -97,7 +99,7 @@ int main()
     }
     {
         int i = 0, j = 0;
-        for(; !i; ) {
+        for (; !i;) {
             for (; j != 10; j++)
                 continue;
             break;
@@ -123,43 +125,60 @@ int main()
         }
         ASSERT(11, j);
     }
+    {
+        int i = 0, j = 0;
+        do {
+            j++;
+        } while (i++ < 6);
+        ASSERT(7, j);
+    }
+    {
+        int i = 0, j = 0, k = 0;
+        do {
+            if (++j > 3)
+                break;
+            continue;
+            k++;
+        } while (1);
+        ASSERT(4, j);
+    }
 
-    ASSERT(1, 0||1);
-    ASSERT(1, 0||(2-2)||5);
-    ASSERT(0, 0||0);
-    ASSERT(0, 0||(2-2));
-    ASSERT(0, 0&&1);
-    ASSERT(0, (2-2)&&5);
-    ASSERT(1, 1&&5);
+    ASSERT(1, 0 || 1);
+    ASSERT(1, 0 || (2 - 2) || 5);
+    ASSERT(0, 0 || 0);
+    ASSERT(0, 0 || (2 - 2));
+    ASSERT(0, 0 && 1);
+    ASSERT(0, (2 - 2) && 5);
+    ASSERT(1, 1 && 5);
 
     {
         int i = 0;
         goto label1;
-label1:
+    label1:
         i++;
-label2:
+    label2:
         i++;
-label3:
+    label3:
         i++;
         ASSERT(3, i);
     }
     {
         int i = 0;
         goto label5;
-label4:
+    label4:
         i++;
-label5:
+    label5:
         i++;
-label6:
+    label6:
         i++;
         ASSERT(2, i);
     }
     {
         typedef int foo;
         goto foo;
-            ASSERT(0, 1);
-        foo:
-            (void)0;
+        ASSERT(0, 1);
+    foo:
+        (void)0;
     }
 
     {

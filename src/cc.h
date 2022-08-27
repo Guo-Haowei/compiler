@@ -13,7 +13,7 @@
 
 #include "utility.h"
 
-typedef enum token_kind_t {
+typedef enum {
     TK_IDENT,   // Identifiers
     TK_PUNCT,   // Punctuators
     TK_KEYWORD, // Keywords
@@ -23,7 +23,7 @@ typedef enum token_kind_t {
     TK_COUNT,
 } TokenKind;
 
-typedef enum node_kind_t {
+typedef enum {
     ND_INVALID,
     ND_NULL_EXPR, // null expr
     ND_ADD,       // +
@@ -53,6 +53,7 @@ typedef enum node_kind_t {
     ND_MEMBER,    // . (struct member access)
     ND_IF,        // "if"
     ND_FOR,       // "for" or "while"
+    ND_DO,        // "do"
     ND_RETURN,    // "return"
     ND_BLOCK,     // { ... }
     ND_GOTO,      // "goto"
@@ -68,7 +69,7 @@ typedef enum node_kind_t {
     ND_COUNT,
 } NodeKind;
 
-typedef struct source_info_t {
+typedef struct {
     char file[MAX_OSPATH];
     char* start;
     char* end;
@@ -174,7 +175,7 @@ struct Node {
     int isUnary;
 };
 
-typedef struct lexer_t {
+typedef struct {
     SourceInfo* sourceInfo;
     char* p;
     int line;
@@ -258,8 +259,6 @@ Type* enum_type();
 
 bool is_token_equal(Token* token, char* symbol);
 
-List* preproc(Array* toks, char* includepath);
-
 void dump_preproc(List* toks);
 Node* new_cast(Node* expr, Type* type, Token* tok);
 Obj* parse(List* toks);
@@ -283,48 +282,45 @@ void _error_tok(int level, Token* token, char* msg);
 void _info_tok(Token* tok, char* msg);
 
 #define error(...)                               \
-    {                                            \
+    do {                                         \
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error(buf);                             \
-    }                                            \
-    (void)0
+    } while (0)
 
 #define error_lex(LEXER, ...)                    \
-    {                                            \
+    do {                                         \
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error_lex(LEXER, buf);                  \
-    }                                            \
-    (void)0
+    } while (0)
 
 #define error_tok(TOK, ...)                      \
-    {                                            \
+    do {                                         \
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error_tok(LEVEL_ERROR, TOK, buf);       \
-    }                                            \
-    (void)0
+    } while (0)
 
 #define warn_tok(TOK, ...)                       \
-    {                                            \
+    do {                                         \
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _error_tok(LEVEL_WARN, TOK, buf);        \
-    }                                            \
-    (void)0
+    } while (0)
 
 #define info_tok(TOK, ...)                       \
-    {                                            \
+    do {                                         \
         char buf[256];                           \
         snprintf(buf, sizeof(buf), __VA_ARGS__); \
         _info_tok(TOK, buf);                     \
-    }                                            \
-    (void)0
+    } while (0)
 
 /**
- *  utility
+ * preproc.c
  */
+
+List* preproc(Array* toks, char* includepath);
 
 typedef struct {
     List* tokens;
@@ -337,7 +333,5 @@ Token* tr_read(TokenReader* reader);
 bool tr_equal(TokenReader* reader, char* symbol);
 bool tr_consume(TokenReader* reader, char* symbol);
 void tr_expect(TokenReader* reader, char* symbol);
-
-int unique_id();
 
 #endif

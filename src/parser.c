@@ -1010,6 +1010,7 @@ static Node* parse_expr_stmt(ParserState* state)
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
+//      | "do" stmt "while" "(" expr ")" ";"
 //      | "break" ";"
 //      | "continue" ";"
 //      | "goto" ident ";"
@@ -1100,6 +1101,25 @@ static Node* parse_stmt(ParserState* state)
 
         state->brkLabel = restoreBrk;
         state->cntLabel = restoreCnt;
+        return node;
+    }
+
+    if (consume(state, "do")) {
+        Node* node = new_node(ND_DO, start);
+
+        char* restoreBrk = state->brkLabel;
+        char* restoreCnt = state->cntLabel;
+        state->brkLabel = node->brkLabel = new_unique_name();
+        state->cntLabel = node->cntLabel = new_unique_name();
+        node->then = parse_stmt(state);
+        state->brkLabel = restoreBrk;
+        state->cntLabel = restoreCnt;
+
+        expect(state, "while");
+        expect(state, "(");
+        node->cond = parse_expr(state);
+        expect(state, ")");
+        expect(state, ";");
         return node;
     }
 
