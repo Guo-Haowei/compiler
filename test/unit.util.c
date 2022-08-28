@@ -26,11 +26,11 @@ int util_test()
     // ARRAY_COUNTER()
     {
         int arr[4];
-        assert(ARRAY_COUNTER(arr) == 4);
+        STATIC_ASSERT(ARRAY_COUNTER(arr) == 4);
     }
     {
         char arr[8];
-        assert(ARRAY_COUNTER(arr) == 8);
+        STATIC_ASSERT(ARRAY_COUNTER(arr) == 8);
     }
 
     assert(streq("ABC", "ABC"));

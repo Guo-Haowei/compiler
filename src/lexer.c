@@ -226,12 +226,13 @@ static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
     *new_pos = p + 1;
 
     if (islower(*p)) {
-        static char s_escape[26] = {
+        static char s_escape[] = {
             '\a', '\b', 'c', 'd', 27, '\f', 'g',
             'h', 'i', 'j', 'k', 'l', 'm', '\n',
             'o', 'p', 'q', '\r', 's', '\t',
             'u', '\v', 'w', 'x', 'y', 'z'
         };
+        STATIC_ASSERT(ARRAY_COUNTER(s_escape) == 26);
         return s_escape[*p - 'a'];
     }
 
@@ -335,10 +336,11 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
 
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
-    static char s_puncts[23][4] = {
+    static char s_puncts[][4] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
         ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
     };
+    STATIC_ASSERT(ARRAY_COUNTER(s_puncts) == 23);
 
     for (size_t i = 0; i < ARRAY_COUNTER(s_puncts); ++i) {
         if (begin_with(lexer->p, s_puncts[i])) {

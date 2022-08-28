@@ -5,7 +5,13 @@
 #define MAX(a, b) ((a > b) ? a : b)
 #define MIN(a, b) ((a < b) ? a : b)
 
-#define ARRAY_COUNTER(arr) (sizeof(arr) / sizeof(*(arr)))
+#define ARRAY_COUNTER(ARR) (sizeof(ARR) / sizeof(*(ARR)))
+#define STATIC_ASSERT(COND)      \
+    {                            \
+        int _a[(COND) ? 1 : -1]; \
+        ((void)_a[0]);           \
+    }                            \
+    ((void)0)
 
 // define bool as int
 typedef int bool;

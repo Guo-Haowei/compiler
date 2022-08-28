@@ -43,6 +43,7 @@ struct Initializer {
     // If it's an initializer for an aggregate type (e.g. array or struct),
     // `children` has initializers for its children.
     Initializer** children;
+    bool flexible;
 };
 
 // For local variable initializer.
@@ -287,28 +288,28 @@ static Node* parse_compound_stmt(ParserState* state);
 static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* attrib);
 static Type* parse_declspec(ParserState* state, VarAttrib* attrib);
 static Type* parse_declarator(ParserState* state, Type* type);
-static void parse_gvar_initializer(ParserState* state, Obj* var);
-static Node* parse_lvar_initializer(ParserState* state, Obj* var);
 static void parse_typedef(ParserState* state, Type* baseType);
 static bool is_type_name(ParserState* state, Token* tok);
 static Type* parse_type_name(ParserState* state);
 static Type* parse_type_suffix(ParserState* state, Type* type);
-static Initializer* parse_initializer(ParserState* state, Type* ty);
 static Node* new_add(Node* lhs, Node* rhs, Token* tok);
 static Node* new_sub(Node* lhs, Node* rhs, Token* tok);
 static Node* to_assign(ParserState* state, Node* binary);
 
-static Initializer* new_initializer(Type* ty, bool flex);
-static void initializer2(ParserState* state, Initializer* init);
+static Initializer* new_initializer(Type* ty, bool flexible);
+static Initializer* parse_initializer(ParserState* state, Type* ty, Type** newType);
+static void parse_initializer2(ParserState* state, Initializer* init);
+static void parse_gvar_initializer(ParserState* state, Obj* var);
+static Node* parse_lvar_initializer(ParserState* state, Obj* var);
 
-#define PARSE_BINARY(NAME, PARSE_FUNC, COUNT, ...)                                         \
+#define PARSE_BINARY(NAME, PARSE_FUNC, ...)                                                \
     static Node* parse_##NAME(ParserState* state)                                          \
     {                                                                                      \
         typedef struct {                                                                   \
             char* symbol;                                                                  \
             int kind;                                                                      \
         } Symbol;                                                                          \
-        Symbol symbols[COUNT] = __VA_ARGS__;                                               \
+        Symbol symbols[] = __VA_ARGS__;                                                    \
         Node* node = parse_##PARSE_FUNC(state);                                            \
         for (;;) {                                                                         \
             bool found = false;                                                            \
@@ -633,7 +634,7 @@ static Node* parse_cast(ParserState* state)
 }
 
 // mul = cast ("*" cast | "/" cast | "%" cast)*
-PARSE_BINARY(mul, cast, 3, { { "*", ND_MUL }, { "/", ND_DIV }, { "%", ND_MOD } });
+PARSE_BINARY(mul, cast, { { "*", ND_MUL }, { "/", ND_DIV }, { "%", ND_MOD } });
 
 static Node* new_add(Node* lhs, Node* rhs, Token* tok)
 {
@@ -711,7 +712,7 @@ static Node* parse_add(ParserState* state)
 }
 
 // shift = add ("<<" add | ">>" add)*
-PARSE_BINARY(shift, add, 2, { { ">>", ND_SHR }, { "<<", ND_SHL } });
+PARSE_BINARY(shift, add, { { ">>", ND_SHR }, { "<<", ND_SHL } });
 
 // relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node* parse_relational(ParserState* state)
@@ -744,7 +745,7 @@ static Node* parse_relational(ParserState* state)
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-PARSE_BINARY(equality, relational, 2, { { "==", ND_EQ }, { "!=", ND_NE } });
+PARSE_BINARY(equality, relational, { { "==", ND_EQ }, { "!=", ND_NE } });
 
 // Convert `A op= B` to `tmp = &A, *tmp = *tmp op B`
 // where tmp is a fresh pointer variable.
@@ -766,19 +767,19 @@ static Node* to_assign(ParserState* state, Node* binary)
 }
 
 // bitor = bitxor ("|" bitxor)*
-PARSE_BINARY(bitor, bitxor, 1, { { "|", ND_BITOR } });
+PARSE_BINARY(bitor, bitxor, { { "|", ND_BITOR } });
 
 // bitxor = bitand ("^" bitand)*
-PARSE_BINARY(bitxor, bitand, 1, { { "^", ND_BITXOR } });
+PARSE_BINARY(bitxor, bitand, { { "^", ND_BITXOR } });
 
 // bitand = equality ("&" equality)*
-PARSE_BINARY(bitand, equality, 1, { { "&", ND_BITAND } });
+PARSE_BINARY(bitand, equality, { { "&", ND_BITAND } });
 
 // logand = bitor ("&&" bitor)*
-PARSE_BINARY(logand, bitor, 1, { { "&&", ND_LOGAND } });
+PARSE_BINARY(logand, bitor, { { "&&", ND_LOGAND } });
 
 // logor = logand ("||" logand)*
-PARSE_BINARY(logor, logand, 1, { { "||", ND_LOGOR } });
+PARSE_BINARY(logor, logand, { { "||", ND_LOGOR } });
 
 // ternary = logor ("?" expr ":" conditional)?
 static Node* parse_ternary(ParserState* state)
@@ -1143,9 +1144,10 @@ static bool is_type_name(ParserState* state, Token* tok)
 {
     static Dict* s_lookup;
     if (!s_lookup) {
-        static char s_typenames[13][12] = {
+        char* s_typenames[] = {
             "char", "enum", "extern", "int", "long", "short", "signed", "static", "struct", "typedef", "union", "unsigned", "void"
         };
+        STATIC_ASSERT(ARRAY_COUNTER(s_typenames) == 13);
 
         s_lookup = dict_new();
 
@@ -1543,7 +1545,15 @@ static Type* parse_type_suffix(ParserState* state, Type* type)
     }
 
     if (consume(state, "[")) {
+        if (consume(state, "]")) {
+            type = parse_type_suffix(state, type);
+            return array_of(type, -1);
+        }
+        Token* arrayLenStart = peek(state);
         int arrayLen = parse_constexpr(state);
+        if (arrayLen <= 0) {
+            error_tok(arrayLenStart, "size of array is not positive");
+        }
         expect(state, "]");
         type = parse_type_suffix(state, type);
         return array_of(type, arrayLen);
@@ -1583,9 +1593,6 @@ static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* at
         }
 
         Type* type = parse_declarator(state, baseType);
-        if (type->kind == TY_VOID) {
-            error_tok(type->name, "variable or field '%s' declared void", type->name->raw);
-        }
 
         if (attrib && attrib->isStatic) {
             // static local variable
@@ -1605,6 +1612,13 @@ static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* at
 
             Node* expr = parse_lvar_initializer(state, var);
             cur = cur->next = new_unary(ND_EXPR_STMT, expr, tok);
+        }
+
+        if (var->type->size < 0) {
+            error_tok(type->name, "incomplete type '%s'", type->name->raw);
+        }
+        if (type->kind == TY_VOID) {
+            error_tok(type->name, "variable or field '%s' declared void", type->name->raw);
         }
     }
 
@@ -1678,7 +1692,7 @@ static void write_gvar_data(Initializer* init, Type* ty, char* buf, int offset)
 // initializer list contains a non-constant expression.
 static void parse_gvar_initializer(ParserState* state, Obj* var)
 {
-    Initializer* init = parse_initializer(state, var->type);
+    Initializer* init = parse_initializer(state, var->type, &(var->type));
     char* buf = calloc(1, var->type->size);
     write_gvar_data(init, var->type, buf, 0);
     var->initData = buf;
@@ -1715,13 +1729,16 @@ static void skip_excess_element(ParserState* state)
     parse_assign(state);
 }
 
-static Initializer* new_initializer(Type* ty, bool flex)
+static Initializer* new_initializer(Type* ty, bool flexible)
 {
-    (void)flex;
-
     Initializer* init = calloc(1, sizeof(Initializer));
     init->type = ty;
     if (ty->kind == TY_ARRAY) {
+        if (flexible && ty->size < 0) {
+            init->flexible = true;
+            return init;
+        }
+
         int size = ty->arrayLen * sizeof(Initializer);
         size = ALIGN(size, 16);
         init->children = calloc(1, size);
@@ -1745,11 +1762,33 @@ static Initializer* new_initializer(Type* ty, bool flex)
     return init;
 }
 
+// An array length can be omitted if an array has an initializer
+// (e.g. `int x[] = {1,2,3}`). If it's omitted, count the number
+// of initializer elements.
+static int count_array_init_elements(ParserState* state, Type* type)
+{
+    ListNode* restore = state->reader.cursor;
+    Initializer* dummy = new_initializer(type->base, false);
+    int i = 0;
+    for (; !equal(state, "}"); i++) {
+        if (i > 0) {
+            expect(state, ",");
+        }
+        parse_initializer2(state, dummy);
+    }
+    state->reader.cursor = restore;
+    return i;
+}
+
 // string-initializer = string-literal
 static void string_initializer(ParserState* state, Initializer* init)
 {
     Token* tok = read(state);
     assert(tok->kind == TK_STR);
+    if (init->flexible) {
+        *init = *new_initializer(array_of(init->type->base, tok->type->arrayLen), false);
+    }
+
     int len = MIN(init->type->arrayLen, tok->type->arrayLen);
     for (int i = 0; i < len; i++) {
         init->children[i]->expr = new_num(tok->str[i], tok);
@@ -1760,12 +1799,18 @@ static void string_initializer(ParserState* state, Initializer* init)
 static void array_initializer(ParserState* state, Initializer* init)
 {
     expect(state, "{");
+
+    if (init->flexible) {
+        int len = count_array_init_elements(state, init->type);
+        *init = *new_initializer(array_of(init->type->base, len), false);
+    }
+
     for (int i = 0; !consume(state, "}"); i++) {
         if (i > 0) {
             expect(state, ",");
         }
         if (i < init->type->arrayLen) {
-            initializer2(state, init->children[i]);
+            parse_initializer2(state, init->children[i]);
         } else {
             skip_excess_element(state);
         }
@@ -1782,7 +1827,7 @@ static void struct_initializer(ParserState* state, Initializer* init)
             expect(state, ",");
         }
         if (mem) {
-            initializer2(state, init->children[mem->idx]);
+            parse_initializer2(state, init->children[mem->idx]);
             mem = mem->next;
         } else {
             skip_excess_element(state);
@@ -1791,7 +1836,7 @@ static void struct_initializer(ParserState* state, Initializer* init)
 }
 
 // initializer = string-initializer | array-initializer | assign
-static void initializer2(ParserState* state, Initializer* init)
+static void parse_initializer2(ParserState* state, Initializer* init)
 {
     Token* start = peek(state);
     int kind = init->type->kind;
@@ -1823,10 +1868,11 @@ static void initializer2(ParserState* state, Initializer* init)
     init->expr = parse_assign(state);
 }
 
-static Initializer* parse_initializer(ParserState* state, Type* ty)
+static Initializer* parse_initializer(ParserState* state, Type* ty, Type** newType)
 {
-    Initializer* init = new_initializer(ty, false);
-    initializer2(state, init);
+    Initializer* init = new_initializer(ty, true);
+    parse_initializer2(state, init);
+    *newType = init->type;
     return init;
 }
 
@@ -1890,7 +1936,7 @@ static Node* create_lvar_init(Initializer* init, Type* ty, InitDesg* desg, Token
 static Node* parse_lvar_initializer(ParserState* state, Obj* var)
 {
     Token* tok = peek(state);
-    Initializer* init = parse_initializer(state, var->type);
+    Initializer* init = parse_initializer(state, var->type, &(var->type));
     InitDesg desg;
     ZERO_MEMORY(desg);
     desg.var = var;
@@ -1975,7 +2021,6 @@ Obj* parse(List* tokens)
 {
     ParserState state;
     ZERO_MEMORY(state);
-    state.reader.tokens = tokens;
     state.reader.cursor = tokens->front;
 
     enter_scope(&state);

@@ -322,7 +322,6 @@ void _info_tok(Token* tok, char* msg);
 List* preproc(Array* toks, char* includepath);
 
 typedef struct {
-    List* tokens;
     ListNode* cursor;
 } TokenReader;
 

@@ -7,10 +7,10 @@
 enum { I8, I16, I32, I64, U8, U16, U32, U64 };
 // clang-format on
 
-static char s_argreg8[4][8] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char s_argreg16[4][8] = { "%cx", "%dx", "%r8w", "%r9w" };
-static char s_argreg32[4][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
-static char s_argreg64[4][8] = { "%rcx", "%rdx", "%r8", "%r9" };
+static char s_argreg8[][8] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char s_argreg16[][8] = { "%cx", "%dx", "%r8w", "%r9w" };
+static char s_argreg32[][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
+static char s_argreg64[][8] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static int s_depth;
 static Obj* s_current_fn;
@@ -24,7 +24,7 @@ static FILE* s_output;
 #define I32I64 "movsxd %eax, %rax"
 #define U32I64 "mov %eax, %eax"
 
-static char s_cast_table[8][8][24] = {
+static char s_cast_table[][8][24] = {
     // i8   i16     i32   i64     u8     u16     u32   u64
     // clang-format off
     { ""   , ""    , "", I32I64, I32U8, I32U16, "", I32I64 }, // i8
@@ -166,12 +166,13 @@ static void gen_addr(Node* node)
 
 static void gen_cmp_expr(NodeKind kind, char* di, char* ax, bool isUnsigned)
 {
-    char* s_compares[4][2] = {
+    char* s_compares[][2] = {
         { "sete", "sete" },
         { "setne", "setne" },
         { "setl", "setb" },
         { "setle", "setbe" }
     };
+    STATIC_ASSERT(ARRAY_COUNTER(s_compares) == ND_LE - ND_EQ + 1);
 
     int index = kind - ND_EQ;
     ASSERT_IDX(index, ARRAY_COUNTER(s_compares));

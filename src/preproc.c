@@ -115,8 +115,7 @@ static void expand_token(Token* input, Token* original, Token* macroToken)
 static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroName)
 {
     TokenReader tr;
-    tr.tokens = state->unprocessed;
-    tr.cursor = tr.tokens->front;
+    tr.cursor = state->unprocessed->front;
     tr_expect(&tr, "(");
     Array* args = array_new(sizeof(List), 8);
     Token* tok = tr_peek(&tr);
@@ -357,7 +356,6 @@ static void define(PreprocState* state, List* preprocLine)
     // read args
     macro->args = list_new();
     TokenReader tr;
-    tr.tokens = preprocLine;
     tr.cursor = preprocLine->front;
     tr_expect(&tr, "(");
     while (!tr_consume(&tr, ")")) {
@@ -445,7 +443,6 @@ static void if_clause(PreprocState* state, List* preprocLine)
     _list_push_back(preprocLine, new_eof(), sizeof(Token)); // add eof for guarding
     ParserState parserState;
     ZERO_MEMORY(parserState);
-    parserState.reader.tokens = preprocLine;
     parserState.reader.cursor = preprocLine->front;
 
     int val = parse_constexpr(&parserState);
@@ -624,9 +621,10 @@ static void preproc2(PreprocState* state)
 
 static void postprocess(List* tokens)
 {
-    static char s_keywords[28][12] = {
+    static char s_keywords[][12] = {
         "auto", "break", "case", "char", "const", "continue", "default", "do", "else", "enum", "extern", "for", "go", "if", "int", "long", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "while"
     };
+    STATIC_ASSERT(ARRAY_COUNTER(s_keywords) == 28);
 
     for (ListNode* c = tokens->front; c; c = c->next) {
         Token* tok = (Token*)(c + 1);
