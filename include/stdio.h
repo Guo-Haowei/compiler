@@ -28,7 +28,6 @@ int fseek(FILE* file, long offset, int origin);
 long ftell(FILE* file);
 int fread(void* dest, int size, int n, FILE* f);
 int fclose(FILE* file);
-
-int vsnprintf(char* stream, long n, char* fmt, __builtin_va_list ap);
+int remove(char* _FileName);
 
 #endif

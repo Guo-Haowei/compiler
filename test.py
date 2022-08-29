@@ -57,19 +57,9 @@ def test_file(file, compiler):
         srcs = [f'../test/{file}.c']
         for f in rules[file]['extra']:
             srcs.append(f'../{f}')
-        # generate .s
-        safe_subprocess(f'./{compiler} {include_flag} {" ".join(srcs)}')
-
-        asms = []
-        for f in srcs:
-            name = os.path.basename(f)
-            asms.append(name.replace('.c', '.s'))
-        safe_run(f'gcc {build.boundary} {" ".join(asms)} -o tmp')
+        safe_subprocess(f'./{compiler} {include_flag} {" ".join(srcs)} -o tmp')
     else:
-        # generate .s
-        safe_subprocess(f'./{compiler} {include_flag} ../test/{file}.c')
-        # compile
-        safe_run(f'gcc {build.boundary} {file}.s -o tmp')
+        safe_subprocess(f'./{compiler} {include_flag} ../test/{file}.c -o tmp')
 
     child = subprocess.Popen('./tmp')
     child.communicate()

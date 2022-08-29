@@ -23,7 +23,7 @@ def safe_run(cmdList):
 
 
 include_flag = '-I ../include'
-sh_exe_name = 'cc2'
+exe_name2 = 'cc2'
 
 
 def test_main():
@@ -40,15 +40,14 @@ def test_main():
         cc_src += f'../src/{f} '
         cc_asm += f'{os.path.basename(f.replace(".c", ".s"))} '
 
-    safe_subprocess(f'./{build.exe_name} {include_flag} {cc_src}')
+    safe_subprocess(
+        f'./{build.exe_name} {include_flag} {cc_src} -o {exe_name2}')
 
-    safe_run(
-        f'gcc {build.boundary} {cc_asm} -o {sh_exe_name}')
     safe_run(f'rm {build.exe_name}')
 
     testcases = test.get_test_list()
     for f in testcases:
-        test.test_file(f, sh_exe_name)
+        test.test_file(f, exe_name2)
 
     print('All tests passed')
     return

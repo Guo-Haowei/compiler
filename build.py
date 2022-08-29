@@ -1,7 +1,5 @@
 import os
 
-boundary = '-mpreferred-stack-boundary=3'
-
 exe_name = 'cc'
 src_files = [
     'generic/array.c',
@@ -35,7 +33,7 @@ def build_exe():
         '-Wextra',
         '-Wno-unused-local-typedefs',
         '-Wno-missing-field-initializers',
-        boundary
+        '-Wno-format-contains-nul'
     ]
 
     cmd = cmd + flags + ['-o', exe_name]

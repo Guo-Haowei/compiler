@@ -10,5 +10,6 @@ void free(void* p);
 void exit(int code);
 
 uint64_t strtoull(char* str, char** endptr, int base);
+int system(char* cmd);
 
 #endif
