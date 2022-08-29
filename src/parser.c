@@ -236,21 +236,21 @@ static VarScope* find_var(ParserState* state, Token* tok)
     return NULL;
 }
 
-static char* new_unique_name()
+static char* new_unique_name(char* name)
 {
     char buf[128];
-    snprintf(buf, sizeof(buf), ".L.anon.%d", unique_id());
+    snprintf(buf, sizeof(buf), ".L.anon.%d.%s", unique_id(), name);
     return strdup(buf);
 }
 
-static Obj* new_anon_gvar(ParserState* state, Type* ty)
+static Obj* new_anon_gvar(ParserState* state, Type* ty, char* name)
 {
-    return new_gvar(state, new_unique_name(), ty);
+    return new_gvar(state, new_unique_name(name), ty);
 }
 
 static Obj* new_string_literal(ParserState* state, char* p, Type* type, Token* tok)
 {
-    Obj* var = new_anon_gvar(state, type);
+    Obj* var = new_anon_gvar(state, type, "str");
     var->initData = p;
     var->tok = tok;
     return var;
@@ -967,8 +967,8 @@ static Node* parse_stmt(ParserState* state)
 
         char* restoreBrk = state->brkLabel;
         char* restoreCnt = state->cntLabel;
-        state->brkLabel = node->brkLabel = new_unique_name();
-        state->cntLabel = node->cntLabel = new_unique_name();
+        state->brkLabel = node->brkLabel = new_unique_name("brk");
+        state->cntLabel = node->cntLabel = new_unique_name("cnt");
 
         expect(state, "(");
 
@@ -1002,8 +1002,8 @@ static Node* parse_stmt(ParserState* state)
 
         char* restoreBrk = state->brkLabel;
         char* restoreCnt = state->cntLabel;
-        state->brkLabel = node->brkLabel = new_unique_name();
-        state->cntLabel = node->cntLabel = new_unique_name();
+        state->brkLabel = node->brkLabel = new_unique_name("brk");
+        state->cntLabel = node->cntLabel = new_unique_name("cnt");
 
         expect(state, "(");
         node->cond = parse_expr(state);
@@ -1020,8 +1020,8 @@ static Node* parse_stmt(ParserState* state)
 
         char* restoreBrk = state->brkLabel;
         char* restoreCnt = state->cntLabel;
-        state->brkLabel = node->brkLabel = new_unique_name();
-        state->cntLabel = node->cntLabel = new_unique_name();
+        state->brkLabel = node->brkLabel = new_unique_name("brk");
+        state->cntLabel = node->cntLabel = new_unique_name("cnt");
         node->then = parse_stmt(state);
         state->brkLabel = restoreBrk;
         state->cntLabel = restoreCnt;
@@ -1073,7 +1073,7 @@ static Node* parse_stmt(ParserState* state)
         char* restoreBrk = state->brkLabel;
 
         state->currentSwitch = node;
-        state->brkLabel = node->brkLabel = new_unique_name();
+        state->brkLabel = node->brkLabel = new_unique_name("brk");
         node->then = parse_stmt(state);
 
         state->currentSwitch = restoreSwitch;
@@ -1089,7 +1089,7 @@ static Node* parse_stmt(ParserState* state)
         int64_t val = parse_constexpr(state);
         Node* node = new_node(ND_CASE, start);
         expect(state, ":");
-        node->label = new_unique_name();
+        node->label = new_unique_name("case");
         node->lhs = parse_stmt(state);
         node->val = val;
         node->caseNext = state->currentSwitch->caseNext;
@@ -1104,7 +1104,7 @@ static Node* parse_stmt(ParserState* state)
 
         Node* node = new_node(ND_CASE, start);
         expect(state, ":");
-        node->label = new_unique_name();
+        node->label = new_unique_name("default");
         node->lhs = parse_stmt(state);
         state->currentSwitch->caseDefault = node;
         return node;
@@ -1113,7 +1113,7 @@ static Node* parse_stmt(ParserState* state)
     if (start->kind == TK_IDENT && is_token_equal(peek_n(state, 1), ":")) {
         Node* node = new_node(ND_LABEL, start);
         node->label = strdup(start->raw);
-        node->uniqueLabel = new_unique_name();
+        node->uniqueLabel = new_unique_name("lbl");
         read(state);
         expect(state, ":");
         node->lhs = parse_stmt(state);
@@ -1596,7 +1596,7 @@ static Node* parse_declaration(ParserState* state, Type* baseType, VarAttrib* at
 
         if (attrib && attrib->isStatic) {
             // static local variable
-            Obj* var = new_anon_gvar(state, type);
+            Obj* var = new_anon_gvar(state, type, type->name->raw);
             push_var_scope(state, get_ident(type->name))->var = var;
             if (consume(state, "=")) {
                 parse_gvar_initializer(state, var);

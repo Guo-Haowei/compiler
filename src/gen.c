@@ -38,6 +38,8 @@ static char s_cast_table[][8][24] = {
     // clang-format on
 };
 
+#define print(...) fprintf(s_output, __VA_ARGS__)
+
 #define println(...)                    \
     do {                                \
         fprintf(s_output, __VA_ARGS__); \
@@ -571,7 +573,6 @@ static void emit_data(Obj* prog)
 
         assert(!var->isLocal);
 
-        println("# %s", var->name);
         println("  .align %d", var->type->align);
         if (!var->isStatic) {
             println("  .globl %s", var->name);
@@ -586,9 +587,19 @@ static void emit_data(Obj* prog)
 
         println("  .data");
         println("%s:", var->name);
-        for (int i = 0; i < var->type->size; i++) {
-            int c = 0xFF & (var->initData[i]);
-            println("  .byte %d", c);
+        int bytes = var->type->size;
+        int round4 = ALIGN(bytes, 4);
+        for (int i = 0; i < round4; i += 4) {
+            int a = (var->initData[i]);
+            int b = i + 1 < bytes ? (var->initData[i + 1]) : 0;
+            int c = i + 2 < bytes ? (var->initData[i + 2]) : 0;
+            int d = i + 3 < bytes ? (var->initData[i + 3]) : 0;
+            a &= 0xFF;
+            b &= 0xFF;
+            c &= 0xFF;
+            d &= 0xFF;
+            int word = (d << 24) | (c << 16) | (b << 8) | (a << 0);
+            println("  .long %d", word);
         }
     }
 }

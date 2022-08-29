@@ -1,6 +1,6 @@
 #include "test.h"
 
-int g9[] = { 0, 1, 2 };
+int g9[] = { 0, -1, -2 };
 struct {
     char a;
     int b;
@@ -95,8 +95,8 @@ int main()
     }
 
     ASSERT(0, g9[0]);
-    ASSERT(1, g9[1]);
-    ASSERT(2, g9[2]);
+    ASSERT(-1, g9[1]);
+    ASSERT(-2, g9[2]);
     ASSERT(1, g11[0].a);
     ASSERT(2, g11[0].b);
     ASSERT(3, g11[1].a);
