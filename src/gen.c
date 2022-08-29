@@ -553,14 +553,40 @@ static void assign_lvar_offsets(Obj* prog)
             continue;
         }
 
-        int offset = 0;
-        for (Obj* var = fn->locals; var; var = var->next) {
-            assert(var->type->size > 0);
-            offset += var->type->size;
-            offset = ALIGN(offset, var->type->align);
-            var->offset = -offset;
+        // If a function has many parameters, some parameters are
+        // inevitably passed by stack rather than by register.
+        // The first passed-by-stack parameter resides at RBP+32
+        int top = 48;
+        int bottom = 0;
+        int gp = 0;
+
+        // Assign offsets to pass-by-stack parameters.
+        for (Obj* var = fn->params; var; var = var->next) {
+            // if (is_flonum(var->ty)) {
+            //     if (fp++ < FP_MAX)
+            //         continue;
+            // } else
+            {
+                // the first 4 args are passed by registers
+                if (gp++ < 4) {
+                    continue;
+                }
+            }
+            top = ALIGN(top, 8);
+            var->offset = top;
+            top += var->type->size;
         }
-        fn->stackSize = ALIGN(offset, 16);
+
+        // Assign offsets to pass-by-register parameters and local variables.
+        for (Obj* var = fn->locals; var; var = var->next) {
+            if (var->offset) {
+                continue;
+            }
+            bottom += var->type->size;
+            bottom = ALIGN(bottom, var->type->align);
+            var->offset = -bottom;
+        }
+        fn->stackSize = ALIGN(bottom, 16);
     }
 }
 
@@ -672,15 +698,13 @@ static void emit_text(Obj* prog)
         }
 
         // Save passed-by-register arguments to the stack
-        int i = 0;
+        int gp = 0;
         for (Obj* var = fn->params; var; var = var->next) {
-            assert(var->type->size > 0);
-            store_gp(i++, var->offset, var->type->size);
-            if (i == 4) {
-                break;
+            if (var->offset > 0) {
+                continue;
             }
+            store_gp(gp++, var->offset, var->type->size);
         }
-        // Save passed-by-stack arguments to the stack
 
         gen_stmt(fn->body);
         assert(s_depth == 0);
