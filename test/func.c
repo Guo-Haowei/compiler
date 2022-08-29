@@ -76,6 +76,26 @@ static char int_to_char(int x)
 static char char_fn() { return (2 << 8) + 3; }
 static short short_fn() { return (2 << 16) + 5; }
 
+static int add8(int a, int b, int c, int d, int e, int f, int g, int h)
+{
+    // #define P(p) printf("%s: %d\n", #p, p);
+    //     P(a);
+    //     P(b);
+    //     P(c);
+    //     P(d);
+    //     P(e);
+    //     P(f);
+    //     P(g);
+    //     P(h);
+    // #undef P
+    return a + b + c + d + e + f + g + h;
+}
+
+static int dummy(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j)
+{
+    return a + b * c - d * e - f + g * h + i + j;
+}
+
 int main()
 {
     ASSERT(8, ret8());
@@ -104,6 +124,9 @@ int main()
     char buf[128];
     snprintf(buf, sizeof(buf), "%d%d%d%d%d%d%d%d", 1, 2, 3, 4, 5, 6, 7, 8);
     ASSERT(0, strcmp(buf, "12345678"));
+
+    ASSERT(36, add8(1, 2, 3, 4, 5, 6, 7, 8));
+    ASSERT(56, dummy(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
     printf("OK\n");
     return 0;
