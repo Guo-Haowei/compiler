@@ -251,15 +251,15 @@ struct Member {
     int offset;
 };
 
-extern Type g_void_type;
-extern Type g_char_type;
-extern Type g_short_type;
-extern Type g_int_type;
-extern Type g_long_type;
-extern Type g_uchar_type;
-extern Type g_ushort_type;
-extern Type g_uint_type;
-extern Type g_ulong_type;
+extern Type* g_void_type;
+extern Type* g_char_type;
+extern Type* g_short_type;
+extern Type* g_int_type;
+extern Type* g_long_type;
+extern Type* g_uchar_type;
+extern Type* g_ushort_type;
+extern Type* g_uint_type;
+extern Type* g_ulong_type;
 
 bool is_integer(Type* type);
 Type* copy_type(Type* type);

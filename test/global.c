@@ -10,6 +10,12 @@ long g6 = 6;
 char g7[2][3] = { "AB", "CD" };
 char g8[3][3][3] = { { "A", "B", "C" }, { "D", "E", "F" }, { "G", "H", "I" } };
 
+typedef struct {
+    int x, y;
+} A;
+A a1 = { 1, 2 };
+A* p1 = &a1;
+
 static int counter()
 {
     static int i = 0;
@@ -49,6 +55,8 @@ int main()
     ASSERT(3, counter());
     ASSERT(12, counter());
     ASSERT(27, counter());
+    ASSERT(1, p1->x);
+    ASSERT(2, p1->y);
 
     printf("OK\n");
     return 0;

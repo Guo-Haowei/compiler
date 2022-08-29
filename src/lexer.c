@@ -131,29 +131,29 @@ static void add_int(Lexer* lexer, Array* arr)
     Type* ty = NULL;
     if (base == 10) {
         if (l && u) {
-            ty = &g_ulong_type;
+            ty = g_ulong_type;
         } else if (l) {
-            ty = &g_long_type;
+            ty = g_long_type;
         } else if (u) {
-            ty = (val >> 32) ? &g_ulong_type : &g_uint_type;
+            ty = (val >> 32) ? g_ulong_type : g_uint_type;
         } else {
-            ty = (val >> 31) ? &g_long_type : &g_int_type;
+            ty = (val >> 31) ? g_long_type : g_int_type;
         }
     } else {
         if (l && u) {
-            ty = &g_ulong_type;
+            ty = g_ulong_type;
         } else if (l) {
-            ty = (val >> 63) ? &g_ulong_type : &g_long_type;
+            ty = (val >> 63) ? g_ulong_type : g_long_type;
         } else if (u) {
-            ty = (val >> 32) ? &g_ulong_type : &g_uint_type;
+            ty = (val >> 32) ? g_ulong_type : g_uint_type;
         } else if (val >> 63) {
-            ty = &g_ulong_type;
+            ty = g_ulong_type;
         } else if (val >> 32) {
-            ty = &g_long_type;
+            ty = g_long_type;
         } else if (val >> 31) {
-            ty = &g_uint_type;
+            ty = g_uint_type;
         } else {
-            ty = &g_int_type;
+            ty = g_int_type;
         }
     }
 
@@ -265,7 +265,7 @@ static void add_char(Lexer* lexer, Array* arr)
     tok.len = end - start;
     tok.sourceInfo = lexer->sourceInfo;
     tok.val = c;
-    tok.type = &g_int_type;
+    tok.type = g_int_type;
 
     while (lexer->p != end) {
         lexer_read(lexer);
@@ -301,7 +301,7 @@ static void add_string(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    tok.type = array_of(&g_char_type, len);
+    tok.type = array_of(g_char_type, len);
     tok.str = buf;
 
     array_push_back(Token, arr, tok);
@@ -336,7 +336,7 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
 
 static bool try_add_punct(Lexer* lexer, Array* arr)
 {
-    static char s_puncts[][4] = {
+    static char* s_puncts[] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
         ">>=", ">>", "<=", "<<=", "<<", "&&", "||", "&=", "|=", "^=", "..."
     };

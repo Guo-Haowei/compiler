@@ -145,7 +145,7 @@ static Node* new_num(int64_t val, Token* tok)
 static Node* new_ulong(int64_t val, Token* tok)
 {
     Node* node = new_num(val, tok);
-    node->type = &g_ulong_type;
+    node->type = g_ulong_type;
     return node;
 }
 
@@ -682,7 +682,7 @@ static Node* new_sub(Node* lhs, Node* rhs, Token* tok)
     // ptr - ptr, which returns how many elements are between the two.
     if (lhs->type->base && rhs->type->base) {
         Node* node = new_binary(ND_SUB, lhs, rhs, tok);
-        node->type = &g_long_type;
+        node->type = g_long_type;
         return new_binary(ND_DIV, node, new_num(lhs->type->base->size, tok), tok);
     }
 
@@ -1144,7 +1144,7 @@ static bool is_type_name(ParserState* state, Token* tok)
 {
     static Dict* s_lookup;
     if (!s_lookup) {
-        char* s_typenames[] = {
+        static char* s_typenames[] = {
             "char", "enum", "extern", "int", "long", "short", "signed", "static", "struct", "typedef", "union", "unsigned", "void"
         };
         STATIC_ASSERT(ARRAY_COUNTER(s_typenames) == 13);
@@ -1217,12 +1217,23 @@ static int64_t eval_rval(Node* node, char** label);
 
 static int64_t eval(Node* node)
 {
+    return eval2(node, NULL);
+}
+
+// Evaluate a given node as a constant expression.
+//
+// A constant expression is either just a number or ptr+n where ptr
+// is a pointer to a global variable and n is a postiive/negative
+// number. The latter form is accepted only as an initialization
+// expression for a global variable.
+static int64_t eval2(Node* node, char** label)
+{
     add_type(node);
     switch (node->kind) {
     case ND_ADD:
-        return eval(node->lhs) + eval(node->rhs);
+        return eval2(node->lhs, label) + eval(node->rhs);
     case ND_SUB:
-        return eval(node->lhs) - eval(node->rhs);
+        return eval2(node->lhs, label) - eval(node->rhs);
     case ND_MUL:
         return eval(node->lhs) * eval(node->rhs);
     case ND_DIV:
@@ -1253,9 +1264,9 @@ static int64_t eval(Node* node)
     case ND_LE:
         return eval(node->lhs) <= eval(node->rhs);
     case ND_TERNARY:
-        return eval(node->cond) ? eval(node->then) : eval(node->els);
+        return eval(node->cond) ? eval2(node->then, label) : eval2(node->els, label);
     case ND_COMMA:
-        return eval(node->rhs);
+        return eval2(node->rhs, label);
     case ND_NOT:
         return !eval(node->lhs);
     case ND_BITNOT:
@@ -1264,25 +1275,66 @@ static int64_t eval(Node* node)
         return eval(node->lhs) && eval(node->rhs);
     case ND_LOGOR:
         return eval(node->lhs) || eval(node->rhs);
-    case ND_CAST:
+    case ND_CAST: {
+        int64_t val = eval2(node->lhs, label);
         if (is_integer(node->type)) {
             switch (node->type->size) {
             case 1:
-                return (uint8_t)eval(node->lhs);
+                return (uint8_t)val;
             case 2:
-                return (uint16_t)eval(node->lhs);
+                return (uint16_t)val;
             case 4:
-                return (uint32_t)eval(node->lhs);
+                return (uint32_t)val;
             }
         }
-        return eval(node->lhs);
+        return val;
+    }
     case ND_NUM:
         return node->val;
+    case ND_ADDR:
+        return eval_rval(node->lhs, label);
+    case ND_MEMBER:
+        if (!label) {
+            error_tok(node->tok, "not a compile-time constant");
+        }
+        if (node->type->kind != TY_ARRAY) {
+            error_tok(node->tok, "invalid initializer");
+        }
+        return eval_rval(node->lhs, label) + node->member->offset;
+    case ND_VAR:
+        if (!label) {
+            error_tok(node->tok, "not a compile-time constant");
+        }
+        if (node->var->type->kind != TY_ARRAY && node->var->type->kind != TY_FUNC) {
+            error_tok(node->tok, "invalid initializer");
+        }
+        *label = node->var->name;
+        return 0;
     default:
         break;
     }
 
     error_tok(node->tok, "not a compile-time constant");
+    return 0;
+}
+
+static int64_t eval_rval(Node* node, char** label)
+{
+    switch (node->kind) {
+    case ND_VAR:
+        if (node->var->isLocal) {
+            error_tok(node->tok, "not a compile-time constant");
+        }
+        *label = node->var->name;
+        return 0;
+    case ND_DEREF:
+        return eval2(node->lhs, label);
+    case ND_MEMBER:
+        return eval_rval(node->lhs, label) + node->member->offset;
+    default:
+        break;
+    }
+    error_tok(node->tok, "invalid initializer");
     return 0;
 }
 
@@ -1312,7 +1364,7 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
     };
 
     Token* tok = NULL;
-    Type* ty = &g_int_type;
+    Type* ty = g_int_type;
     int counter = 0;
 
     for (;;) {
@@ -1385,33 +1437,33 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
 
         switch (counter) {
         case VOID:
-            ty = &g_void_type;
+            ty = g_void_type;
             break;
         case CHAR:
         case SIGNED + CHAR:
-            ty = &g_char_type;
+            ty = g_char_type;
             break;
         case UNSIGNED + CHAR:
-            ty = &g_uchar_type;
+            ty = g_uchar_type;
             break;
         case SHORT:
         case SIGNED + SHORT:
         case SHORT + INT:
         case SIGNED + SHORT + INT:
-            ty = &g_short_type;
+            ty = g_short_type;
             break;
         case UNSIGNED + SHORT:
         case UNSIGNED + SHORT + INT:
-            ty = &g_ushort_type;
+            ty = g_ushort_type;
             break;
         case INT:
         case SIGNED:
         case SIGNED + INT:
-            ty = &g_int_type;
+            ty = g_int_type;
             break;
         case UNSIGNED:
         case UNSIGNED + INT:
-            ty = &g_uint_type;
+            ty = g_uint_type;
             break;
         case LONG:
         case LONG + INT:
@@ -1421,13 +1473,13 @@ static Type* parse_declspec(ParserState* state, VarAttrib* attrib)
         case SIGNED + LONG + INT:
         case SIGNED + LONG + LONG:
         case SIGNED + LONG + LONG + INT:
-            ty = &g_long_type;
+            ty = g_long_type;
             break;
         case UNSIGNED + LONG:
         case UNSIGNED + LONG + INT:
         case UNSIGNED + LONG + LONG:
         case UNSIGNED + LONG + LONG + INT:
-            ty = &g_ulong_type;
+            ty = g_ulong_type;
             break;
         default:
             error_tok(tok, "invalid type specifer");
@@ -1681,17 +1733,17 @@ static Relocation* write_gvar_data(Relocation* cur, Initializer* init, Type* ty,
         for (int i = 0; i < ty->arrayLen; i++) {
             cur = write_gvar_data(cur, init->children[i], ty->base, buf, offset + sz * i);
         }
-        return;
+        return cur;
     }
     if (ty->kind == TY_STRUCT) {
         for (Member* mem = ty->members; mem; mem = mem->next) {
             cur = write_gvar_data(cur, init->children[mem->idx], mem->type, buf, offset + mem->offset);
         }
-        return;
+        return cur;
     }
 
-    if (init->expr) {
-        write_buf(buf + offset, eval(init->expr), ty->size);
+    if (!init->expr) {
+        return cur;
     }
 
     char* label = NULL;
@@ -1716,12 +1768,12 @@ static Relocation* write_gvar_data(Relocation* cur, Initializer* init, Type* ty,
 static void parse_gvar_initializer(ParserState* state, Obj* var)
 {
     Initializer* init = parse_initializer(state, var->type, &(var->type));
-
-    Relocation reloc;
-    ZERO_MEMORY(reloc);
+    Relocation head;
+    ZERO_MEMORY(head);
     char* buf = calloc(1, var->type->size);
-    write_gvar_data(&reloc, init, var->type, buf, 0);
+    write_gvar_data(&head, init, var->type, buf, 0);
     var->initData = buf;
+    var->reloc = head.next;
 }
 
 static void parse_global_variable(ParserState* state, Type* basety, VarAttrib* attrib)
@@ -2018,7 +2070,7 @@ static Obj* parse_function(ParserState* state, Type* basetpye, VarAttrib* attrib
     create_param_lvars(state, type->params);
     fn->params = state->locals;
     if (type->isVariadic) {
-        fn->vaArea = new_lvar(state, "__va_area__", array_of(&g_char_type, 136));
+        fn->vaArea = new_lvar(state, "__va_area__", array_of(g_char_type, 136));
     }
     expect(state, "{");
     fn->body = parse_compound_stmt(state);

@@ -7,34 +7,34 @@
 enum { I8, I16, I32, I64, U8, U16, U32, U64 };
 // clang-format on
 
-static char s_argreg8[][8] = { "%cl", "%dl", "%r8b", "%r9b" };
-static char s_argreg16[][8] = { "%cx", "%dx", "%r8w", "%r9w" };
-static char s_argreg32[][8] = { "%ecx", "%edx", "%r8d", "%r9d" };
-static char s_argreg64[][8] = { "%rcx", "%rdx", "%r8", "%r9" };
+static char* s_argreg8[] = { "%cl", "%dl", "%r8b", "%r9b" };
+static char* s_argreg16[] = { "%cx", "%dx", "%r8w", "%r9w" };
+static char* s_argreg32[] = { "%ecx", "%edx", "%r8d", "%r9d" };
+static char* s_argreg64[] = { "%rcx", "%rdx", "%r8", "%r9" };
 
 static int s_depth;
 static Obj* s_current_fn;
 static FILE* s_output;
 
 // The table for type casts
-#define I32I8 "movsbl %al, %eax"
-#define I32U8 "movzbl %al, %eax"
-#define I32I16 "movswl %ax, %eax"
-#define I32U16 "movzwl %ax, %eax"
-#define I32I64 "movsxd %eax, %rax"
-#define U32I64 "mov %eax, %eax"
+static char i32i8[] = "movsbl %al, %eax";
+static char i32u8[] = "movzbl %al, %eax";
+static char i32i16[] = "movswl %ax, %eax";
+static char i32u16[] = "movzwl %ax, %eax";
+static char i32i64[] = "movsxd %eax, %rax";
+static char u32i64[] = "mov %eax, %eax";
 
-static char s_cast_table[][8][24] = {
+static char* s_cast_table[][8] = {
     // i8   i16     i32   i64     u8     u16     u32   u64
     // clang-format off
-    { ""   , ""    , "", I32I64, I32U8, I32U16, "", I32I64 }, // i8
-    { I32I8, ""    , "", I32I64, I32U8, I32U16, "", I32I64 }, // i16
-    { I32I8, I32I16, "", I32I64, I32U8, I32U16, "", I32I64 }, // i32
-    { I32I8, I32I16, "", ""    , I32U8, I32U16, "", ""     }, // i64
-    { I32I8, ""    , "", I32I64, ""   , ""    , "", I32I64 }, // u8
-    { I32I8, I32I16, "", I32I64, I32U8, ""    , "", I32I64 }, // u16
-    { I32I8, I32I16, "", U32I64, I32U8, I32U16, "", U32I64 }, // u32
-    { I32I8, I32I16, "", ""    , I32U8, I32U16, "", ""     }  // u64
+    { NULL , NULL  , NULL, i32i64, i32u8, i32u16, NULL, i32i64 }, // i8
+    { i32i8, NULL  , NULL, i32i64, i32u8, i32u16, NULL, i32i64 }, // i16
+    { i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64 }, // i32
+    { i32i8, i32i16, NULL, NULL  , i32u8, i32u16, NULL, NULL   }, // i64
+    { i32i8, NULL  , NULL, i32i64, NULL , NULL  , NULL, i32i64 }, // u8
+    { i32i8, i32i16, NULL, i32i64, i32u8, NULL  , NULL, i32i64 }, // u16
+    { i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64 }, // u32
+    { i32i8, i32i16, NULL, NULL  , i32u8, i32u16, NULL, NULL   }  // u64
     // clang-format on
 };
 
@@ -208,7 +208,7 @@ static void gen_cast(Type* from, Type* to)
 
     int t1 = get_type_id(from);
     int t2 = get_type_id(to);
-    if (s_cast_table[t1][t2][0] != '\0') {
+    if (s_cast_table[t1][t2]) {
         println("  %s", s_cast_table[t1][t2]);
     }
 }
@@ -613,20 +613,33 @@ static void emit_data(Obj* prog)
 
         println("  .data");
         println("%s:", var->name);
-        int bytes = var->type->size;
-        int round4 = ALIGN(bytes, 4);
-        for (int i = 0; i < round4; i += 4) {
-            int a = (var->initData[i]);
-            int b = i + 1 < bytes ? (var->initData[i + 1]) : 0;
-            int c = i + 2 < bytes ? (var->initData[i + 2]) : 0;
-            int d = i + 3 < bytes ? (var->initData[i + 3]) : 0;
-            a &= 0xFF;
-            b &= 0xFF;
-            c &= 0xFF;
-            d &= 0xFF;
-            int word = (d << 24) | (c << 16) | (b << 8) | (a << 0);
-            println("  .long %d", word);
+
+        Relocation* rel = var->reloc;
+        int pos = 0;
+        while (pos < var->type->size) {
+            if (rel && rel->offset == pos) {
+                println("  .quad %s%+ld", rel->label, rel->addend);
+                rel = rel->next;
+                pos += 8;
+            } else {
+                println("  .byte %d", var->initData[pos++]);
+            }
         }
+
+        // int bytes = var->type->size;
+        // int round4 = ALIGN(bytes, 4);
+        // for (int i = 0; i < round4; i += 4) {
+        //     int a = (var->initData[i]);
+        //     int b = i + 1 < bytes ? (var->initData[i + 1]) : 0;
+        //     int c = i + 2 < bytes ? (var->initData[i + 2]) : 0;
+        //     int d = i + 3 < bytes ? (var->initData[i + 3]) : 0;
+        //     a &= 0xFF;
+        //     b &= 0xFF;
+        //     c &= 0xFF;
+        //     d &= 0xFF;
+        //     int word = (d << 24) | (c << 16) | (b << 8) | (a << 0);
+        //     println("  .long %d", word);
+        // }
     }
 }
 

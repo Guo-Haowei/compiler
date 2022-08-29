@@ -1,4 +1,5 @@
 #include "test.h"
+#include <string.h>
 
 int g9[] = { 0, -1, -2 };
 struct {
@@ -8,6 +9,8 @@ struct {
 struct {
     int a[2];
 } g12[2] = { { { 1, 2 } } };
+
+char* g_kw[] = { "int", "char", "extern" };
 
 int main()
 {
@@ -105,6 +108,10 @@ int main()
     ASSERT(2, g12[0].a[1]);
     ASSERT(0, g12[1].a[0]);
     ASSERT(0, g12[1].a[1]);
+
+    ASSERT(24, sizeof(g_kw));
+    ASSERT(8, sizeof(*g_kw));
+    ASSERT(0, strcmp(g_kw[2], "extern"));
 
     printf("OK\n");
     return 0;
