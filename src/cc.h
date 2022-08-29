@@ -78,10 +78,9 @@ typedef struct {
 
 typedef struct Node Node;
 typedef struct Type Type;
-typedef struct Obj Obj;
 typedef struct Member Member;
-
 typedef struct Token Token;
+
 struct Token {
     TokenKind kind;
     int line;
@@ -101,7 +100,19 @@ struct Token {
     Token* expandedFrom;
 };
 
+// Global variable can be initialized either by a constant expression
+// or a pointer to another global variable. This struct represents the
+// latter.
+typedef struct Relocation Relocation;
+struct Relocation {
+    Relocation* next;
+    int offset;
+    char* label;
+    long addend;
+};
+
 // Variable or function
+typedef struct Obj Obj;
 struct Obj {
     int id;
     char* name;
@@ -126,6 +137,8 @@ struct Obj {
     // Global variable
     char* initData;
     Token* tok;
+
+    Relocation* reloc;
 };
 
 // AST node

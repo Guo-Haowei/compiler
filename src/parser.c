@@ -1207,6 +1207,14 @@ static Node* parse_compound_stmt(ParserState* state)
 }
 
 // Evaluate a given node as a constant expression.
+static int64_t eval(Node* node);
+static int64_t eval2(Node* node, char** label);
+static int64_t eval_rval(Node* node, char** label);
+
+static int64_t eval2(Node* node, char** label);
+
+static int64_t eval_rval(Node* node, char** label);
+
 static int64_t eval(Node* node)
 {
     add_type(node);
@@ -1666,24 +1674,39 @@ static void write_buf(char* buf, uint64_t val, int sz)
     }
 }
 
-static void write_gvar_data(Initializer* init, Type* ty, char* buf, int offset)
+static Relocation* write_gvar_data(Relocation* cur, Initializer* init, Type* ty, char* buf, int offset)
 {
     if (ty->kind == TY_ARRAY) {
         int sz = ty->base->size;
         for (int i = 0; i < ty->arrayLen; i++) {
-            write_gvar_data(init->children[i], ty->base, buf, offset + sz * i);
+            cur = write_gvar_data(cur, init->children[i], ty->base, buf, offset + sz * i);
         }
         return;
-    }
-    if (init->expr) {
-        write_buf(buf + offset, eval(init->expr), ty->size);
     }
     if (ty->kind == TY_STRUCT) {
         for (Member* mem = ty->members; mem; mem = mem->next) {
-            write_gvar_data(init->children[mem->idx], mem->type, buf, offset + mem->offset);
+            cur = write_gvar_data(cur, init->children[mem->idx], mem->type, buf, offset + mem->offset);
         }
         return;
     }
+
+    if (init->expr) {
+        write_buf(buf + offset, eval(init->expr), ty->size);
+    }
+
+    char* label = NULL;
+    uint64_t val = eval2(init->expr, &label);
+    if (!label) {
+        write_buf(buf + offset, val, ty->size);
+        return cur;
+    }
+
+    Relocation* rel = calloc(1, sizeof(Relocation));
+    rel->offset = offset;
+    rel->label = label;
+    rel->addend = val;
+    cur->next = rel;
+    return cur->next;
 }
 
 // Initializers for global variables are evaluated at compile-time and
@@ -1693,8 +1716,11 @@ static void write_gvar_data(Initializer* init, Type* ty, char* buf, int offset)
 static void parse_gvar_initializer(ParserState* state, Obj* var)
 {
     Initializer* init = parse_initializer(state, var->type, &(var->type));
+
+    Relocation reloc;
+    ZERO_MEMORY(reloc);
     char* buf = calloc(1, var->type->size);
-    write_gvar_data(init, var->type, buf, 0);
+    write_gvar_data(&reloc, init, var->type, buf, 0);
     var->initData = buf;
 }
 
