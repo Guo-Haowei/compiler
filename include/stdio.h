@@ -1,6 +1,5 @@
 #ifndef __STDIO_H__
 #define __STDIO_H__
-#include <stdarg.h>
 
 #define SEEK_CUR 1
 #define SEEK_END 2
