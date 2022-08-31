@@ -615,6 +615,24 @@ static void preproc2(PreprocState* state)
             continue;
         }
 
+        bool isError = is_token_equal(directive, "error");
+        bool isWarning = is_token_equal(directive, "warning");
+        if (isError || isWarning) {
+            char* start = directive->p;
+            char* end = start;
+            for (;;) {
+                if (*end == 0 || *end == '\n') {
+                    break;
+                }
+                ++end;
+            }
+            int len = end - start;
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%.*s", len, start);
+            _error_tok(isError ? LEVEL_ERROR : LEVEL_WARN, directive, buf);
+            continue;
+        }
+
         error_tok(directive, "invalid preprocessing directive #%s", directive->raw);
     }
 }
