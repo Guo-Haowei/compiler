@@ -242,38 +242,58 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     state->unprocessed = newList;
 }
 
-static void handle_macro(PreprocState* state, Token* macroName_)
+static void handle_macro(PreprocState* state, Token* start)
 {
-    Token macroName = *macroName_;
-    list_pop_front(state->unprocessed);
+    if (start->kind == TK_STR && list_len(state->processed)) {
+        Token* prev = list_back(Token, state->processed);
+        // concat strings
+        if (prev->kind == TK_STR) {
+            int prevSize = prev->type->arrayLen - 1; // minus extra '\0'
+            int newSize = prevSize + start->type->arrayLen;
+            char* newStr = calloc(1, newSize);
+            memcpy(newStr, prev->str, prevSize);
+            memcpy(newStr + prevSize, start->str, start->type->arrayLen);
+            prev->str = newStr;
+            prev->type = array_of(g_char_type, newSize);
+            list_pop_front(state->unprocessed);
+            return;
+        }
+    }
 
-    if (macroName.kind != TK_IDENT) {
-        list_push_back(state->processed, macroName);
+    if (start->kind != TK_IDENT) {
+        _list_push_back(state->processed, start, sizeof(Token));
+        list_pop_front(state->unprocessed);
         return;
     }
 
-    if (is_token_equal(&macroName, "__LINE__")) {
-        macroName.kind = TK_NUM;
-        macroName.val = macroName.line;
+    if (is_token_equal(start, "__LINE__")) {
+        start->kind = TK_NUM;
+        start->val = start->line;
         char buf[128];
-        snprintf(buf, sizeof(buf), "%lld", macroName.val);
-        macroName.raw = strncopy(buf, (int)strlen(buf));
-        macroName.type = g_int_type;
-        list_push_back(state->processed, macroName);
+        snprintf(buf, sizeof(buf), "%lld", start->val);
+        start->raw = strncopy(buf, (int)strlen(buf));
+        start->type = g_int_type;
+
+        _list_push_back(state->processed, start, sizeof(Token));
+        list_pop_front(state->unprocessed);
         return;
     }
 
-    if (is_token_equal(&macroName, "__FILE__")) {
-        macroName.kind = TK_STR;
-        macroName.str = macroName.sourceInfo->file;
+    if (is_token_equal(start, "__FILE__")) {
+        start->kind = TK_STR;
+        start->str = start->sourceInfo->file;
         char buf[MAX_OSPATH];
-        snprintf(buf, MAX_OSPATH, "\"%s\"", macroName.str);
-        macroName.raw = strdup(buf);
-        macroName.type = array_of(g_char_type, strlen(macroName.sourceInfo->file) + 1);
-        list_push_back(state->processed, macroName);
+        snprintf(buf, MAX_OSPATH, "\"%s\"", start->str);
+        start->raw = strdup(buf);
+        start->type = array_of(g_char_type, strlen(start->sourceInfo->file) + 1);
+
+        _list_push_back(state->processed, start, sizeof(Token));
+        list_pop_front(state->unprocessed);
         return;
     }
 
+    Token macroName = *start;
+    list_pop_front(state->unprocessed);
     Macro* macro = find_macro(state, &macroName);
     if (!macro) {
         list_push_back(state->processed, macroName);

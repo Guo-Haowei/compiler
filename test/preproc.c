@@ -1,4 +1,5 @@
 #include "test.h"
+#include <string.h>
 
 int return_a_plus_one()
 {
@@ -8,9 +9,9 @@ int return_a_plus_one()
 
 int main()
 {
-    ASSERT(11, __LINE__);
+    ASSERT(12, __LINE__);
 #define MYLINE __LINE__
-    ASSERT(13, MYLINE);
+    ASSERT(14, MYLINE);
 
 #define FOO 1
     ASSERT(1, FOO);
@@ -19,6 +20,12 @@ int main()
 #define int64 long
     int64 num = 0;
     ASSERT(8, sizeof(num));
+
+    {
+        char* f = __FILE__;
+        char* p = strrchr(f, '/');
+        ASSERT(0, strcmp(p, "/preproc.c"));
+    }
 
 #include "include1.h"
     ASSERT(19, a);

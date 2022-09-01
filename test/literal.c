@@ -36,7 +36,22 @@ int main()
     ASSERT(4, sizeof("abc"));
     ASSERT(1, sizeof("abc"[100]));
 
-    /* escape */
+    // concat
+    {
+        char a[] = "12"
+                   "34"
+                   "56";
+        ASSERT(7, sizeof(a));
+    }
+    {
+        char keywords[] = "int\0     char\0    void\0    break\0   continue\0"
+                          "else\0    enum\0    if\0      return\0  while\0   "
+                          "printf\0  fopen\0   fgetc\0   malloc\0  memset\0  "
+                          "exit\0    ";
+        ASSERT(145, sizeof(keywords));
+    }
+
+    // escape
     ASSERT(7, "\a8\b\t"[0]);
     ASSERT(48, "\a0\b\t"[1]);
     ASSERT(8, "\a0\b\t"[2]);
