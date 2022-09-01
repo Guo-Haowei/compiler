@@ -332,6 +332,16 @@ void _info_tok(Token* tok, char* msg);
  * preproc.c
  */
 
+typedef struct {
+    Token token;
+    List* expandTo;
+
+    // function
+    List* args;
+    bool isFunc;
+    bool isVararg;
+} Macro;
+
 List* preproc(Array* toks, char* includepath);
 
 typedef struct {
@@ -364,6 +374,9 @@ typedef struct {
     Node* currentSwitch;
     Obj* locals;
     Obj* globals;
+
+    // preproc
+    Dict* macros;
 } ParserState;
 
 int64_t parse_constexpr(ParserState* state);

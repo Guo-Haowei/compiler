@@ -337,13 +337,30 @@ static Node* parse_lvar_initializer(ParserState* state, Obj* var);
 //         | num
 static Node* parse_primary(ParserState* state)
 {
+    Token* tok = peek(state);
+    // only in preprocessor stage
+    if (state->macros) {
+        if (consume(state, "defined")) {
+            expect(state, "(");
+            Token* macroName = read(state);
+            if (macroName->kind != TK_IDENT) {
+                error_tok(macroName, "operator \"defined\" requires an identifier");
+            }
+
+            Macro* found = dict_get(state->macros, macroName->raw);
+            Node* node = new_num(!!found, tok);
+            node->type = g_int_type;
+            expect(state, ")");
+            return node;
+        }
+    }
+
     if (consume(state, "(")) {
         Node* node = parse_expr(state);
         expect(state, ")"); // consume ')'
         return node;
     }
 
-    Token* tok = peek(state);
     if (consume(state, "sizeof")) {
         Token* name = peek_n(state, 1);
         if (equal(state, "(") && is_type_name(state, name)) {

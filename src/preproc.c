@@ -9,16 +9,6 @@ typedef struct {
 } CondIf;
 
 typedef struct {
-    Token token;
-    List* expandTo;
-
-    // function
-    List* args;
-    bool isFunc;
-    bool isVararg;
-} Macro;
-
-typedef struct {
     List* conditions;
     List* processed;
     List* unprocessed;
@@ -444,10 +434,10 @@ static void if_clause(PreprocState* state, List* preprocLine)
     ParserState parserState;
     ZERO_MEMORY(parserState);
     parserState.reader.cursor = preprocLine->front;
+    parserState.macros = state->macros;
 
     int val = parse_constexpr(&parserState);
     bool active = is_active(state) && (val != 0);
-
     CondIf cond = { active };
     list_push_back(state->conditions, cond);
 }

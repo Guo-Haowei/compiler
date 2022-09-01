@@ -74,15 +74,26 @@ int main()
 #endif
 
 #if 100 - 4 * 25
-    ASSERT(0, 1);
+#error 100 - 4 * 25
 #else
 #if !(10 > 20)
     ASSERT(0, 0);
 #else
-    ASSERT(1, 0);
+#error !(10 > 20)
 #endif
 #endif
 
-    PRINTLN("%c%c", 'O', 'K');
+#warning this is a warning
+
+#if defined(AB) || (1 + 1 == 2)
+#define ABCDE
+#if defined(ABCDE) && 7
+    printf("%c", 'O');
+#endif
+#endif
+
+#if !defined(ABCD)
+    PRINTLN("%c", 'K');
+#endif
     return 0;
 }
