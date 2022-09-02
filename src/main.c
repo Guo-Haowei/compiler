@@ -10,7 +10,44 @@ static char* s_exename;
 static char* s_outname;
 static bool s_noexe;
 
-static Array* process_args(int argc, char** argv)
+typedef struct {
+    Array* files;
+    Array* predefined;
+} CommandLine;
+
+static Macro* process_predefined(char* line)
+{
+    assert(*line);
+    SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
+    strcpy(sourceInfo->file, "<command-line>");
+    sourceInfo->start = line;
+    sourceInfo->len = (int)strlen(line);
+    sourceInfo->end = line + sourceInfo->len;
+    Array* tokens = lex_source_info(sourceInfo);
+
+    assert(tokens->len > 0);
+
+    Macro* macro = calloc(1, sizeof(Macro));
+    Token* name = array_at(Token, tokens, 0);
+    if (name->kind != TK_IDENT) {
+        error_tok(name, "macro names must be identifiers");
+    }
+    memcpy(&(macro->token), name, sizeof(Token));
+    if (tokens->len == 1) {
+        return macro;
+    }
+    Token* equalSign = array_at(Token, tokens, 1);
+    assert(is_token_equal(equalSign, "="));
+    macro->expandTo = list_new();
+    for (int i = 2; i < tokens->len; ++i) {
+        Token* tok = array_at(Token, tokens, i);
+        _list_push_back(macro->expandTo, tok, sizeof(Token));
+    }
+
+    return macro;
+}
+
+static void process_args(int argc, char** argv, CommandLine* cmdLine)
 {
     s_exename = argv[0];
     char* p = strrchr(s_exename, '/');
@@ -23,7 +60,8 @@ static Array* process_args(int argc, char** argv)
         }
     }
 
-    Array* files = array_new(sizeof(TranslationUnit), 4);
+    cmdLine->files = array_new(sizeof(TranslationUnit), 4);
+    cmdLine->predefined = array_new(sizeof(Macro*), 4);
 
     bool hasError = false;
     bool noS = true;
@@ -59,6 +97,13 @@ static Array* process_args(int argc, char** argv)
             continue;
         }
 
+        if (strncmp(arg, "-D", 2) == 0) {
+            Macro* macro = process_predefined(arg + 2);
+            array_push_back(Macro*, cmdLine->predefined, macro);
+            ++i;
+            continue;
+        }
+
         TranslationUnit unit;
         ZERO_MEMORY(unit);
         snprintf(unit.input, MAX_OSPATH, arg);
@@ -71,21 +116,19 @@ static Array* process_args(int argc, char** argv)
         assert(ext);
         ext[1] = 's';
         ext[2] = 0;
-        array_push_back(TranslationUnit, files, unit);
+        array_push_back(TranslationUnit, cmdLine->files, unit);
         ++i;
     }
 
     if (hasError) {
         error("%s: invalid command line\n", s_exename);
     }
-
-    return files;
 }
 
-static void compile_one(TranslationUnit* unit)
+static void compile_one(TranslationUnit* unit, Array* predefined)
 {
     Array* rawToks = lex(unit->input);
-    List* toks = preproc(rawToks, s_includepath);
+    List* toks = preproc(rawToks, s_includepath, predefined);
     Obj* prog = parse(toks);
 
     gen(prog, unit->input, unit->output);
@@ -93,11 +136,11 @@ static void compile_one(TranslationUnit* unit)
 
 int main(int argc, char** argv)
 {
-    process_args(argc, argv);
+    CommandLine cmdLine;
+    ZERO_MEMORY(cmdLine);
+    process_args(argc, argv, &cmdLine);
 
-    Array* files = process_args(argc, argv);
-
-    if (files->len == 0) {
+    if (cmdLine.files->len == 0) {
         error("%s: no input files\n", s_exename);
     }
 
@@ -116,16 +159,16 @@ int main(int argc, char** argv)
 #endif
     }
 
-    for (int i = 0; i < files->len; ++i) {
-        TranslationUnit* unit = array_at(TranslationUnit, files, i);
-        compile_one(unit);
+    for (int i = 0; i < cmdLine.files->len; ++i) {
+        TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
+        compile_one(unit, cmdLine.predefined);
     }
 
     if (!s_noexe) {
         char asms[MAX_OSPATH] = { 0 };
         char* p = asms;
-        for (int i = 0; i < files->len; ++i) {
-            TranslationUnit* unit = array_at(TranslationUnit, files, i);
+        for (int i = 0; i < cmdLine.files->len; ++i) {
+            TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
             sprintf(p, " %s", unit->output);
             p = asms + strlen(asms);
         }
@@ -135,8 +178,8 @@ int main(int argc, char** argv)
         snprintf(cmd2, sizeof(cmd2), "gcc%s -o %s\n", asms, s_outname);
         system(cmd2);
 
-        for (int i = 0; i < files->len; ++i) {
-            TranslationUnit* unit = array_at(TranslationUnit, files, i);
+        for (int i = 0; i < cmdLine.files->len; ++i) {
+            TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
             remove(unit->output);
         }
     }

@@ -13,6 +13,15 @@
 
 #include "utility.h"
 
+typedef struct Node Node;
+typedef struct Type Type;
+typedef struct Member Member;
+typedef struct Token Token;
+
+/**
+ * lexer.c
+ */
+
 typedef enum {
     TK_IDENT,   // Identifiers
     TK_PUNCT,   // Punctuators
@@ -76,11 +85,6 @@ typedef struct {
     int len;
 } SourceInfo;
 
-typedef struct Node Node;
-typedef struct Type Type;
-typedef struct Member Member;
-typedef struct Token Token;
-
 struct Token {
     TokenKind kind;
     int line;
@@ -99,6 +103,36 @@ struct Token {
     int isFirstTok;
     Token* expandedFrom;
 };
+
+Array* lex_source_info(SourceInfo* sourceInfo);
+Array* lex(char* filename);
+
+/**
+ * preproc.c
+ */
+
+typedef struct {
+    Token token;
+    List* expandTo;
+
+    // function
+    List* args;
+    bool isFunc;
+    bool isVararg;
+} Macro;
+
+List* preproc(Array* toks, char* includepath, Array* predefined);
+
+typedef struct {
+    ListNode* cursor;
+} TokenReader;
+
+Token* tr_peek_n(TokenReader* reader, int n);
+Token* tr_peek(TokenReader* reader);
+Token* tr_read(TokenReader* reader);
+bool tr_equal(TokenReader* reader, char* symbol);
+bool tr_consume(TokenReader* reader, char* symbol);
+void tr_expect(TokenReader* reader, char* symbol);
 
 // Global variable can be initialized either by a constant expression
 // or a pointer to another global variable. This struct represents the
@@ -272,15 +306,9 @@ Type* enum_type();
 
 bool is_token_equal(Token* token, char* symbol);
 
-void dump_preproc(List* toks);
 Node* new_cast(Node* expr, Type* type, Token* tok);
 
 void gen(Obj* prog, char* srcname, char* asmname);
-
-/**
- * lexer.c
- */
-Array* lex(char* filename);
 
 enum {
     LEVEL_NOTE,
@@ -329,34 +357,7 @@ void _info_tok(Token* tok, char* msg);
     } while (0)
 
 /**
- * preproc.c
- */
-
-typedef struct {
-    Token token;
-    List* expandTo;
-
-    // function
-    List* args;
-    bool isFunc;
-    bool isVararg;
-} Macro;
-
-List* preproc(Array* toks, char* includepath);
-
-typedef struct {
-    ListNode* cursor;
-} TokenReader;
-
-Token* tr_peek_n(TokenReader* reader, int n);
-Token* tr_peek(TokenReader* reader);
-Token* tr_read(TokenReader* reader);
-bool tr_equal(TokenReader* reader, char* symbol);
-bool tr_consume(TokenReader* reader, char* symbol);
-void tr_expect(TokenReader* reader, char* symbol);
-
-/**
- * preproc.c
+ * parser.c
  */
 
 typedef struct {
