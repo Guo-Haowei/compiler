@@ -27,6 +27,10 @@ rules = {
     'extern': {
         'defines': [],
         'extra': ['test/extern2.c']
+    },
+    'preproc': {
+        'defines': ['-DCMDPREPROC', '-DTWO=2'],
+        'extra': []
     }
 }
 
@@ -52,14 +56,18 @@ def safe_run(cmdList):
 def test_file(file, compiler):
     print(f'running test {file}.c')
     include_flag = '-I ../include'
+    build_cmd = ''
     if file in rules:
         defines = rules[file]['defines']
+        defines = ' '.join(defines)
         srcs = [f'../test/{file}.c']
         for f in rules[file]['extra']:
             srcs.append(f'../{f}')
-        safe_subprocess(f'./{compiler} {include_flag} {" ".join(srcs)} -o tmp')
+        build_cmd = f'./{compiler} {defines} {include_flag} {" ".join(srcs)} -o tmp'
     else:
-        safe_subprocess(f'./{compiler} {include_flag} ../test/{file}.c -o tmp')
+        build_cmd = f'./{compiler} {include_flag} ../test/{file}.c -o tmp'
+    print(f'running \'{build_cmd}\'')
+    safe_subprocess(build_cmd)
 
     child = subprocess.Popen('./tmp')
     child.communicate()

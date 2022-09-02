@@ -92,6 +92,16 @@ int main()
 
 #warning this is a warning
 
+#if !defined(CMDPREPROC)
+#error CMDPREPROC not defined
+#endif
+
+#if defined(TWO)
+    ASSERT(2, TWO);
+#else
+    ASSERT(0, 1);
+#endif
+
 #if defined(AB) || (1 + 1 == 2)
 #define ABCDE
 #if defined(ABCDE) && 7

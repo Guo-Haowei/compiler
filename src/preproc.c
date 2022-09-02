@@ -332,7 +332,6 @@ static void define(PreprocState* state, List* preprocLine)
 
     Macro* found = find_macro(state, name);
     if (found) {
-        //info_tok(&(found->token), "this is the location of the previous definition");
         error_tok(name, "'%s' redefined", name->raw);
     }
 
@@ -669,10 +668,9 @@ static void postprocess(List* tokens)
     return;
 }
 
-List* preproc(Array* toks, char* includepath)
+List* preproc(Array* toks, char* includepath, Array* predefined)
 {
     assert(includepath);
-    // @TODO: add predefined macro
 
     PreprocState state;
     state.processed = list_new();
@@ -680,6 +678,13 @@ List* preproc(Array* toks, char* includepath)
     state.conditions = list_new();
     state.macros = dict_new();
     state.includepath = includepath;
+
+    // add preproc macros
+    for (int i = 0; i < predefined->len; ++i) {
+        Macro* macro = *array_at(Macro*, predefined, i);
+        bool ok = dict_try_add(state.macros, macro->token.raw, macro);
+        assert(ok);
+    }
 
     // copy all tokens to unprocessed
     for (int i = 0; i < toks->len; ++i) {
@@ -694,20 +699,6 @@ List* preproc(Array* toks, char* includepath)
     Token* eof = new_eof();
     _list_push_back(state.processed, eof, sizeof(Token));
     return state.processed;
-}
-
-void dump_preproc(List* tokens)
-{
-    int curLine = 1;
-    for (ListNode* n = tokens->front; n; n = n->next) {
-        Token* tok = list_node_get(Token, n);
-        if (tok->line != curLine) {
-            printf("%.*s", tok->line - curLine, "\n\n\n\n\n\n");
-            curLine = tok->line;
-        }
-        printf(" %s", tok->raw);
-    }
-    printf("\n");
 }
 
 Token* tr_peek_n(TokenReader* reader, int n)

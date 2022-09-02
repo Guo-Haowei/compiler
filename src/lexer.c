@@ -376,7 +376,7 @@ static void postprocess(Array* toks)
     }
 }
 
-static Array* lex_source_info(SourceInfo* sourceInfo)
+Array* lex_source_info(SourceInfo* sourceInfo)
 {
     Array* cached = fcache_get(sourceInfo->file);
     if (cached) {
@@ -467,7 +467,9 @@ static Array* lex_source_info(SourceInfo* sourceInfo)
 
     postprocess(tokArray);
 
-    fcache_add(sourceInfo->file, tokArray);
+    if (!streq(sourceInfo->file, "<command-line>")) {
+        fcache_add(sourceInfo->file, tokArray);
+    }
     return tokArray;
 }
 
