@@ -135,7 +135,7 @@ void add_type(Node* node)
     }
     if (node->args) {
         for (int i = 0; i < node->args->len; ++i) {
-            Node* n = array_at(Node, node->args, i);
+            Node* n = vector_at(Node, node->args, i);
             add_type(n);
         }
     }

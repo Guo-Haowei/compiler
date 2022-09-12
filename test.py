@@ -12,9 +12,9 @@ rules = {
         'defines': [],
         'extra': ['src/generic/list.c', 'src/utility.c']
     },
-    'unit.array': {
+    'unit.vector': {
         'defines': [],
-        'extra': ['src/generic/array.c']
+        'extra': ['src/generic/vector.c']
     },
     'unit.list': {
         'defines': [],

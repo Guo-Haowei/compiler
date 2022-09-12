@@ -2,9 +2,9 @@ import os
 
 exe_name = 'cc'
 src_files = [
-    'generic/array.c',
     'generic/list.c',
     'generic/dict.c',
+    'generic/vector.c',
     'gen.c',
     'lexer.c',
     'main.c',

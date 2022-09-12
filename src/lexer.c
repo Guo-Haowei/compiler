@@ -3,17 +3,17 @@
 // cache lexed files
 static Dict* s_filecache;
 
-static Array* fcache_get(char* path)
+static Vector* fcache_get(char* path)
 {
     if (!s_filecache) {
         s_filecache = dict_new();
     }
 
-    Array* found = dict_get(s_filecache, path);
+    Vector* found = dict_get(s_filecache, path);
     return found;
 }
 
-static bool fcache_add(char* path, Array* toks)
+static bool fcache_add(char* path, Vector* toks)
 {
     if (!s_filecache) {
         s_filecache = dict_new();
@@ -83,7 +83,7 @@ static void lexer_fill_tok(Lexer* lexer, Token* tok)
     tok->sourceInfo = lexer->sourceInfo;
 }
 
-static void add_int(Lexer* lexer, Array* arr)
+static void add_int(Lexer* lexer, Vector* vec)
 {
     Token tok;
     lexer_fill_tok(lexer, &tok);
@@ -165,7 +165,7 @@ static void add_int(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    array_push_back(Token, arr, tok);
+    vector_push_back(Token, vec, tok);
 }
 
 static char* find_string_end(Lexer* lexer)
@@ -239,7 +239,7 @@ static int read_escaped_char(Lexer* lexer, char** new_pos, char* p)
     return *p;
 }
 
-static void add_char(Lexer* lexer, Array* arr)
+static void add_char(Lexer* lexer, Vector* vec)
 {
     Lexer dummy = *lexer;
     char* start = lexer->p;
@@ -271,10 +271,10 @@ static void add_char(Lexer* lexer, Array* arr)
         lexer_read(lexer);
     }
 
-    array_push_back(Token, arr, tok);
+    vector_push_back(Token, vec, tok);
 }
 
-static void add_string(Lexer* lexer, Array* arr)
+static void add_string(Lexer* lexer, Vector* vec)
 {
     char* start = lexer->p;
     char* end = find_string_end(lexer);
@@ -304,10 +304,10 @@ static void add_string(Lexer* lexer, Array* arr)
     tok.type = array_of(g_char_type, len);
     tok.str = buf;
 
-    array_push_back(Token, arr, tok);
+    vector_push_back(Token, vec, tok);
 }
 
-static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
+static void add_identifier_or_keyword(Lexer* lexer, Vector* vec)
 {
     Token tok;
     lexer_fill_tok(lexer, &tok);
@@ -319,10 +319,10 @@ static void add_identifier_or_keyword(Lexer* lexer, Array* arr)
     }
     tok.len = (int)(lexer->p - tok.p);
 
-    array_push_back(Token, arr, tok);
+    vector_push_back(Token, vec, tok);
 }
 
-static void add_one_char_punct(Lexer* lexer, Array* arr)
+static void add_one_char_punct(Lexer* lexer, Vector* vec)
 {
     Token tok;
     lexer_fill_tok(lexer, &tok);
@@ -331,10 +331,10 @@ static void add_one_char_punct(Lexer* lexer, Array* arr)
     lexer_read(lexer);
     tok.len = 1;
 
-    array_push_back(Token, arr, tok);
+    vector_push_back(Token, vec, tok);
 }
 
-static bool try_add_punct(Lexer* lexer, Array* arr)
+static bool try_add_punct(Lexer* lexer, Vector* vec)
 {
     static char* s_puncts[] = {
         "+=", "++", "-=", "--", "->", "*=", "/=", "%=", "==", "!=", "##", ">=",
@@ -349,7 +349,7 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
             tok.kind = TK_PUNCT;
             tok.len = (int)strlen(s_puncts[i]);
             lexer_shift(lexer, tok.len);
-            array_push_back(Token, arr, tok);
+            vector_push_back(Token, vec, tok);
             return true;
         }
     }
@@ -357,12 +357,12 @@ static bool try_add_punct(Lexer* lexer, Array* arr)
     return false;
 }
 
-static void postprocess(Array* toks)
+static void postprocess(Vector* toks)
 {
     int currentLine = 0;
 
     for (int idx = 0; idx < toks->len; ++idx) {
-        Token* tok = array_at(Token, toks, idx);
+        Token* tok = vector_at(Token, toks, idx);
         assert(tok->kind != TK_EOF);
 
         // copy string
@@ -376,15 +376,15 @@ static void postprocess(Array* toks)
     }
 }
 
-Array* lex_source_info(SourceInfo* sourceInfo)
+Vector* lex_source_info(SourceInfo* sourceInfo)
 {
-    Array* cached = fcache_get(sourceInfo->file);
+    Vector* cached = fcache_get(sourceInfo->file);
     if (cached) {
         return cached;
     }
 
-    Array* tokArray = calloc(1, sizeof(Array));
-    array_init(tokArray, sizeof(Token), 128);
+    Vector* tokens = calloc(1, sizeof(Vector));
+    vector_init(tokens, sizeof(Token), 128);
 
     Lexer lexer;
     lexer.sourceInfo = sourceInfo;
@@ -429,48 +429,48 @@ Array* lex_source_info(SourceInfo* sourceInfo)
 
         // char literal
         if (c == '\'') {
-            add_char(&lexer, tokArray);
+            add_char(&lexer, tokens);
             continue;
         }
 
         // string literal
         if (c == '"') {
-            add_string(&lexer, tokArray);
+            add_string(&lexer, tokens);
             continue;
         }
 
         // decimal number
         if (isdigit(c)) {
-            add_int(&lexer, tokArray);
+            add_int(&lexer, tokens);
             continue;
         }
 
         // identifier
         if (is_ident1(c)) {
-            add_identifier_or_keyword(&lexer, tokArray);
+            add_identifier_or_keyword(&lexer, tokens);
             continue;
         }
 
         // multi-char punct
-        if (try_add_punct(&lexer, tokArray)) {
+        if (try_add_punct(&lexer, tokens)) {
             continue;
         }
 
         // one char punct
         if (strchr("=+-*/%()<>{}.,;&[]#!~&|^:?\\", c) != NULL) {
-            add_one_char_punct(&lexer, tokArray);
+            add_one_char_punct(&lexer, tokens);
             continue;
         }
 
         error_lex(&lexer, "stray '%c' in program", c);
     }
 
-    postprocess(tokArray);
+    postprocess(tokens);
 
     if (!streq(sourceInfo->file, "<command-line>")) {
-        fcache_add(sourceInfo->file, tokArray);
+        fcache_add(sourceInfo->file, tokens);
     }
-    return tokArray;
+    return tokens;
 }
 
 static char* read_file(char* path)
@@ -492,7 +492,7 @@ static char* read_file(char* path)
     return buf;
 }
 
-Array* lex(char* file)
+Vector* lex(char* file)
 {
     SourceInfo* sourceInfo = calloc(1, sizeof(SourceInfo));
 

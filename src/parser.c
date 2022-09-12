@@ -872,7 +872,7 @@ static Node* parse_funccall(ParserState* state)
     Type* paramType = sc->var->type->params;
 
     expect(state, "(");
-    Array* args = array_new(sizeof(Node), 8);
+    Vector* args = vector_new(sizeof(Node), 8);
     while (!consume(state, ")")) {
         if (args->len > 0) {
             expect(state, ",");
@@ -894,7 +894,7 @@ static Node* parse_funccall(ParserState* state)
             paramType = paramType->next;
         }
 
-        _array_push_back(args, arg);
+        _vector_push_back(args, arg);
     }
 
     if (paramType) {

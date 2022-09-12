@@ -1,7 +1,7 @@
 add_executable(cc
-    generic/array.c
     generic/list.c
     generic/dict.c
+    generic/vector.c
     gen.c
     lexer.c
     main.c

@@ -11,8 +11,8 @@ static char* s_outname;
 static bool s_noexe;
 
 typedef struct {
-    Array* files;
-    Array* predefined;
+    Vector* files;
+    Vector* predefined;
 } CommandLine;
 
 static Macro* process_predefined(char* line)
@@ -23,12 +23,12 @@ static Macro* process_predefined(char* line)
     sourceInfo->start = line;
     sourceInfo->len = (int)strlen(line);
     sourceInfo->end = line + sourceInfo->len;
-    Array* tokens = lex_source_info(sourceInfo);
+    Vector* tokens = lex_source_info(sourceInfo);
 
     assert(tokens->len > 0);
 
     Macro* macro = calloc(1, sizeof(Macro));
-    Token* name = array_at(Token, tokens, 0);
+    Token* name = vector_at(Token, tokens, 0);
     if (name->kind != TK_IDENT) {
         error_tok(name, "macro names must be identifiers");
     }
@@ -36,11 +36,11 @@ static Macro* process_predefined(char* line)
     if (tokens->len == 1) {
         return macro;
     }
-    Token* equalSign = array_at(Token, tokens, 1);
+    Token* equalSign = vector_at(Token, tokens, 1);
     assert(is_token_equal(equalSign, "="));
     macro->expandTo = list_new();
     for (int i = 2; i < tokens->len; ++i) {
-        Token* tok = array_at(Token, tokens, i);
+        Token* tok = vector_at(Token, tokens, i);
         _list_push_back(macro->expandTo, tok, sizeof(Token));
     }
 
@@ -60,8 +60,8 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
         }
     }
 
-    cmdLine->files = array_new(sizeof(TranslationUnit), 4);
-    cmdLine->predefined = array_new(sizeof(Macro*), 4);
+    cmdLine->files = vector_new(sizeof(TranslationUnit), 4);
+    cmdLine->predefined = vector_new(sizeof(Macro*), 4);
 
     bool hasError = false;
     bool noS = true;
@@ -99,7 +99,7 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
 
         if (strncmp(arg, "-D", 2) == 0) {
             Macro* macro = process_predefined(arg + 2);
-            array_push_back(Macro*, cmdLine->predefined, macro);
+            vector_push_back(Macro*, cmdLine->predefined, macro);
             ++i;
             continue;
         }
@@ -116,7 +116,7 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
         assert(ext);
         ext[1] = 's';
         ext[2] = 0;
-        array_push_back(TranslationUnit, cmdLine->files, unit);
+        vector_push_back(TranslationUnit, cmdLine->files, unit);
         ++i;
     }
 
@@ -125,9 +125,9 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
     }
 }
 
-static void compile_one(TranslationUnit* unit, Array* predefined)
+static void compile_one(TranslationUnit* unit, Vector* predefined)
 {
-    Array* rawToks = lex(unit->input);
+    Vector* rawToks = lex(unit->input);
     List* toks = preproc(rawToks, s_includepath, predefined);
     Obj* prog = parse(toks);
 
@@ -160,7 +160,7 @@ int main(int argc, char** argv)
     }
 
     for (int i = 0; i < cmdLine.files->len; ++i) {
-        TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
+        TranslationUnit* unit = vector_at(TranslationUnit, cmdLine.files, i);
         compile_one(unit, cmdLine.predefined);
     }
 
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
         char asms[MAX_OSPATH] = { 0 };
         char* p = asms;
         for (int i = 0; i < cmdLine.files->len; ++i) {
-            TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
+            TranslationUnit* unit = vector_at(TranslationUnit, cmdLine.files, i);
             sprintf(p, " %s", unit->output);
             p = asms + strlen(asms);
         }
@@ -179,7 +179,7 @@ int main(int argc, char** argv)
         system(cmd2);
 
         for (int i = 0; i < cmdLine.files->len; ++i) {
-            TranslationUnit* unit = array_at(TranslationUnit, cmdLine.files, i);
+            TranslationUnit* unit = vector_at(TranslationUnit, cmdLine.files, i);
             remove(unit->output);
         }
     }

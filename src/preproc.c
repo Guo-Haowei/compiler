@@ -107,10 +107,10 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
     TokenReader tr;
     tr.cursor = state->unprocessed->front;
     tr_expect(&tr, "(");
-    Array* args = array_new(sizeof(List), 8);
+    Vector* args = vector_new(sizeof(List), 8);
     Token* tok = tr_peek(&tr);
     if (!is_token_equal(tok, ")")) {
-        _array_push_back(args, list_new());
+        _vector_push_back(args, list_new());
     }
 
     int numBrackets = 1;
@@ -125,12 +125,12 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             }
         } else if (is_token_equal(tok, ",")) {
             if (numBrackets == 1) {
-                _array_push_back(args, list_new());
+                _vector_push_back(args, list_new());
                 continue;
             }
         }
 
-        List* list = array_back(args);
+        List* list = vector_back(args);
         assert(list);
         _list_push_back(list, tok, sizeof(Token));
     }
@@ -149,7 +149,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             Token* paste = list_node_get(Token, n);
             int idx = is_node_arg(macro, paste);
             if (idx != -1) {
-                List* argList = array_at(List, args, idx);
+                List* argList = vector_at(List, args, idx);
                 assert(argList->len == 1);
                 assert(tmp->len);
                 paste = list_front(Token, argList);
@@ -176,7 +176,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
                 }
                 isFirst = false;
 
-                List* argList = array_at(List, args, i);
+                List* argList = vector_at(List, args, i);
                 assert(argList);
                 for (ListNode* argNode = argList->front; argNode; argNode = argNode->next) {
                     Token token = *list_node_get(Token, argNode);
@@ -202,7 +202,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             stringToken.isFirstTok = macroName->isFirstTok;
             stringToken.expandedFrom = &macro->token;
 
-            List* argList = array_at(List, args, idx);
+            List* argList = vector_at(List, args, idx);
             assert(argList);
             char* start = list_front(Token, argList)->p;
             Token* last = list_back(Token, argList);
@@ -225,7 +225,7 @@ static void handle_macro_func(PreprocState* state, Macro* macro, Token* macroNam
             expand_token(&token, macroName, &macro->token);
             list_push_back(tmp, token);
         } else {
-            List* argList = array_at(List, args, idx);
+            List* argList = vector_at(List, args, idx);
             assert(argList);
             for (ListNode* argNode = argList->front; argNode; argNode = argNode->next) {
                 Token token = *list_node_get(Token, argNode);
@@ -504,10 +504,10 @@ static void include(PreprocState* state, List* preprocLine)
     }
 
     // include_ok:
-    Array* rawToks = lex(file);
+    Vector* rawToks = lex(file);
     // append arr2 to unprocessed list
     for (int i = rawToks->len - 1; i >= 0; --i) {
-        Token* rawTok = array_at(Token, rawToks, i);
+        Token* rawTok = vector_at(Token, rawToks, i);
         _list_push_front(state->unprocessed, rawTok, sizeof(Token));
     }
 
@@ -668,7 +668,7 @@ static void postprocess(List* tokens)
     return;
 }
 
-List* preproc(Array* toks, char* includepath, Array* predefined)
+List* preproc(Vector* toks, char* includepath, Vector* predefined)
 {
     assert(includepath);
 
@@ -681,14 +681,14 @@ List* preproc(Array* toks, char* includepath, Array* predefined)
 
     // add preproc macros
     for (int i = 0; i < predefined->len; ++i) {
-        Macro* macro = *array_at(Macro*, predefined, i);
+        Macro* macro = *vector_at(Macro*, predefined, i);
         bool ok = dict_try_add(state.macros, macro->token.raw, macro);
         assert(ok);
     }
 
     // copy all tokens to unprocessed
     for (int i = 0; i < toks->len; ++i) {
-        Token* tok = array_at(Token, toks, i);
+        Token* tok = vector_at(Token, toks, i);
         _list_push_back(state.unprocessed, tok, sizeof(Token));
     }
 

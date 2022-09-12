@@ -265,7 +265,7 @@ static void gen_expr(Node* node)
         int regCnt = MIN(argc, 4);
         // first 4 args saved in registers
         for (int i = 0; i < regCnt; ++i) {
-            Node* arg = array_at(Node, node->args, i);
+            Node* arg = vector_at(Node, node->args, i);
             gen_expr(arg);
             push();
         }
@@ -275,7 +275,7 @@ static void gen_expr(Node* node)
         }
 
         for (int i = node->args->len - 1; i >= 4; --i) {
-            Node* arg = array_at(Node, node->args, i);
+            Node* arg = vector_at(Node, node->args, i);
             gen_expr(arg);
             push();
         }

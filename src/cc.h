@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "generic/array.h"
 #include "generic/dict.h"
 #include "generic/list.h"
+#include "generic/vector.h"
 
 #include "utility.h"
 
@@ -104,8 +104,8 @@ struct Token {
     Token* expandedFrom;
 };
 
-Array* lex_source_info(SourceInfo* sourceInfo);
-Array* lex(char* filename);
+Vector* lex_source_info(SourceInfo* sourceInfo);
+Vector* lex(char* filename);
 
 /**
  * preproc.c
@@ -121,7 +121,7 @@ typedef struct {
     bool isVararg;
 } Macro;
 
-List* preproc(Array* toks, char* includepath, Array* predefined);
+List* preproc(Vector* toks, char* includepath, Vector* predefined);
 
 typedef struct {
     ListNode* cursor;
@@ -202,7 +202,7 @@ struct Node {
 
     // Function call
     char* funcname;
-    Array* args;
+    Vector* args;
 
     // Goto or labeled statement
     char* label;
@@ -262,7 +262,7 @@ struct Type {
     Type* base;
     Token* name;
 
-    // Array
+    // Vector
     int arrayLen;
 
     // Struct
