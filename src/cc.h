@@ -18,10 +18,6 @@ typedef struct Type Type;
 typedef struct Member Member;
 typedef struct Token Token;
 
-/**
- * lexer.c
- */
-
 typedef enum {
     TK_IDENT,   // Identifiers
     TK_PUNCT,   // Punctuators
@@ -103,6 +99,48 @@ struct Token {
     int isFirstTok;
     Token* expandedFrom;
 };
+
+/**
+ * lexer.c
+ */
+
+enum {
+    LEVEL_NOTE,
+    LEVEL_WARN,
+    LEVEL_ERROR,
+};
+
+void _error(char* msg);
+void _error_tok(int level, Token* token, char* msg);
+void _info_tok(Token* tok, char* msg);
+
+#define error(...)                               \
+    do {                                         \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error(buf);                             \
+    } while (0)
+
+#define error_tok(TOK, ...)                      \
+    do {                                         \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_tok(LEVEL_ERROR, TOK, buf);       \
+    } while (0)
+
+#define warn_tok(TOK, ...)                       \
+    do {                                         \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_tok(LEVEL_WARN, TOK, buf);        \
+    } while (0)
+
+#define info_tok(TOK, ...)                       \
+    do {                                         \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _info_tok(TOK, buf);                     \
+    } while (0)
 
 Vector* lex_source_info(SourceInfo* sourceInfo);
 Vector* lex(char* filename);
@@ -222,13 +260,6 @@ struct Node {
     int isUnary;
 };
 
-typedef struct {
-    SourceInfo* sourceInfo;
-    char* p;
-    int line;
-    int col;
-} Lexer;
-
 // type
 typedef enum {
     TY_INVALID,
@@ -285,6 +316,14 @@ struct Member {
     int offset;
 };
 
+bool is_token_equal(Token* token, char* symbol);
+
+Node* new_cast(Node* expr, Type* type, Token* tok);
+
+/**
+ * type.c
+ */
+
 extern Type* g_void_type;
 extern Type* g_char_type;
 extern Type* g_short_type;
@@ -303,58 +342,6 @@ Type* array_of(Type* base, int size);
 Type* struct_type();
 void add_type(Node* node);
 Type* enum_type();
-
-bool is_token_equal(Token* token, char* symbol);
-
-Node* new_cast(Node* expr, Type* type, Token* tok);
-
-void gen(Obj* prog, char* srcname, char* asmname);
-
-enum {
-    LEVEL_NOTE,
-    LEVEL_WARN,
-    LEVEL_ERROR,
-};
-
-void _error(char* msg);
-void _error_lex(Lexer* lexer, char* msg);
-void _error_tok(int level, Token* token, char* msg);
-void _info_tok(Token* tok, char* msg);
-
-#define error(...)                               \
-    do {                                         \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _error(buf);                             \
-    } while (0)
-
-#define error_lex(LEXER, ...)                    \
-    do {                                         \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _error_lex(LEXER, buf);                  \
-    } while (0)
-
-#define error_tok(TOK, ...)                      \
-    do {                                         \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _error_tok(LEVEL_ERROR, TOK, buf);       \
-    } while (0)
-
-#define warn_tok(TOK, ...)                       \
-    do {                                         \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _error_tok(LEVEL_WARN, TOK, buf);        \
-    } while (0)
-
-#define info_tok(TOK, ...)                       \
-    do {                                         \
-        char buf[256];                           \
-        snprintf(buf, sizeof(buf), __VA_ARGS__); \
-        _info_tok(TOK, buf);                     \
-    } while (0)
 
 /**
  * parser.c
@@ -382,5 +369,49 @@ typedef struct {
 
 int64_t parse_constexpr(ParserState* state);
 Obj* parse(List* toks);
+
+/**
+ * gen_x86_ir.c
+ */
+
+enum {
+    TARGET_NOT_IN_USE,
+    TARGET_REG,
+    TARGET_IMM,
+    TARGET_LABEL,
+};
+
+typedef struct {
+    int kind;
+    char* name;
+    int64_t imm;
+} Target;
+
+typedef enum {
+    OP_MOV,
+    OP_RET,
+} Op;
+
+typedef struct IRx86 {
+    int opCode;
+    Target lhs;
+    Target rhs;
+} IRx86;
+
+typedef struct {
+    bool isStatic;
+    char* name;
+    Vector* irs;
+} IRx86Func;
+
+// only returns IRFunc for now
+IRx86Func* gen_x86_ir(Obj* prog);
+void gen_x86(IRx86Func* func);
+
+/**
+ * gen.c
+ */
+
+void gen(Obj* prog, char* srcname, char* asmname);
 
 #endif

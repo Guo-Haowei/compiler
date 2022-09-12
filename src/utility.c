@@ -100,7 +100,7 @@ int path_simplify(char* inputPath, char* buf)
         offset += 1;
     }
 
-    int len = strlen(buf) - 1;
+    int len = (int)strlen(buf) - 1;
     buf[len] = 0; // remove last '/'
 
     list_clear(newParts);

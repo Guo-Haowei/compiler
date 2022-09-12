@@ -523,7 +523,7 @@ static void gen_stmt(Node* node)
         gen_expr(node->cond);
         for (Node* n = node->caseNext; n; n = n->caseNext) {
             char* reg = (node->cond->type->size == 8) ? "%rax" : "%eax";
-            int val = n->val;
+            int val = (int)n->val;
             println("  cmp $%d, %s", val, reg);
             println("  je %s", n->label);
         }
