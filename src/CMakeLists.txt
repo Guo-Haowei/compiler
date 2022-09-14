@@ -2,6 +2,7 @@ add_executable(cc
     generic/list.c
     generic/dict.c
     generic/vector.c
+    gen_x86_ir.c
     gen.c
     lexer.c
     main.c

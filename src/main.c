@@ -9,6 +9,7 @@ static char s_includepath[MAX_OSPATH];
 static char* s_exename;
 static char* s_outname;
 static bool s_noexe;
+static bool s_irpass;
 
 typedef struct {
     Vector* files;
@@ -64,7 +65,6 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
     cmdLine->predefined = vector_new(sizeof(Macro*), 4);
 
     bool hasError = false;
-    bool noS = true;
     for (int i = 1; i < argc;) {
         char* arg = argv[i];
 
@@ -90,9 +90,15 @@ static void process_args(int argc, char** argv, CommandLine* cmdLine)
         }
 
         if (strcmp(arg, "-S") == 0) {
-            assert(noS);
-            noS = true;
+            assert(!s_noexe);
             s_noexe = true;
+            ++i;
+            continue;
+        }
+
+        if (strcmp(arg, "-o2") == 0) {
+            assert(!s_irpass);
+            s_irpass = true;
             ++i;
             continue;
         }
@@ -131,7 +137,13 @@ static void compile_one(TranslationUnit* unit, Vector* predefined)
     List* toks = preproc(rawToks, s_includepath, predefined);
     Obj* prog = parse(toks);
 
-    gen(prog, unit->input, unit->output);
+    // only generate IR, but do nothing yet
+    if (s_irpass) {
+        IRx86Func* func = gen_x86_ir(prog);
+        gen_x86(func);
+    } else {
+        gen(prog, unit->input, unit->output);
+    }
 }
 
 int main(int argc, char** argv)

@@ -1,5 +1,21 @@
 #include "cc.h"
 
+typedef struct {
+    SourceInfo* sourceInfo;
+    char* p;
+    int line;
+    int col;
+} Lexer;
+
+static void _error_lex(Lexer* lexer, char* msg);
+
+#define error_lex(LEXER, ...)                    \
+    do {                                         \
+        char buf[256];                           \
+        snprintf(buf, sizeof(buf), __VA_ARGS__); \
+        _error_lex(LEXER, buf);                  \
+    } while (0)
+
 // cache lexed files
 static Dict* s_filecache;
 
@@ -262,7 +278,7 @@ static void add_char(Lexer* lexer, Vector* vec)
     tok.line = lexer->line;
     tok.col = lexer->col;
     tok.p = start;
-    tok.len = end - start;
+    tok.len = (int)(end - start);
     tok.sourceInfo = lexer->sourceInfo;
     tok.val = c;
     tok.type = g_int_type;
@@ -579,7 +595,7 @@ static void verror_at(int level, SourceInfo* info, int line, int col, int span, 
     printf("      |%s%.*s%.*s%s\n", color, col, EMPTYLINE, span, UNDERLINE, KRESET);
 }
 
-void _error_lex(Lexer* lexer, char* msg)
+static void _error_lex(Lexer* lexer, char* msg)
 {
     verror_at(LEVEL_ERROR, lexer->sourceInfo, lexer->line, lexer->col, 1, msg);
     exit(-1);

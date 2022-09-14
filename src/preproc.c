@@ -285,7 +285,7 @@ static void handle_macro(PreprocState* state, Token* start)
         char buf[MAX_OSPATH];
         snprintf(buf, MAX_OSPATH, "\"%s\"", start->str);
         start->raw = strdup(buf);
-        start->type = array_of(g_char_type, strlen(start->sourceInfo->file) + 1);
+        start->type = array_of(g_char_type, (int)strlen(start->sourceInfo->file) + 1);
 
         _list_push_back(state->processed, start, sizeof(Token));
         list_pop_front(state->unprocessed);
@@ -455,7 +455,7 @@ static void if_clause(PreprocState* state, List* preprocLine)
     parserState.reader.cursor = preprocLine->front;
     parserState.macros = state->macros;
 
-    int val = parse_constexpr(&parserState);
+    int val = (int)parse_constexpr(&parserState);
     bool active = is_active(state) && (val != 0);
     CondIf cond = { active };
     list_push_back(state->conditions, cond);
@@ -491,7 +491,7 @@ static void include(PreprocState* state, List* preprocLine)
                 }
 
                 if (pathOk) {
-                    int pathLen = end - start->p - 1;
+                    int pathLen = (int)(end - start->p) - 1;
                     snprintf(file, MAX_OSPATH, "./%s/%.*s", state->includepath, pathLen, start->p + 1);
                     ok = true;
                 }
@@ -635,7 +635,7 @@ static void preproc2(PreprocState* state)
                 }
                 ++end;
             }
-            int len = end - start;
+            int len = (int)(end - start);
             char buf[256];
             snprintf(buf, sizeof(buf), "%.*s", len, start);
             _error_tok(isError ? LEVEL_ERROR : LEVEL_WARN, directive, buf);
