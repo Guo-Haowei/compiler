@@ -389,6 +389,10 @@ typedef struct {
 
 typedef enum {
     OP_MOV,
+    OP_ADD,
+    OP_SUB,
+    OP_PUSH,
+    OP_POP,
     OP_RET,
 } Op;
 
@@ -404,9 +408,9 @@ typedef struct {
     Vector* irs;
 } IRx86Func;
 
-// only returns IRFunc for now
-IRx86Func* gen_x86_ir(Obj* prog);
-void gen_x86(IRx86Func* func);
+// returns a vector of functions
+Vector* gen_x86_ir(Obj* prog);
+void gen_x86(Vector* funcs, char* asmname);
 
 /**
  * gen.c

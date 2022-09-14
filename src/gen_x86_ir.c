@@ -1,5 +1,16 @@
 #include "cc.h"
 
+// @TODO: refactor
+static FILE* s_output;
+
+#define print(...) fprintf(s_output, __VA_ARGS__)
+
+#define println(...)                    \
+    do {                                \
+        fprintf(s_output, __VA_ARGS__); \
+        fprintf(s_output, "\n");        \
+    } while (0)
+
 static IRx86* new_ir(int op)
 {
     IRx86* ir = calloc(1, sizeof(IRx86));
@@ -35,6 +46,30 @@ static void gen_ir_expr(IRx86Func* func, Node* node)
         vector_push_back(IR*, func->irs, ir);
         return;
     }
+    case ND_ADD:
+    case ND_SUB: {
+        gen_ir_expr(func, node->rhs);
+
+        // push rax
+        IRx86* ir = new_ir(OP_PUSH);
+        target_as_reg(&(ir->lhs), "rax");
+        vector_push_back(IR*, func->irs, ir);
+
+        gen_ir_expr(func, node->lhs);
+
+        // pop rdi
+        ir = new_ir(OP_POP);
+        target_as_reg(&(ir->lhs), "rdi");
+        vector_push_back(IR*, func->irs, ir);
+
+        // add op
+        ir = new_ir(node->kind == ND_ADD ? OP_ADD : OP_SUB);
+        target_as_reg(&(ir->lhs), "rax");
+        target_as_reg(&(ir->rhs), "rdi");
+        vector_push_back(IR*, func->irs, ir);
+
+        return;
+    }
     case ND_CAST:
         // TODO: impl cast
         gen_ir_expr(func, node->lhs);
@@ -67,7 +102,7 @@ static void gen_ir_stmt(IRx86Func* func, Node* node)
     }
 }
 
-IRx86Func* gen_x86_ir(Obj* prog)
+Vector* gen_x86_ir(Obj* prog)
 {
     Vector* funcs = vector_new(sizeof(IRx86Func), 4);
 
@@ -91,47 +126,68 @@ IRx86Func* gen_x86_ir(Obj* prog)
         gen_ir_stmt(func, fn->body);
     }
 
-    // dump_ir(irs, stderr);
-    return vector_at(IRx86Func, funcs, 0);
+    return funcs;
 }
 
+// static void emit
+
 // @TODO: move to other file
-void gen_x86(IRx86Func* fn)
+
+void gen_x86(Vector* funcs, char* asmname)
 {
-    printf("  .intel_syntax noprefix\n");
+    s_output = fopen(asmname, "w");
 
-    // @TODO refactor
-    printf("  .text\n");
-    if (!fn->isStatic) {
-        printf("  .global %s\n", fn->name);
-    }
-    printf("%s:\n", fn->name);
+    println("  .intel_syntax noprefix");
 
-    // Prologue
-    // println("  push %%rbp");
-    // println("  mov %%rsp, %%rbp");
-    // println("  sub $%d, %%rsp", fn->stackSize);
-
-    for (int i = 0; i < fn->irs->len; ++i) {
-        IRx86* ir = *vector_at(IRx86*, fn->irs, i);
-        switch (ir->opCode) {
-        case OP_RET:
-            printf("  ret\n");
-            break;
-        case OP_MOV:
-            assert(ir->lhs.kind == TARGET_REG);
-            assert(ir->rhs.kind == TARGET_IMM);
-            printf("  mov %s, %lld\n", ir->lhs.name, ir->rhs.imm);
-            break;
-        default:
-            error("opcode %d is not valid\n", ir->opCode);
-            break;
+    for (int i = 0; i < funcs->len; ++i) {
+        IRx86Func* fn = vector_at(IRx86Func, funcs, i);
+        println("  .text");
+        if (!fn->isStatic) {
+            println("  .global %s", fn->name);
         }
+        println("%s:", fn->name);
+
+        // Prologue
+        // println("  push %%rbp");
+        // println("  mov %%rsp, %%rbp");
+        // println("  sub $%d, %%rsp", fn->stackSize);
+
+        for (int i = 0; i < fn->irs->len; ++i) {
+            IRx86* ir = *vector_at(IRx86*, fn->irs, i);
+            switch (ir->opCode) {
+            case OP_RET:
+                println("  ret");
+                break;
+            case OP_MOV:
+                assert(ir->lhs.kind == TARGET_REG);
+                assert(ir->rhs.kind == TARGET_IMM);
+                println("  mov %s, %lld", ir->lhs.name, ir->rhs.imm);
+                break;
+            case OP_ADD:
+                println("  add %s, %s", ir->lhs.name, ir->rhs.name);
+                break;
+            case OP_SUB:
+                println("  sub %s, %s", ir->lhs.name, ir->rhs.name);
+                break;
+            case OP_PUSH:
+                println("  push %s", ir->lhs.name);
+                break;
+            case OP_POP:
+                println("  pop %s", ir->lhs.name);
+                break;
+            default:
+                error("opcode %d is not valid\n", ir->opCode);
+                break;
+            }
+        }
+
+        // Epilogue
+        // println(".L.return.%s:", fn->name);
+        // println("  mov %%rbp, %%rsp");
+        // println("  pop %%rbp");
+        // println("  ret");
     }
 
-    // Epilogue
-    // println(".L.return.%s:", fn->name);
-    // println("  mov %%rbp, %%rsp");
-    // println("  pop %%rbp");
-    // println("  ret");
+    fclose(s_output);
+    s_output = NULL;
 }

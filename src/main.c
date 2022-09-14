@@ -139,8 +139,8 @@ static void compile_one(TranslationUnit* unit, Vector* predefined)
 
     // only generate IR, but do nothing yet
     if (s_irpass) {
-        IRx86Func* func = gen_x86_ir(prog);
-        gen_x86(func);
+        Vector* funcs = gen_x86_ir(prog);
+        gen_x86(funcs, unit->output);
     } else {
         gen(prog, unit->input, unit->output);
     }
